@@ -510,7 +510,7 @@ The complete source is at the SSCCS nexus repository [@nex-tagma], with integrat
 
 ### Benchmark: Tagma vs SHA-256
 
-Latency comparison for 100,000 identity generation operations on an Apple M4 (3 nm), single-threaded, compiled with `rustc` in release mode. Both operations use identical input data; the compiler is prevented from eliminating dead code through `std::hint::black_box`.
+Latency comparison for 100,000 identity generation operations on an Apple M1, single-threaded, compiled with `rustc` in release mode. Both operations use identical input data; the compiler is prevented from eliminating dead code through `std::hint::black_box`.
 
 ```{python}
 #| label: fig-bench-latency
