@@ -1,7 +1,8 @@
 author:
-  - name: SSCCS Foundation
-    corresponding: true 
-    email: tagma@ssccs.org
+  - name: Taeho Lee
+    corresponding: true
+    email: lee@ssccs.org
+    role: "Founder \\& Architect"
     affiliations:
       - name: SSCCS Foundation
         domain: ssccs.org
