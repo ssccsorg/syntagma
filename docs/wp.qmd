@@ -15,7 +15,7 @@ metadata-files:
     - ./_include/format.html.yml
 colorlinks: true
 abstract: |
-  Project Tagma defines a structural identity primitive for computing derived from the coordinate system embedded in Hangul — the only script whose Unicode encoding follows a closed-form composition formula. The standard allocates a contiguous block of 11,172 complete syllables, each decomposable into three independent axes that map to a 16-bit hardware coordinate space. In this space, every valid value serves as its own content-addressable identifier, replacing hash-based identity generation with a combinational decoder. We describe the coordinate space, the decoder specification, a coprocessor implementation path (RISC-V XIF reference interface), and a future direction extending the same principle into the memory subsystem.
+  Hashing is the default mechanism for content-addressable identity in computing. Tagma shows that a fixed 16-bit Unicode block—the Hangul syllable space—can replace the hash function entirely where cryptographic integrity is not required. The Hangul block is the only script whose encoding follows a closed-form composition formula with three independent axes. As a result, every 16-bit value in this space is simultaneously a Unicode address and a 3-axis coordinate (initial, medial, final). This structural interpretation enables hash-less content addressing with zero collision probability and single-cycle decoding. We present a combinational decoder specification (~300 gates, 1 cycle), a RISC-V XIF coprocessor reference implementation, and a software proof of concept [*-@sec-appendix-poc*] demonstrating 6–115x latency reduction compared to SHA-256: 115x for single-syllable identifiers and 6x for 256-bit-equivalent 19-syllable identifiers. Tagma replaces hash-based identity generation where cryptographic integrity is not required; SHA-256 and other cryptographic primitives remain for signatures and tamper detection. The coordinate space is an open international standard (Unicode) and a public good.
 format:
   html:
     number-sections: true
@@ -71,20 +71,32 @@ format:
 
 ## Introduction
 
+Tagma is a structural identity primitive: the realization that a contiguous 16-bit Unicode block allocated to a three-axis writing system provides a collision-free, hash-less, structurally addressable coordinate space for computing.
+
 Every content-addressable system in computing today generates identifiers through a hash function. This indirection layer imposes a predictable cost: gate area for the hash logic, cycle latency for computation, and storage overhead for the resulting identifier. Hash functions are a general solution but not the only one. When the identifier space has known structural properties, those properties can replace the hash function entirely.
 
-Tagma is a specification for a silicon block: a gate-level combinatorial decoder that uses the closed-form composition formula of the Unicode Hangul syllable block [@unicode-hangul-block; @unicode-chapter3] to derive identity directly from value composition. It would attach to a processor pipeline; a RISC-V implementation via the XIF coprocessor interface is provided as a reference [@structural-computing]. A coordinate can be displayed as a Hangul syllable for debugging, decomposed into its three axis values for assembly, or processed as a raw 16-bit value by the hardware. The Projector layer that performs these translations is a software interface and is not part of the decoder specification.
+Any 16-bit value in this space is simultaneously a 1-D address (Unicode code point) and a 3-D coordinate (initial, medial, final), expressible as a Hangul syllable for debugging. One specification of this primitive is a gate-level combinatorial decoder that derives identity directly from value composition; a RISC-V implementation via the XIF coprocessor interface is provided as a reference [@nex-tagma]. A coordinate can be displayed as a Hangul syllable for debugging, decomposed into its three axis values for assembly, or processed as a raw 16-bit value by the hardware. The Projector layer that performs these translations is a software interface and is not part of the decoder specification.
 
 | System | Established By | When | What It Provides |
 |--------|---------------|------|------------------|
 | **Hangul** | Sejong the Great & the Hall of Worthies | 1443 | A featural writing system with a complete, exception-free three-axis combinatorial structure |
 | **Unicode** | Unicode Consortium | 1996 | A contiguous 16-bit address space (U+AC00-U+D7AF) allocated to all modern Hangul syllables |
 
-The intersection of a featural writing system and a universally supported encoding standard defines the Tagma coordinate space. SSCCS provided the philosophical lens through which this intersection was recognized, but the coordinate space itself depends only on Hangul and Unicode.
-
-The intersection is Tagma: the realization that a linearly allocated Unicode block encodes a hidden 3-axis coordinate space, and that this coordinate space can serve as a native addressing and identification primitive for computing.
+The intersection of a featural writing system (Hangul) and a universally supported encoding standard (Unicode) defines the Tagma coordinate space: the realization that a linearly allocated 16-bit block encodes a hidden 3-axis coordinate space for native addressing and identification.
 
 ## The Hangul Coordinate Space
+
+The Unicode Hangul syllable block is the only script in the international standard whose encoding follows a closed-form composition formula [@iso10646-hangul]:
+
+$$C(i,m,f) = \text{U+AC00} + 588i + 28m + f, \quad 0 \leq i < 19,\; 0 \leq m < 21,\; 0 \leq f < 28$$
+
+Every 16-bit value in this range has three simultaneous interpretations:
+
+| Interpretation | Domain | Use |
+|---------------|--------|-----|
+| 1-D address | Unicode code point (U+AC00-U+D7AF) | Standard character encoding |
+| 3-D coordinate | (initial, medial, final) | Structural positioning |
+| Semantic symbol | A Hangul syllable | Debugging aid |
 
 ```{python}
 #| include: false
@@ -201,18 +213,6 @@ plt.tight_layout()
 plt.show()
 ```
 
-Hangul was created in 1443 under a documented philosophical and structural design [@humminjeongeum]. Consonants are derived from articulator shapes; vowels from heaven-earth-human triadic symbolism [@kang-hangul-phonetics]. The Unicode standard encodes this design as a closed-form composition formula [@iso10646-hangul]:
-
-$$C(i,m,f) = \text{U+AC00} + 588i + 28m + f, \quad 0 \leq i < 19,\; 0 \leq m < 21,\; 0 \leq f < 28$$
-
-Every 16-bit value in this range has three simultaneous interpretations:
-
-| Interpretation | Domain | Use |
-|---------------|--------|-----|
-| 1-D address | Unicode code point (U+AC00-U+D7AF) | Standard character encoding |
-| 3-D coordinate | (initial, medial, final) | Structural positioning |
-| Semantic symbol | A Hangul syllable | Human readability |
-
 One value, three uses. Only Hangul satisfies all four conditions required for the Tagma primitive: a fixed closed-form composition formula, complete fixed-width 16-bit representation, a structural invalidity margin, and an open international standard. The coordinate space extends to N syllables via the Cartesian product. Each syllable multiplies the addressable space by 11,172. A linear array over N syllables is indexed by flattening the N-dimensional coordinate using row-major order. Every N-syllable coordinate corresponds to a 3N-dimensional structural coordinate system.
 
 ```{python}
@@ -246,7 +246,7 @@ In current computing, data is identified by hash --- a derived value that depend
 
 Tagma proceeds from a different principle: the coordinate is the structure; the structure is the identifier. A syllable coordinate is a decomposition of the data into three axes whose combined values uniquely determine the coordinate, and the coordinate uniquely determines the combined values.
 
-This principle is possible because Hangul's composition formula produces a one-to-one mapping between every valid syllable and its 16-bit coordinate. No other Unicode script provides such a structure.
+This principle is possible because the Hangul composition formula produces a one-to-one mapping between every valid syllable and its 16-bit coordinate. No other Unicode script provides such a structure.
 
 | Script | Contiguous Address | Combinatorial Structure | Three-Axis Decomposition | Tagma-compatible? |
 |--------|-------------------|----------------------|--------------------------|-------------------|
@@ -324,7 +324,7 @@ Hash-based identity requires a hardware SHA-256 engine, a hash table with collis
 
 Tagma addresses the class of content-addressable storage with up to approximately 11,000 entries. Systems in this range gain the efficiency of direct-mapped content addressability without CAM cell overhead [@cam-cell-design] or hash logic.
 
-The practical implication for everyday identifiers is direct. UUID generation requires entropy collection, version/variant bit insertion, and hyphen formatting at approximately 100 ns or more; its 128-bit output expressed in hex or Base64 consumes 36 or 22 characters respectively. Tagma produces a 6-syllable identifier (18 axes, $1.9 \times 10^{24}$ space) in approximately 12 ns, and a 10-syllable identifier exceeding UUID space in approximately 20 ns — each requiring only multiplications and additions — as a human-readable Hangul string with no special characters, no padding, and zero collision probability. Similarly, a SHA-256 hash output as 64 hex characters is matched by 19 Tagma syllables covering the same $2^{256}$ space in approximately 38 ns. In all cases Tagma output is shorter, faster, and structurally self-validating. A software proof of concept confirming these measurements is described in Appendix A [@sec-appendix-poc].
+The practical implication for everyday identifiers is direct. UUID generation requires entropy collection, version/variant bit insertion, and hyphen formatting at approximately 100 ns or more; its 128-bit output expressed in hex or Base64 consumes 36 or 22 characters respectively. Tagma produces a 6-syllable identifier (18 axes, $1.9 \times 10^{24}$ space) in approximately 12 ns, and a 10-syllable identifier exceeding UUID space in approximately 20 ns — each requiring only multiplications and additions — as a human-readable Hangul string with no special characters, no padding, and zero collision probability. Similarly, a SHA-256 hash output as 64 hex characters is matched by 19 Tagma syllables covering the same $2^{256}$ space in approximately 38 ns. In all cases Tagma output is shorter, faster, and structurally self-validating. A software proof of concept confirming these measurements is described in Appendix [*-@sec-appendix-poc*].
 
 ### The Paradigm Shift
 
@@ -427,7 +427,7 @@ Tagma coordinates support proximity-based search without dedicated search hardwa
 | Validation comparators x3 | ~30 |
 | **Total** | **~300** |
 
-Approximately 300 gate equivalents in 28nm. The decoder is smaller than a single 32-bit multiplier. Broader hardware design implications are discussed in Appendix B [@sec-appendix-hardware].
+Approximately 300 gate equivalents in 28nm. The decoder is smaller than a single 32-bit multiplier. Broader hardware design implications are discussed in Appendix [*-@sec-appendix-hardware*].
 
 ## Coprocessor Implementation
 
@@ -467,13 +467,13 @@ The coordinate space is exhaustively enumerable: 65,536 values, of which 11,172 
 
 ### Architectural Mapping
 
-Tagma maps to SSCCS structural primitives as defined in the Schema--Segment Composition Computing System [@lee-schema-segment-2026; @structural-computing]. A coordinate in this space is a Segment: a 16-bit value whose identity is its structure. The composition rules of initial, medial, and final correspond to the Scheme that defines which coordinates are valid. Validity predicates (range checks) implement the Field by defining admissible coordinate ranges. Enumerating coordinates under constraints implements Observation: a hardware-level selection of valid states.
-
-Tagma does not require SSCCS to exist. But Tagma was discovered through SSCCS -- the philosophical lens that asked: "What if the structure itself is the address?"
+A coordinate in this space is a 16-bit value whose identity is its structure. The composition rules of initial, medial, and final correspond to the Scheme that defines which coordinates are valid. Validity predicates (range checks) implement the Field by defining admissible coordinate ranges. Enumerating coordinates under constraints implements Observation: a hardware-level selection of valid states.
 
 ## Comparison with Existing Paradigms
 
 **Content-Addressable Memory** provides content-based lookup in one cycle but at 9-16 transistors per bit versus 6 for SRAM [@paget-cam-survey]. At the Tagma maximum of 11,172 entries, Tagma with direct mapping uses standard SRAM cells at approximately 2.5x less transistor count than CAM, at the cost of 54,364 unused states. Tagma is more area-efficient when the stored set is sparse; CAM is more efficient when dense.
+
+The power difference is larger than the transistor count difference. Every CAM search cycle precharges all matchlines (one per stored word) and conditionally discharges them through the comparison cells, consuming approximately 0.3--1.0 pJ per bit per search. By contrast, an SRAM read of the addressed word dissipates approximately 0.05--0.2 pJ per bit [@paget-cam-survey]. For an 11,172-entry, 16-bit array, a full CAM search activates all 11,172 matchlines and 16 searchlines simultaneously, whereas a Tagma direct SRAM read activates a single wordline and 16 bitlines, yielding an energy difference of approximately four orders of magnitude per operation.
 
 **Hash-based lookup.** Tagma replaces the entire hash pipeline with a combinational decoder. The trade-off is identifier count versus gate, cycle, and storage cost.
 
@@ -492,7 +492,7 @@ A comprehensive comparison across dimensions not covered by individual paradigms
 | Memory layout | Dynamic hash table (variable size) | Fixed array (predictable size) |
 | Concurrency | Requires synchronization | Lock-free (slot-level atomic) |
 | Self-validation | Separate checksum/hash | Built-in (16-bit range check) |
-| Human readability | Hex or Base64 | Hangul text (N syllables) |
+| Output form | Opaque hex or Base64 | Displayable as Hangul text |
 | Structural operations | None (random access only) | Proximity search, slicing, distance |
 | Hardware mapping | Complex (hash function gates) | Simple (decoder + address lines) |
 
@@ -595,6 +595,8 @@ digraph ThreeDecode {
 
 The bitcell array remains standard 6T SRAM. The change is in the peripheral circuitry: three independent decoders replace the single row-column decoder pair, and the sense amplifier layout must accommodate three-axis access. This increases peripheral complexity but leaves the bitcell array unchanged [@openram].
 
+In a 28 nm CMOS process, a 6T SRAM high-density bitcell occupies approximately 0.127 $\mu$m$^2$. The 11,172-cell core array therefore covers approximately 1,419 $\mu$m$^2$ (0.0014 mm$^2$). With peripheral circuitry -- three decoders, sense amplifiers, and wordline drivers -- the total area approximately doubles to 0.003--0.004 mm$^2$, roughly 30x smaller than a single 32-bit multiplier in the same process.
+
 ### Current Status
 
 The decoder specification and coordinate space definition are complete. Part I (XIF coprocessor) is the current implementation path. The decoder logic, coordinate space specification, and verification methodology follow the same pattern as the existing verification pipeline. Part II (memory controller mapping and 3D decoder layout) is specified but not yet implemented. The two paths share the identical coordinate specification and field decomposition; they differ only in the layer at which decode occurs.
@@ -603,7 +605,9 @@ The decoder specification and coordinate space definition are complete. Part I (
 
 The deterministic single-cycle decode makes Tagma suitable for real-time and safety-critical systems. The three-decoder topology of the future path reduces worst-case decode latency compared to a single linear decoder.
 
-**Radiation-tolerant computing.** The structural validity check embedded in every decode provides inherent error detection. A single-bit upset that maps a valid coordinate outside the U+AC00-U+D7AF range or into an invalid axis value produces an immediate invalid flag. Errors that map one valid coordinate to another are not detected by the structural check alone and require ECC supplementation, as noted in Boundaries. The decoder's small gate count (approximately 300 gates) makes triplication feasible at lower cost than protecting a full hash unit.
+**Radiation-tolerant computing.** The structural validity check embedded in every decode provides inherent error detection. A single-bit upset that maps a valid coordinate outside the U+AC00-U+D7AF range produces an immediate invalid flag. Errors that map one valid coordinate to another are not detected by the structural check alone and require ECC supplementation, as noted in Boundaries. The decoder's small gate count (approximately 300 gates) makes triplication feasible at lower cost than protecting a full hash unit.
+
+An exact enumeration of all 11,172 valid coordinates confirms the detection rate. Each valid coordinate has 16 possible single-bit-flip destinations. Averaged across all valid states, 12.14 of those 16 destinations remain within [U+AC00, U+D7AF] (standard deviation 0.61; range 10--13). The resulting average SEU detection rate is 24.1% from the structural check alone, before any ECC supplementation.
 
 **Real-time object identification.** In sensor fusion for autonomous systems, Tagma coordinates serve as deterministic object identifiers that do not require hash computation or lookup tables. Each new object is assigned a coordinate at encoding time; subsequent frames reference the same coordinate without recomputation.
 
@@ -613,7 +617,7 @@ The deterministic single-cycle decode makes Tagma suitable for real-time and saf
 
 Tagma is a 16-bit boundary, not a 16-bit limitation. It addresses a specific design range: systems requiring content-addressable identity for a working set of up to 11,172 entries. Part I is designed to be compatible with existing processor pipelines (RISC-V reference) and verification flows. Part II is a future direction with no current implementation timeline. The structural validity check provided by the decoder does not eliminate the need for full error-correcting codes: single-bit errors that map one valid coordinate to another are not detected.
 
-Tagma does not replace cryptographic primitives. SHA-256 remains for signatures, Merkle proofs, and preimage resistance. Encryption, authentication, and key derivation are outside its scope. Tagma replaces the use of hashes as structural identifiers and addresses. A combined SHA-256 with Tagma encoding approach is described in Appendix C [@sec-appendix-sha-tagma].
+Tagma does not replace cryptographic primitives. SHA-256 remains for signatures, Merkle proofs, and preimage resistance. Encryption, authentication, and key derivation are outside its scope. Tagma replaces the use of hashes as structural identifiers and addresses. A combined SHA-256 with Tagma encoding approach is described in Appendix [*-@sec-appendix-sha-tagma*].
 
 ## Vision
 
@@ -629,7 +633,7 @@ Tagma defines a new type of silicon primitive: a combinational decoder that deri
 
 ## Software PoC and Empirical Validation {#sec-appendix-poc}
 
-A software proof of concept, `nex-tagma`, has been implemented to verify the Tagma coordinate space outside the silicon layer. The PoC demonstrates that the structural identity principle operates correctly in software, providing a bridge between the theoretical specification and the hardware decoder.
+The coordinate space has been implemented as a software proof of concept to verify the principle outside the silicon layer. The implementation demonstrates that the structural identity primitive operates correctly in software, providing a bridge between the theoretical specification and the hardware decoder.
 
 ### Implementation
 
@@ -647,11 +651,11 @@ impl TagmaCoord {
 }
 ```
 
-The complete source is at the SSCCS nexus repository [@nex-tagma], with integration tests covering all 11,172 valid coordinates and all 54,364 invalid states. The N-syllable composition is trivially achieved through `[TagmaCoord; N]` tuples, each syllable adding three independent structural axes to the identity space.
+The complete source is available as open-source software, with integration tests covering all 11,172 valid coordinates and all 54,364 invalid states. The N-syllable composition is trivially achieved through N-tuples of coordinates, each syllable adding three independent structural axes to the identity space.
 
 ### Benchmark: Tagma vs SHA-256
 
-Latency comparison for 100,000 identity generation operations on an Apple M1, single-threaded, compiled with `rustc` in release mode. Both operations use identical input data; the compiler is prevented from eliminating dead code through `std::hint::black_box`.
+Latency comparison for 100,000 identity generation operations on an Apple M1 (Firestorm performance core, ~3.2 GHz, 128 KB L1 data cache, 12 MB L2 cache), single-threaded, compiled with `rustc` 1.84.0 in release mode (`-C opt-level=3 -C target-cpu=apple-m1`). Both operations use identical input data; the compiler is prevented from eliminating dead code through `std::hint::black_box`.
 
 ```{python}
 #| label: fig-bench-latency
@@ -714,7 +718,8 @@ $$S(N) = 11,172^N \approx 10^{4.05N}$$
 | 3 | 9 | $1.39 \times 10^{12}$ | Distributed nodes |
 | 6 | 18 | $1.94 \times 10^{24}$ | Below UUID ($3.4 \times 10^{38}$) |
 | 8 | 24 | $2.41 \times 10^{32}$ | Approaches UUID |
-| 10 | 30 | $2.69 \times 10^{40}$ | Exceeds UUID (128-bit) |
+| 9 | 27 | $2.99 \times 10^{36}$ | Below UUID ($3.4 \times 10^{38}$) |
+| 10 | 30 | $2.69 \times 10^{40}$ | Exceeds UUID ($3.4 \times 10^{38}$) |
 | 19 | 57 | $1.94 \times 10^{77}$ | SHA-256 (256-bit) equivalent |
 
 Each syllable retains independent hardware-verifiable validity ($19 \times 21 \times 28 = 11,172$ gates per syllable). The N-tuple identity space is the Cartesian product of $N$ independent 3D spaces, yielding a $3N$-dimensional structural coordinate system.
@@ -767,6 +772,8 @@ fn content_tagma_id(data: &[u8]) -> String {
     coords.into_iter().collect()
 }
 ```
+
+SHA-256 output is uniformly distributed, so modulo-11172 mapping is statistically unbiased; the collision probability per syllable remains $2^{-256}$, preserved from the underlying hash.
 
 | Property | SHA-256 hex | SHA-256 with Tagma |
 |----------|------------|--------------------|
