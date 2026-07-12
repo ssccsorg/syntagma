@@ -41,6 +41,7 @@ format:
         \usepackage{xeCJK}
         \setCJKmainfont{Noto Sans CJK KR}
         \addtokomafont{disposition}{\rmfamily}
+        \geometry{bottom=1.6cm, footskip=1cm}
         \input{./_files/wp_metadata.tex}
         \DeclareTOCStyleEntry[beforeskip=6pt]{default}{section}
         \DeclareTOCStyleEntry[beforeskip=0pt]{default}{subsection}
@@ -191,8 +192,8 @@ for coord in range(0, 33, 8):
     ax.plot([coord, coord], [0, 31], [0, 0], color='#dddddd', linewidth=0.3, zorder=-1)
     ax.plot([0, 31], [coord, coord], [0, 0], color='#dddddd', linewidth=0.3, zorder=-1)
 
-ax.dist = 7
-ax.view_init(elev=22, azim=-65)
+ax.dist = 5.5
+ax.view_init(elev=28, azim=-65)
 ax.legend(loc='upper left', fontsize='small', facecolor='white', edgecolor='#999999', framealpha=0.95)
 plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
 plt.show()
@@ -218,10 +219,7 @@ Every other encoding uses atomic assignments inherited from ASCII. Within the BM
 
 ## The Encoding Problem
 
-::: {.cell layout="[[40,60]]"}
-
-Variable-length encoding has architectural consequences that are independent of any particular implementation. Memory alignment is not guaranteed. Instruction decoding must detect boundary positions. Prefetch and pipeline efficiency are affected. These are structural properties of variable-length design, not engineering limitations.
-
+::: {.cell layout="[[50,50]]"}
 
 ```{python}
 #| label: fig-encoding
@@ -244,6 +242,11 @@ digraph EncodingHierarchy {
 }
 """)
 ```
+
+Variable-length encoding has architectural consequences that are independent of any particular implementation. Memory alignment is not guaranteed. Instruction decoding must detect boundary positions. Prefetch and pipeline efficiency are affected. These are structural properties of variable-length design, not engineering limitations.
+
+The structural constraint in Tagma arises from the fixed formula by which Hangul syllables are composed. As established in the Hangul Coordinate Space section, only 11,172 of 65,536 states satisfy the composition formula. A hardware decoder can distinguish valid from invalid states using combinational logic derived from that formula.
+
 :::
 
 | Encoding | Storage unit | Addressable symbols | Wasted bits/unit | Fixed alignment | Structural HW check |
@@ -254,10 +257,6 @@ digraph EncodingHierarchy {
 | UTF-16 (BMP) | 2 bytes | 63,488 of 65,536 | 2,048 reserved | no | no |
 | UTF-32 | 4 bytes | unlimited | 75-88% for common use | yes | no |
 | **Tagma** | **2 bytes** | **11,172 of 65,536** | **none** | **yes** | **yes (54,364 invalid)** |
-
-The structural constraint in Tagma arises from the fixed formula by which Hangul syllables are composed. As established in the Hangul Coordinate Space section, only 11,172 of 65,536 states satisfy the composition formula. A hardware decoder can distinguish valid from invalid states using combinational logic derived from that formula.
-
-Emoji are the most visible counterexample to the principle behind Tagma. They are Unicode-standard but structurally amorphous: each emoji is an atomic assignment with no internal axes, scattered across multiple supplementary planes at 21-bit addresses. There is no closed-form formula to map a 16-bit value to a valid emoji and back. They cannot serve as a hardware coordinate space. This contrast emphasizes that Hangul's structural regularity, not Unicode membership, is what enables the Tagma primitive.
 
 ## The Identity Problem
 
@@ -413,9 +412,7 @@ digraph DecoderFlow {
 | 4 | `remainder \div 28` | medial | 0-20 |
 | 5 | `remainder \bmod 28` | final | 0-27 |
 
-**Stage 3: Validation.** Three comparators check: initial < 19, medial < 21, final < 28. Any failure sets the invalid flag.
-
-Tagma coordinates support proximity-based search without dedicated search hardware. Given two coordinates, the field-wise Hamming distance is computed by three banks of parallel XOR gates. This enables associative lookup without hash tables, B-trees, or CAM cells.
+**Stage 3: Validation.** Three comparators check: initial < 19, medial < 21, final < 28. Any failure sets the invalid flag. Tagma coordinates support proximity-based search without dedicated search hardware. Given two coordinates, the field-wise Hamming distance is computed by three banks of parallel XOR gates. This enables associative lookup without hash tables, B-trees, or CAM cells.
 
 | Component | Gates |
 |-----------|-------|
@@ -474,36 +471,11 @@ A coordinate in this space is a 16-bit value whose identity is its structure. Th
 
 The power difference is larger than the transistor count difference. Every CAM search cycle precharges all matchlines (one per stored word) and conditionally discharges them through the comparison cells, consuming approximately 0.3--1.0 pJ per bit per search. By contrast, an SRAM read of the addressed word dissipates approximately 0.05--0.2 pJ per bit [@paget-cam-survey]. For an 11,172-entry, 16-bit array, a full CAM search activates all 11,172 matchlines and 16 searchlines simultaneously, whereas a Tagma direct SRAM read activates a single wordline and 16 bitlines, yielding an energy difference of approximately four orders of magnitude per operation.
 
-**Hash-based lookup.** Tagma replaces the entire hash pipeline with a combinational decoder. The trade-off is identifier count versus gate, cycle, and storage cost.
-
-**Linear memory.** Pointer-based addressing has zero generation cost and no collision, but provides no content-addressability. Tagma would provide content-addressability at the hardware level, with the address derived from structure rather than location.
-
-**Fixed-length RISC instructions.** The RISC-V ISA solved the variable-length instruction decode problem with 32-bit fixed-length encoding [@riscv-unpriv]. Tagma applies the same principle to data identifiers: fixed-length, self-decodable, structurally verifiable.
-
-A comprehensive comparison across dimensions not covered by individual paradigms above:
-
-::: {tbl-colwidths="[20, 35, 45]"}
-
-| Attribute | Traditional (Hash-based) | Tagma |
-|-----------|------------------------|-------|
-| Identifier generation | Hash (thousands of cycles) | Arithmetic (1-2 cycles) |
-| Collision resistance | Probabilistic (finite hash space) | Guaranteed (coordinate is unique) |
-| Memory layout | Dynamic hash table (variable size) | Fixed array (predictable size) |
-| Concurrency | Requires synchronization | Lock-free (slot-level atomic) |
-| Self-validation | Separate checksum/hash | Built-in (16-bit range check) |
-| Output form | Opaque hex or Base64 | Displayable as Hangul text |
-| Structural operations | None (random access only) | Proximity search, slicing, distance |
-| Hardware mapping | Complex (hash function gates) | Simple (decoder + address lines) |
-
-:::
-
-In addition to the differentiators listed above, structural coordinates enable two capabilities unavailable to hash-based addressing:
-
-::: {.cell}
+::: {.cell layout="[[50,50]]"}
 
 ```{python}
 #| label: fig-venn
-#| fig-cap: "Tagma positioning relative to existing identity and addressing infrastructure. SHA-256 provides cryptographic integrity; UUID provides decentralized generation; HashMap provides key-value lookup. Tagma occupies the structural coordinate space, replacing the hash-based addressing role in all three while leaving cryptographic functions to SHA-256."
+#| fig-cap: "Tagma occupies the structural coordinate space, replacing the hash-based addressing role in all three while leaving cryptographic functions to SHA-256."
 dot("""
 digraph TagmaPosition {
     rankdir=LR;
@@ -520,6 +492,31 @@ digraph TagmaPosition {
 }
 """)
 ```
+
+Tagma positioning relative to existing identity and addressing infrastructure. SHA-256 provides cryptographic integrity; UUID provides decentralized generation; HashMap provides key-value lookup.
+
+**Hash-based lookup.** Tagma replaces the entire hash pipeline with a combinational decoder. The trade-off is identifier count versus gate, cycle, and storage cost.
+
+**Linear memory.** Pointer-based addressing has zero generation cost and no collision, but provides no content-addressability. Tagma would provide content-addressability at the hardware level, with the address derived from structure rather than location.
+
+**Fixed-length RISC instructions.** The RISC-V ISA solved the variable-length instruction decode problem with 32-bit fixed-length encoding [@riscv-unpriv]. Tagma applies the same principle to data identifiers: fixed-length, self-decodable, structurally verifiable.
+
+:::
+
+A comprehensive comparison across dimensions not covered by individual paradigms above:
+
+::: {tbl-colwidths="[20, 35, 45]"}
+
+| Attribute | Traditional (Hash-based) | Tagma |
+|-----------|------------------------|-------|
+| Identifier generation | Hash (thousands of cycles) | Arithmetic (1-2 cycles) |
+| Collision resistance | Probabilistic (finite hash space) | Guaranteed (coordinate is unique) |
+| Memory layout | Dynamic hash table (variable size) | Fixed array (predictable size) |
+| Concurrency | Requires synchronization | Lock-free (slot-level atomic) |
+| Self-validation | Separate checksum/hash | Built-in (16-bit range check) |
+| Output form | Opaque hex or Base64 | Displayable as Hangul text |
+| Structural operations | None (random access only) | Proximity search, slicing, distance |
+| Hardware mapping | Complex (hash function gates) | Simple (decoder + address lines) |
 
 :::
 
