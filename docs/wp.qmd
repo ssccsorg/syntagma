@@ -111,10 +111,9 @@ Every valid 16-bit value carries **three simultaneous interpretations**: a 1-D U
 
 :::
 
-::: {.cell layout="[[40, 60]]"}
+::: {.cell layout="[[35, 65]]"}
 
 One value, three uses. Only Hangul satisfies all four conditions required for the Tagma primitive: a fixed closed-form composition formula, complete fixed-width 16-bit representation, a structural invalidity margin, and an open international standard. The coordinate space extends to N syllables via the Cartesian product. Each syllable multiplies the addressable space by 11,172. A linear array over N syllables is indexed by flattening the N-dimensional coordinate using row-major order. Every N-syllable coordinate corresponds to a 3N-dimensional structural coordinate system.
-
 
 ```{python}
 #| include: false
@@ -205,13 +204,11 @@ plt.show()
 
 :::
 
-## Why Hangul Is Irreplaceable
+## Structural, Irreplaceable Uniqueness
 
 Tagma requires the simultaneous satisfaction of four properties: a contiguous fixed-width 16-bit address range, a closed-form composition formula, a complete three-axis decomposition, and an open international standard. The absence of any single property makes a Tagma-compatible coordinate space impossible.
 
-Hangul satisfies all four. Every other Unicode script fails at least one:
-
-Computing standards are language-neutral and culture-neutral universal assets. Arabic numerals (0--9) belong to no single nation yet underpin every numerical operation in every instruction set. Unicode follows the same principle: it is an international standard that assigns each script a fixed address in a shared encoding space, treating all writing systems equally. Because Hangul resides on the Basic Multilingual Plane (Plane 0) --- Unicode's foundational layer that every implementation must support --- Tagma is universally compatible without requiring supplementary planes or special handling.
+Hangul satisfies all four. Every other Unicode script fails at least one --- but Hangul alone is sufficient only because Unicode, like Arabic numerals, is a universal standard that belongs to no single culture. Because the Hangul syllable block resides on Unicode's Basic Multilingual Plane (Plane 0) --- the foundational layer that every implementation must support --- Tagma is universally compatible without requiring supplementary planes or special handling.
 
 | Script | Contiguous Address | Combinatorial Structure | Three-Axis Decomposition | Tagma-compatible? |
 |--------|-------------------|----------------------|--------------------------|-------------------|
