@@ -180,7 +180,7 @@ ax.text(18.5, 20.5, 30, 'U+AC00 .. U+D7AF\n11,172 valid coordinates',
 ax.set_xlabel('Initial (choseong)', fontsize=11)
 ax.set_ylabel('Medial (jungseong)', fontsize=11)
 ax.set_zlabel('Final (jongseong)', fontsize=11)
-ax.set_xlim(-1, 33); ax.set_ylim(-1, 33); ax.set_zlim(-1, 33)
+ax.set_xlim(-1, 33); ax.set_ylim(-1, 33); ax.set_zlim(-3, 31)
 ax.xaxis.set_major_locator(plt.MaxNLocator(5))
 ax.yaxis.set_major_locator(plt.MaxNLocator(5))
 ax.zaxis.set_major_locator(plt.MaxNLocator(5))
@@ -218,9 +218,10 @@ Every other encoding uses atomic assignments inherited from ASCII. Within the BM
 
 ## The Encoding Problem
 
+::: {.cell layout="[[40,60]]"}
+
 Variable-length encoding has architectural consequences that are independent of any particular implementation. Memory alignment is not guaranteed. Instruction decoding must detect boundary positions. Prefetch and pipeline efficiency are affected. These are structural properties of variable-length design, not engineering limitations.
 
-::: {.cell layout="[[40,60]]"}
 
 ```{python}
 #| label: fig-encoding
@@ -243,6 +244,7 @@ digraph EncodingHierarchy {
 }
 """)
 ```
+:::
 
 | Encoding | Storage unit | Addressable symbols | Wasted bits/unit | Fixed alignment | Structural HW check |
 |----------|-------------|-------------------|----------------|-----------------|---------------------|
@@ -252,8 +254,6 @@ digraph EncodingHierarchy {
 | UTF-16 (BMP) | 2 bytes | 63,488 of 65,536 | 2,048 reserved | no | no |
 | UTF-32 | 4 bytes | unlimited | 75-88% for common use | yes | no |
 | **Tagma** | **2 bytes** | **11,172 of 65,536** | **none** | **yes** | **yes (54,364 invalid)** |
-
-:::
 
 The structural constraint in Tagma arises from the fixed formula by which Hangul syllables are composed. As established in the Hangul Coordinate Space section, only 11,172 of 65,536 states satisfy the composition formula. A hardware decoder can distinguish valid from invalid states using combinational logic derived from that formula.
 
