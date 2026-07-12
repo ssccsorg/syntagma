@@ -83,7 +83,7 @@ Computing standards are language-neutral and culture-neutral universal assets. A
 | **Hangul** | Sejong the Great & the Hall of Worthies | 1443 | A featural writing system with a complete, **exception-free three-axis** combinatorial structure |
 | **Unicode** | Unicode Consortium | 1996 | A **contiguous** 16-bit address space (U+AC00-U+D7AF) allocated to all modern Hangul syllables |
 
-Every content-addressable system today generates identifiers through a hash function. This indirection layer imposes a predictable cost: gate area, cycle latency, storage overhead, and probabilistic collision resolution. Tagma shows that this fixed 16-bit block can replace the hash function entirely where cryptographic integrity is not required, using a combinational decoder (~300 gates, 1 cycle). A RISC-V implementation via the XIF coprocessor interface serves as the reference [@nex-tagma].
+Every content-addressable system today generates identifiers through a hash function. This indirection layer imposes a predictable cost: gate area, cycle latency, storage overhead, and probabilistic collision resolution. Tagma shows that this fixed 16-bit block can replace the hash function entirely where cryptographic integrity is not required, using a combinational decoder (~300 gates, 1 cycle). [@nex-tagma].
 
 [^tagma]: Pre-release (Apache 2.0) repository: [GitHub](https://github.com/ssccsorg/tagma), containing the foundational core library and reference implementations.
 
@@ -111,7 +111,7 @@ Every valid 16-bit value carries **three simultaneous interpretations**: a 1-D U
 
 :::
 
-::: {.cell layout="[[35, 65]]"}
+::: {.cell layout="[[40, 60]]"}
 
 One value, three uses. Only Hangul satisfies all four conditions required for the Tagma primitive: a fixed closed-form composition formula, complete fixed-width 16-bit representation, a structural invalidity margin, and an open international standard. The coordinate space extends to N syllables via the Cartesian product. Each syllable multiplies the addressable space by 11,172. A linear array over N syllables is indexed by flattening the N-dimensional coordinate using row-major order. Every N-syllable coordinate corresponds to a 3N-dimensional structural coordinate system.
 
@@ -196,7 +196,7 @@ for coord in range(0, 33, 8):
     ax.plot([coord, coord], [0, 31], [0, 0], color='#dddddd', linewidth=0.3, zorder=-1)
     ax.plot([0, 31], [coord, coord], [0, 0], color='#dddddd', linewidth=0.3, zorder=-1)
 
-ax.view_init(elev=22, azim=-55)
+ax.view_init(elev=22, azim=35)
 ax.legend(loc='upper left', fontsize='small', facecolor='white', edgecolor='#999999', framealpha=0.95)
 plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
 plt.show()
