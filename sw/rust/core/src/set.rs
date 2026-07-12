@@ -103,8 +103,30 @@ impl TagmaSet {
 
     /// The maximum number of elements the set can hold (always 11 172).
     #[inline]
-    pub const fn capacity() -> usize {
+    pub const fn capacity(&self) -> usize {
         TagmaCoord::N_VALID
+    }
+
+    /// Returns a reference to the coordinate if present (mirrors `HashSet::get`).
+    #[inline]
+    pub fn get<'a>(&self, coord: &'a TagmaCoord) -> Option<&'a TagmaCoord> {
+        if self.contains(*coord) { Some(coord) } else { None }
+    }
+
+    /// Removes and returns the coordinate if present (mirrors `HashSet::take`).
+    #[inline]
+    pub fn take(&mut self, coord: &TagmaCoord) -> Option<TagmaCoord> {
+        if self.remove(*coord) { Some(*coord) } else { None }
+    }
+
+    /// Retains only the coordinates satisfying the predicate.
+    pub fn retain<F: FnMut(&TagmaCoord) -> bool>(&mut self, mut f: F) {
+        for i in 0..TagmaCoord::N_VALID {
+            let coord = TagmaCoord::new(i as u16).unwrap();
+            if self.contains(coord) && !f(&coord) {
+                self.remove(coord);
+            }
+        }
     }
 }
 
@@ -498,5 +520,67 @@ mod tests {
     fn default_is_empty() {
         let set: TagmaSet = Default::default();
         assert!(set.is_empty());
+    }
+
+    #[test]
+    fn get_present() {
+        let mut set = TagmaSet::new();
+        let c = TagmaCoord::new(42).unwrap();
+        set.insert(c);
+        assert_eq!(set.get(&c), Some(&c));
+    }
+
+    #[test]
+    fn get_absent() {
+        let set = TagmaSet::new();
+        assert_eq!(set.get(&TagmaCoord::new(0).unwrap()), None);
+    }
+
+    #[test]
+    fn take_present() {
+        let mut set = TagmaSet::new();
+        let c = TagmaCoord::new(42).unwrap();
+        set.insert(c);
+        assert_eq!(set.take(&c), Some(c));
+        assert!(!set.contains(c));
+    }
+
+    #[test]
+    fn take_absent() {
+        let mut set = TagmaSet::new();
+        assert_eq!(set.take(&TagmaCoord::new(0).unwrap()), None);
+    }
+
+    #[test]
+    fn retain_all() {
+        let mut set = TagmaSet::new();
+        for i in 0u16..10 { set.insert(TagmaCoord::new(i).unwrap()); }
+        set.retain(|_| true);
+        assert_eq!(set.len(), 10);
+    }
+
+    #[test]
+    fn retain_odd() {
+        let mut set = TagmaSet::new();
+        for i in 0u16..10 { set.insert(TagmaCoord::new(i).unwrap()); }
+        set.retain(|c| c.index() % 2 == 0);
+        assert_eq!(set.len(), 5);
+        for i in 0u16..10 {
+            let c = TagmaCoord::new(i).unwrap();
+            assert_eq!(set.contains(c), i % 2 == 0);
+        }
+    }
+
+    #[test]
+    fn retain_empty() {
+        let mut set = TagmaSet::new();
+        set.retain(|_| true);
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn capacity_instance() {
+        let set = TagmaSet::new();
+        assert_eq!(set.capacity(), 11172);
     }
 }
