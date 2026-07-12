@@ -205,13 +205,13 @@ plt.show()
 
 :::
 
-## Philosophical Grounding
+## Why Hangul Is Irreplaceable
 
-In current computing, data is identified by hash --- a derived value that depends on the data but is not the data itself. The identifier is separate from the structure it identifies. This indirection has costs: generation time, collision probability, lookup infrastructure.
+Tagma requires the simultaneous satisfaction of four properties: a contiguous fixed-width 16-bit address range, a closed-form composition formula, a complete three-axis decomposition, and an open international standard. The absence of any single property makes a Tagma-compatible coordinate space impossible.
 
-Tagma proceeds from a different principle: the coordinate is the structure; the structure is the identifier. A syllable coordinate is a decomposition of the data into three axes whose combined values uniquely determine the coordinate, and the coordinate uniquely determines the combined values.
+Hangul satisfies all four. Every other Unicode script fails at least one:
 
-This principle is possible because the Hangul composition formula produces a one-to-one mapping between every valid syllable and its 16-bit coordinate. No other Unicode script provides such a structure.
+Computing standards are language-neutral and culture-neutral universal assets. Arabic numerals (0--9) belong to no single nation yet underpin every numerical operation in every instruction set. Unicode follows the same principle: it is an international standard that assigns each script a fixed address in a shared encoding space, treating all writing systems equally. Because Hangul resides on the Basic Multilingual Plane (Plane 0) --- Unicode's foundational layer that every implementation must support --- Tagma is universally compatible without requiring supplementary planes or special handling.
 
 | Script | Contiguous Address | Combinatorial Structure | Three-Axis Decomposition | Tagma-compatible? |
 |--------|-------------------|----------------------|--------------------------|-------------------|
@@ -221,9 +221,7 @@ This principle is possible because the Hangul composition formula produces a one
 | CJK Unified Ideographs | Y U+4E00-U+9FFF | N (infinite, irregular) | N | No |
 | Arabic | Y U+0600-U+06FF | N | N | No |
 
-Every other encoding uses atomic assignments inherited from ASCII [@kim-hangul-unicode].
-
-Hangul occupies the Basic Multilingual Plane (Plane 0), Unicode's foundational layer. Every Unicode implementation supports BMP by definition, making Tagma universally compatible without requiring supplementary planes or special handling. Within the BMP, Hangul holds the same architectural rank as the Latin alphabet --- both are primary scripts in the core encoding. Unlike Latin, Hangul embeds three structural axes into each code point.
+Every other encoding uses atomic assignments inherited from ASCII. Within the BMP, Hangul holds the same architectural rank as the Latin alphabet --- both are primary scripts in the core encoding. Unlike Latin, Hangul embeds three structural axes into each code point.
 
 ## The Encoding Problem
 
