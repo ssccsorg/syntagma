@@ -6,4 +6,4 @@ license = "Apache-2.0"
 description = "Tagma native serialization format: self-validating, printable encoding via Hangul syllable space"
 
 [dependencies]
-tagma-core = { path = "../core" }
+tagma-core.workspace = true

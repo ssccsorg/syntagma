@@ -3,10 +3,10 @@ name = "tagma-benchmarks"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "Tagma performance benchmarks: TagmaMap vs std HashMap"
+description = "Tagma performance benchmarks: CoordMap vs std HashMap"
 
 [dependencies]
-tagma-core = { path = "../core" }
+tagma-core.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5" }

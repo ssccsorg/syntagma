@@ -13,10 +13,10 @@
 extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
-use tagma_core::TagmaCoord;
+use tagma_core::Coord;
 
 /// The number of distinct syllables used by this encoding (11172).
-pub const N_SYLLABLES: u32 = TagmaCoord::N_VALID as u32;
+pub const N_SYLLABLES: u32 = Coord::N_VALID as u32;
 
 // ---------------------------------------------------------------------------
 // Encoding
@@ -29,8 +29,8 @@ pub const N_SYLLABLES: u32 = TagmaCoord::N_VALID as u32;
 pub fn encode_u16(v: u16) -> [char; 2] {
     let hi = (v as u32) / N_SYLLABLES;
     let lo = (v as u32) % N_SYLLABLES;
-    let c0 = TagmaCoord::new(hi as u16).unwrap_or_else(|| TagmaCoord::new(0).unwrap());
-    let c1 = TagmaCoord::new(lo as u16).unwrap_or_else(|| TagmaCoord::new(0).unwrap());
+    let c0 = Coord::new(hi as u16).unwrap_or_else(|| Coord::new(0).unwrap());
+    let c1 = Coord::new(lo as u16).unwrap_or_else(|| Coord::new(0).unwrap());
     [c0.to_char(), c1.to_char()]
 }
 
@@ -60,8 +60,8 @@ pub fn encode_bytes(bytes: &[u8]) -> String {
 /// Returns `None` if either character is outside the valid Hangul syllable
 /// block (U+AC00..U+D7AF).
 pub fn decode_pair(c0: char, c1: char) -> Option<u16> {
-    let coord0 = TagmaCoord::from_char(c0)?;
-    let coord1 = TagmaCoord::from_char(c1)?;
+    let coord0 = Coord::from_char(c0)?;
+    let coord1 = Coord::from_char(c1)?;
     Some((coord0.index() as u32 * N_SYLLABLES + coord1.index() as u32) as u16)
 }
 

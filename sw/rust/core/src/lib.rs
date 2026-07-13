@@ -6,6 +6,6 @@ pub mod coord;
 pub mod map;
 pub mod set;
 
-pub use coord::TagmaCoord;
-pub use map::TagmaMap;
-pub use set::TagmaSet;
+pub use coord::Coord;
+pub use map::CoordMap;
+pub use set::CoordSet;

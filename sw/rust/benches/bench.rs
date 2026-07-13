@@ -4,17 +4,17 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 // Helpers
 // ---------------------------------------------------------------------------
 
-const N: usize = tagma_core::TagmaCoord::N_VALID;
+const N: usize = tagma_core::Coord::N_VALID;
 
 /// Generate N pre-computed valid coordinates.
-fn all_coords() -> Vec<tagma_core::TagmaCoord> {
+fn all_coords() -> Vec<tagma_core::Coord> {
     (0..N as u16)
-        .map(|i| tagma_core::TagmaCoord::new(i).unwrap())
+        .map(|i| tagma_core::Coord::new(i).unwrap())
         .collect()
 }
 
 /// N coordinates in random order.
-fn shuffled_coords() -> Vec<tagma_core::TagmaCoord> {
+fn shuffled_coords() -> Vec<tagma_core::Coord> {
     use rand::seq::SliceRandom;
     let mut rng = rand::thread_rng();
     let mut coords = all_coords();
@@ -29,7 +29,7 @@ fn mixed_workload(count: usize) -> Vec<MixedOp> {
     let mut rng = rand::thread_rng();
     let mut ops = Vec::with_capacity(count);
     for _ in 0..count {
-        let coord = tagma_core::TagmaCoord::new(rng.gen_range(0..N as u16)).unwrap();
+        let coord = tagma_core::Coord::new(rng.gen_range(0..N as u16)).unwrap();
         let kind = rng.gen_range(0..4);
         ops.push(MixedOp { coord, kind });
     }
@@ -37,7 +37,7 @@ fn mixed_workload(count: usize) -> Vec<MixedOp> {
 }
 
 struct MixedOp {
-    coord: tagma_core::TagmaCoord,
+    coord: tagma_core::Coord,
     kind: u8, // 0=insert, 1=get, 2=remove, 3=update
 }
 
@@ -49,7 +49,7 @@ fn bench_tagma_insert_all(c: &mut Criterion) {
     let coords = all_coords();
     c.bench_function("TagmaMap/insert/all_11172", |b| {
         b.iter(|| {
-            let mut map = tagma_core::TagmaMap::new();
+            let mut map = tagma_core::CoordMap::new();
             for &coord in &coords {
                 black_box(map.insert(coord, coord.index()));
             }
@@ -75,7 +75,7 @@ fn bench_tagma_insert_random(c: &mut Criterion) {
     let coords = shuffled_coords();
     c.bench_function("TagmaMap/insert/random_11172", |b| {
         b.iter(|| {
-            let mut map = tagma_core::TagmaMap::new();
+            let mut map = tagma_core::CoordMap::new();
             for &coord in &coords {
                 black_box(map.insert(coord, coord.index()));
             }
@@ -103,7 +103,7 @@ fn bench_std_insert_random(c: &mut Criterion) {
 
 fn bench_tagma_get_all(c: &mut Criterion) {
     let coords = all_coords();
-    let mut map = tagma_core::TagmaMap::new();
+    let mut map = tagma_core::CoordMap::new();
     for &coord in &coords {
         map.insert(coord, coord.index());
     }
@@ -137,7 +137,7 @@ fn bench_std_get_all(c: &mut Criterion) {
 
 fn bench_tagma_overwrite_all(c: &mut Criterion) {
     let coords = all_coords();
-    let mut map = tagma_core::TagmaMap::new();
+    let mut map = tagma_core::CoordMap::new();
     for &coord in &coords {
         map.insert(coord, 0);
     }
@@ -171,7 +171,7 @@ fn bench_std_overwrite_all(c: &mut Criterion) {
 
 fn bench_tagma_remove_all(c: &mut Criterion) {
     let coords = all_coords();
-    let mut map = tagma_core::TagmaMap::new();
+    let mut map = tagma_core::CoordMap::new();
     for &coord in &coords {
         map.insert(coord, coord.index());
     }
@@ -209,7 +209,7 @@ fn bench_std_remove_all(c: &mut Criterion) {
 
 fn bench_tagma_iter(c: &mut Criterion) {
     let coords = all_coords();
-    let mut map = tagma_core::TagmaMap::new();
+    let mut map = tagma_core::CoordMap::new();
     for &coord in &coords {
         map.insert(coord, coord.index());
     }
@@ -245,7 +245,7 @@ fn bench_tagma_entry(c: &mut Criterion) {
     let coords = all_coords();
     c.bench_function("TagmaMap/entry/all_11172", |b| {
         b.iter(|| {
-            let mut map = tagma_core::TagmaMap::new();
+            let mut map = tagma_core::CoordMap::new();
             for &coord in &coords {
                 map.entry(coord).or_insert_with(|| coord.index());
             }
@@ -273,7 +273,7 @@ fn bench_std_entry(c: &mut Criterion) {
 
 fn bench_tagma_retain_half(c: &mut Criterion) {
     let coords = all_coords();
-    let mut map = tagma_core::TagmaMap::new();
+    let mut map = tagma_core::CoordMap::new();
     for &coord in &coords {
         map.insert(coord, coord.index());
     }
@@ -307,7 +307,7 @@ fn bench_std_retain_half(c: &mut Criterion) {
 
 fn bench_tagma_drain_all(c: &mut Criterion) {
     let coords = all_coords();
-    let mut map = tagma_core::TagmaMap::new();
+    let mut map = tagma_core::CoordMap::new();
     for &coord in &coords {
         map.insert(coord, coord.index());
     }
@@ -344,8 +344,8 @@ fn bench_std_drain_all(c: &mut Criterion) {
 // ===========================================================================
 
 fn bench_tagma_get_single(c: &mut Criterion) {
-    let coord = tagma_core::TagmaCoord::new(5000).unwrap();
-    let mut map = tagma_core::TagmaMap::new();
+    let coord = tagma_core::Coord::new(5000).unwrap();
+    let mut map = tagma_core::CoordMap::new();
     map.insert(coord, 42u64);
     let map = map; // freeze
 
@@ -358,7 +358,7 @@ fn bench_tagma_get_single(c: &mut Criterion) {
 
 fn bench_std_get_single(c: &mut Criterion) {
     use std::collections::HashMap;
-    let coord = tagma_core::TagmaCoord::new(5000).unwrap();
+    let coord = tagma_core::Coord::new(5000).unwrap();
     let mut map = HashMap::new();
     map.insert(coord, 42u64);
     let map = map;
@@ -371,10 +371,10 @@ fn bench_std_get_single(c: &mut Criterion) {
 }
 
 fn bench_tagma_insert_single(c: &mut Criterion) {
-    let coord = tagma_core::TagmaCoord::new(5000).unwrap();
+    let coord = tagma_core::Coord::new(5000).unwrap();
     c.bench_function("TagmaMap/insert/single", |b| {
         b.iter(|| {
-            let mut map = tagma_core::TagmaMap::new();
+            let mut map = tagma_core::CoordMap::new();
             black_box(map.insert(black_box(coord), 42u64));
         })
     });
@@ -382,7 +382,7 @@ fn bench_tagma_insert_single(c: &mut Criterion) {
 
 fn bench_std_insert_single(c: &mut Criterion) {
     use std::collections::HashMap;
-    let coord = tagma_core::TagmaCoord::new(5000).unwrap();
+    let coord = tagma_core::Coord::new(5000).unwrap();
     c.bench_function("HashMap/insert/single", |b| {
         b.iter(|| {
             let mut map = HashMap::new();
@@ -397,7 +397,7 @@ fn bench_std_insert_single(c: &mut Criterion) {
 
 fn bench_tagma_mixed_500k(c: &mut Criterion) {
     let ops = mixed_workload(500_000);
-    let map = tagma_core::TagmaMap::new();
+    let map = tagma_core::CoordMap::new();
 
     c.bench_function("TagmaMap/stress/mixed_500k", |b| {
         b.iter(|| {
@@ -426,7 +426,7 @@ fn bench_tagma_mixed_500k(c: &mut Criterion) {
 fn bench_std_mixed_500k(c: &mut Criterion) {
     use std::collections::HashMap;
     let ops = mixed_workload(500_000);
-    let map: HashMap<tagma_core::TagmaCoord, u32> = HashMap::new();
+    let map: HashMap<tagma_core::Coord, u32> = HashMap::new();
 
     c.bench_function("HashMap/stress/mixed_500k", |b| {
         b.iter(|| {

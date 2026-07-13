@@ -5,3 +5,6 @@ members = [
     "base11172",
     "benches",
 ]
+
+[workspace.dependencies]
+tagma-core = { path = "core" }
