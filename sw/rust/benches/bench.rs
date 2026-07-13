@@ -473,39 +473,39 @@ fn bench_baseline_iterate(c: &mut Criterion) {
 
 criterion_group!(
     name = inserts;
-    config = Criterion::default().sample_size(100).measurement_time(std::time::Duration::from_secs(20));
+    config = Criterion::default();
     targets = bench_tagma_insert_all, bench_std_insert_all,
               bench_tagma_insert_random, bench_std_insert_random
 );
 criterion_group!(
     name = lookup;
-    config = Criterion::default().sample_size(100).measurement_time(std::time::Duration::from_secs(20));
+    config = Criterion::default();
     targets = bench_tagma_get_all, bench_std_get_all,
               bench_tagma_overwrite_all, bench_std_overwrite_all
 );
 criterion_group!(
     name = mutate;
-    config = Criterion::default().sample_size(100).measurement_time(std::time::Duration::from_secs(20));
+    config = Criterion::default();
     targets = bench_tagma_remove_all, bench_std_remove_all,
               bench_tagma_entry, bench_std_entry,
               bench_tagma_retain_half, bench_std_retain_half
 );
 criterion_group!(
     name = iterate;
-    config = Criterion::default().sample_size(100).measurement_time(std::time::Duration::from_secs(20));
+    config = Criterion::default();
     targets = bench_tagma_iter, bench_std_iter,
               bench_tagma_drain_all, bench_std_drain_all,
               bench_baseline_iterate
 );
 criterion_group!(
     name = micro;
-    config = Criterion::default().sample_size(1000).measurement_time(std::time::Duration::from_secs(6));
+    config = Criterion::default().sample_size(200);
     targets = bench_tagma_get_single, bench_std_get_single,
               bench_tagma_insert_single, bench_std_insert_single
 );
 criterion_group!(
     name = stress;
-    config = Criterion::default().sample_size(30).measurement_time(std::time::Duration::from_secs(30));
+    config = Criterion::default().sample_size(30).measurement_time(std::time::Duration::from_secs(10));
     targets = bench_tagma_mixed_500k, bench_std_mixed_500k
 );
 
