@@ -1,6 +1,7 @@
 use crate::coord::Coord;
 use crate::path::CoordPath;
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 // ---------------------------------------------------------------------------
 // TreeMap: hash-less, collision-free N-level address table (N>1)
@@ -9,13 +10,12 @@ use alloc::boxed::Box;
 /// A hash-less, collision-free, N-level address table indexed by [`CoordPath`]
 /// for N > 1. Requires a heap allocator.
 ///
-/// For single-syllable addressing without heap allocation, use [`FlatMap`].
+/// For single-syllable addressing without heap allocation, use [`CoordMap`].
 ///
 /// # Depth
 ///
 /// | `N`  | Identifier space | Typical use |
 /// |------|-----------------|-------------|
-/// | 1    | 11,172          | Sensor tags, basic KV (flat array) |
 /// | 2    | 1.25 × 10⁸     | Small KV |
 /// | 6    | 1.94 × 10²⁴    | UUID-scale |
 /// | 12   | 2.41 × 10⁶⁷    | Between UUID and SHA-256 |
@@ -26,169 +26,104 @@ use alloc::boxed::Box;
 /// Every level is a direct array index into 11,172 slots:
 ///
 /// ```text
-/// N=1:  slots[coord₀]                          → O(1) array access
 /// N=2:  root.branch[coord₀].leaf[coord₁]       → 2 array accesses
 /// N=6:  root.branch[coord₀]...[leaf][coord₅]   → 6 array accesses
 /// ```
 ///
 /// No hashing, no collision resolution at any depth.
-#[derive(Clone, Debug)]
 pub struct TreeMap<const N: usize, V> {
     root: Node<V>,
     len: usize,
 }
 
-/// A single node in the tree.
+/// A single node in the tree — zero unsafe code.
 ///
-/// - Leaf node (`depth == N`): `items` holds `[Option<V>; 11172]`.
-/// - Branch node (`depth < N`): `items` holds `[Option<Box<Node<V>>>; 11172]`.
-///
-/// The `depth` field is used only for run-time assertions in debug builds;
-/// it is zero-sized in release builds.
-#[derive(Clone, Debug)]
-struct Node<V> {
-    // We use a type-erased pointer to store either:
-    //   N=1: Box<[Option<V>; 11172]>
-    //   N>1: Box<[Option<Box<Node<V>>>; 11172]>
-    items: *mut (),
-    is_leaf: bool,
-    _marker: core::marker::PhantomData<V>,
+/// - `Leaf`: boxed slice of 11,172 `Option<V>` slots.
+/// - `Branch`: boxed slice of 11,172 `Option<Box<Node<V>>>` slots.
+enum Node<V> {
+    Leaf(Box<[Option<V>]>),
+    Branch(Box<[Option<Box<Node<V>>>]>),
 }
-
-// SAFETY: Node<V> owns its items. Send + Sync follow V.
-unsafe impl<V: Send> Send for Node<V> {}
-unsafe impl<V: Sync> Sync for Node<V> {}
 
 impl<V> Node<V> {
-    /// Creates a leaf node (stores values directly).
+    #[inline]
     fn new_leaf() -> Self {
-        let arr: Box<[Option<V>; 11172]> = unsafe { new_null_array() };
-        Node {
-            items: Box::into_raw(arr) as *mut (),
-            is_leaf: true,
-            _marker: core::marker::PhantomData,
-        }
+        Node::Leaf((0..11172).map(|_| None).collect::<Vec<_>>().into_boxed_slice())
     }
 
-    /// Creates a branch node (stores child pointers).
+    #[inline]
     fn new_branch() -> Self {
-        let arr: Box<[Option<Box<Node<V>>>; 11172]> = unsafe { new_null_array() };
-        Node {
-            items: Box::into_raw(arr) as *mut (),
-            is_leaf: false,
-            _marker: core::marker::PhantomData,
-        }
+        Node::Branch((0..11172).map(|_| None).collect::<Vec<_>>().into_boxed_slice())
     }
 
-    /// Returns a reference to the value at `index`.
     #[inline]
     fn get_value(&self, index: usize) -> Option<&V> {
-        debug_assert!(self.is_leaf);
-        // SAFETY: self.items is Box<[Option<V>; 11172]> when is_leaf is true.
-        unsafe {
-            let arr = &*(self.items as *const [Option<V>; 11172]);
-            (*arr)[index].as_ref()
+        match self {
+            Node::Leaf(s) => s[index].as_ref(),
+            Node::Branch(_) => unreachable!(),
         }
     }
 
-    /// Returns a mutable reference to the value at `index`.
     #[inline]
     fn get_value_mut(&mut self, index: usize) -> Option<&mut V> {
-        debug_assert!(self.is_leaf);
-        unsafe {
-            let arr = &mut *(self.items as *mut [Option<V>; 11172]);
-            (*arr)[index].as_mut()
+        match self {
+            Node::Leaf(s) => s[index].as_mut(),
+            Node::Branch(_) => unreachable!(),
         }
     }
 
-    /// Takes the value at `index`, returning it.
     #[inline]
     fn take_value(&mut self, index: usize) -> Option<V> {
-        debug_assert!(self.is_leaf);
-        unsafe {
-            let arr = &mut *(self.items as *mut [Option<V>; 11172]);
-            (*arr)[index].take()
+        match self {
+            Node::Leaf(s) => s[index].take(),
+            Node::Branch(_) => unreachable!(),
         }
     }
 
-    /// Sets the value at `index`, returning the previous value.
     #[inline]
     fn set_value(&mut self, index: usize, value: V) -> Option<V> {
-        debug_assert!(self.is_leaf);
-        unsafe {
-            let arr = &mut *(self.items as *mut [Option<V>; 11172]);
-            let old = (*arr)[index].take();
-            (*arr)[index] = Some(value);
-            old
+        match self {
+            Node::Leaf(s) => {
+                let old = s[index].take();
+                s[index] = Some(value);
+                old
+            }
+            Node::Branch(_) => unreachable!(),
         }
     }
 
-    /// Returns a reference to the child at `index`.
     #[inline]
     fn get_child(&self, index: usize) -> Option<&Node<V>> {
-        debug_assert!(!self.is_leaf);
-        unsafe {
-            let arr = &*(self.items as *const [Option<Box<Node<V>>>; 11172]);
-            (*arr)[index].as_deref()
+        match self {
+            Node::Branch(s) => s[index].as_deref(),
+            Node::Leaf(_) => unreachable!(),
         }
     }
 
-    /// Returns a mutable reference to the child at `index`, or `None` if absent.
     #[inline]
     fn get_child_mut_existing(&mut self, index: usize) -> Option<&mut Node<V>> {
-        debug_assert!(!self.is_leaf);
-        unsafe {
-            let arr = &mut *(self.items as *mut [Option<Box<Node<V>>>; 11172]);
-            (*arr)[index].as_deref_mut()
+        match self {
+            Node::Branch(s) => s[index].as_deref_mut(),
+            Node::Leaf(_) => unreachable!(),
         }
     }
 
-    /// Returns a mutable reference to the child at `index`, creating it
-    /// as a branch node if missing.
     #[inline]
-    fn get_child_mut(&mut self, index: usize, is_last: bool) -> &mut Box<Node<V>> {
-        debug_assert!(!self.is_leaf);
-        unsafe {
-            let arr = &mut *(self.items as *mut [Option<Box<Node<V>>>; 11172]);
-            let slot = &mut (*arr)[index];
-            slot.get_or_insert_with(|| {
-                if is_last {
-                    Box::new(Node::new_leaf())
-                } else {
-                    Box::new(Node::new_branch())
-                }
-            })
-        }
-    }
-}
-
-impl<V> Drop for Node<V> {
-    fn drop(&mut self) {
-        unsafe {
-            if self.is_leaf {
-                let _ = Box::from_raw(self.items as *mut [Option<V>; 11172]);
-            } else {
-                let _ = Box::from_raw(self.items as *mut [Option<Box<Node<V>>>; 11172]);
+    fn get_child_mut(&mut self, index: usize, is_last: bool) -> &mut Node<V> {
+        match self {
+            Node::Branch(s) => {
+                let slot = &mut s[index];
+                slot.get_or_insert_with(|| {
+                    if is_last {
+                        Box::new(Node::new_leaf())
+                    } else {
+                        Box::new(Node::new_branch())
+                    }
+                })
             }
+            Node::Leaf(_) => unreachable!(),
         }
     }
-}
-
-/// Creates a boxed fixed-size array filled with `None`.
-///
-/// SAFETY: This works because `Option<T>` is represented as a null-pointer
-/// when `T` is a box (or similar), and as a zeroed discriminant for other
-/// types. For `Option<V>` and `Option<Box<Node<V>>>`, all-zeroes is the
-/// `None` representation.
-unsafe fn new_null_array<T>() -> Box<[T; 11172]> {
-    let layout = core::alloc::Layout::new::<[T; 11172]>();
-    let ptr = alloc::alloc::alloc_zeroed(layout);
-    if ptr.is_null() {
-        alloc::alloc::handle_alloc_error(layout);
-    }
-    // SAFETY: ptr is non-null, properly aligned, zero-initialized, and
-    // valid for reads and writes of size layout.
-    Box::from_raw(ptr as *mut [T; 11172])
 }
 
 // ---------------------------------------------------------------------------
