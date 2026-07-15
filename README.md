@@ -93,7 +93,7 @@ Speedup (vs SHA256):
 
 ## Documentation
 
-- **[White Paper](docs/wp.qmd)** — Full technical analysis: coordinate space, decoder, hardware implementation, benchmarks
+- **[White Paper](https://docs.ssccs.org/projects/tagma/paper/wp.html)** — Full technical analysis: coordinate space, decoder, hardware implementation, benchmarks
 - **[Master Document](docs/index.qmd)** — Project overview, paradigm shift, core data structures
 - **[Specification](spec/coord-space.md)** — Language-independent coordinate space definition
 - **Rustdoc** — `cargo doc --no-deps -p tagma-core` for API reference
