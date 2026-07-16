@@ -1,6 +1,7 @@
 use crate::key::CoordKey;
 use crate::map::CoordTreeMap;
 use crate::path::CoordPath;
+use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 // ---------------------------------------------------------------------------
@@ -106,6 +107,52 @@ impl<const N: usize, K: CoordKey<N>, V> CoordHashMap<N, K, V> {
     #[inline]
     pub fn clear(&mut self) {
         self.inner.clear();
+    }
+
+    /// Collects all values, cloning each.
+    /// For N=1, iterates all 11,172 slots; for N>1, walks the tree.
+    pub fn values(&self) -> alloc::vec::Vec<V>
+    where
+        V: Clone,
+    {
+        self.iter_inner().map(|(_, v)| v.clone()).collect()
+    }
+
+    /// Extends the map from an iterator of key-value pairs.
+    pub fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
+        for (k, v) in iter {
+            self.insert(k, v);
+        }
+    }
+}
+
+// ── Iteration (internal) ───────────────────────────────────────────────
+
+impl<const N: usize, K: CoordKey<N>, V> CoordHashMap<N, K, V> {
+    fn iter_inner(&self) -> CoordHashMapIter<'_, N, V> {
+        // For iteration we bypass the key type K and use raw CoordPath iteration.
+        // This is only used internally for values() and similar bulk operations.
+        CoordHashMapIter {
+            inner: self.inner.iter_tree(),
+        }
+    }
+}
+
+struct CoordHashMapIter<'a, const N: usize, V> {
+    inner: crate::map::TreeIter<'a, N, V>,
+}
+
+impl<'a, const N: usize, V> Iterator for CoordHashMapIter<'a, N, V> {
+    type Item = (CoordPath<N>, &'a V);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 
