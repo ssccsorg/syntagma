@@ -1,5 +1,6 @@
 use tagma_core::{
-    Coord, CoordMap, CoordMap19, CoordMap2, CoordMap3, CoordMap6, CoordPath, CoordSet,
+    Coord, CoordMap, CoordMap12, CoordMap19, CoordMap2, CoordMap3, CoordMap6, CoordPath,
+    CoordSet,
 };
 
 // ── CoordMap — no_alloc single-syllable ──
@@ -305,7 +306,20 @@ fn all_series_use_same_pattern() {
     let _m2: CoordMap2<u32> = CoordMap2::new();
     let _m3: CoordMap3<u32> = CoordMap3::new();
     let _m6: CoordMap6<u32> = CoordMap6::new();
+    let _m12: CoordMap12<u32> = CoordMap12::new();
     let _m19: CoordMap19<u32> = CoordMap19::new();
+}
+
+#[test]
+fn cm12_insert_and_get() {
+    let mut map = CoordMap12::new();
+    let coords: [Coord; 12] = core::array::from_fn(|i| Coord::new(i as u16).unwrap());
+    let path = CoordPath::new(coords);
+    map.insert_path(&path, 42);
+    assert_eq!(map.get_path(&path), Some(&42));
+    assert_eq!(map.len(), 1);
+    map.clear();
+    assert!(map.is_empty());
 }
 
 #[test]

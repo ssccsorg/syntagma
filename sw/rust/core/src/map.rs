@@ -1045,14 +1045,88 @@ mod tests {
 
     // ── Type aliases ──
 
-    #[test]
-    fn type_aliases_exist() {
-        let _m1: CoordTreeMap1<u32> = CoordTreeMap::new();
-        let _m2: CoordTreeMap2<u32> = CoordTreeMap::new();
-        let _m6: CoordMap6<u32> = CoordTreeMap::new();
-        let _m12: CoordMap12<u32> = CoordTreeMap::new();
-        let _m19: CoordMap19<u32> = CoordTreeMap::new();
-    }
+        #[test]
+        fn type_aliases_exist() {
+            let _m1: CoordTreeMap1<u32> = CoordTreeMap::new();
+            let _m2: CoordTreeMap2<u32> = CoordTreeMap::new();
+            let _m6: CoordMap6<u32> = CoordTreeMap::new();
+            let _m12: CoordMap12<u32> = CoordTreeMap::new();
+            let _m19: CoordMap19<u32> = CoordTreeMap::new();
+        }
+
+        #[test]
+        fn coord_map12_basic() {
+            let mut map: CoordMap12<String> = CoordTreeMap::new();
+            let path = CoordPath::new(core::array::from_fn(|i| Coord::new(i as u16).unwrap()));
+            map.insert_path(&path, "hello".to_string());
+            assert_eq!(map.get_path(&path).map(|s| s.as_str()), Some("hello"));
+            assert_eq!(map.len(), 1);
+            assert_eq!(map.remove_path(&path), Some("hello".to_string()));
+            assert!(map.is_empty());
+        }
+
+        // ── Clear for N>1 ──
+
+        #[test]
+        fn tree2_clear() {
+            let mut map = CoordTreeMap::<2, u32>::new();
+            map.insert_path(&CoordPath::new([Coord::new(0).unwrap(), Coord::new(0).unwrap()]), 1);
+            map.insert_path(&CoordPath::new([Coord::new(1).unwrap(), Coord::new(1).unwrap()]), 2);
+            assert_eq!(map.len(), 2);
+            map.clear();
+            assert!(map.is_empty());
+            assert_eq!(map.len(), 0);
+            // Reuse after clear
+            map.insert_path(&CoordPath::new([Coord::new(2).unwrap(), Coord::new(2).unwrap()]), 3);
+            assert_eq!(map.get_path(&CoordPath::new([Coord::new(2).unwrap(), Coord::new(2).unwrap()])), Some(&3));
+        }
+
+        #[test]
+        fn tree6_clear() {
+            let mut map = CoordTreeMap::<6, u32>::new();
+            let path = CoordPath::new(core::array::from_fn(|i| Coord::new(i as u16).unwrap()));
+            map.insert_path(&path, 42);
+            assert_eq!(map.len(), 1);
+            map.clear();
+            assert!(map.is_empty());
+        }
+
+        // ── Clone / PartialEq / Debug ──
+
+        #[test]
+        fn tree2_clone_independent() {
+            let mut a = CoordTreeMap::<2, u32>::new();
+            a.insert_path(&CoordPath::new([Coord::new(0).unwrap(), Coord::new(0).unwrap()]), 1);
+            let mut b = a.clone();
+            b.insert_path(&CoordPath::new([Coord::new(1).unwrap(), Coord::new(1).unwrap()]), 2);
+            assert_eq!(a.len(), 1);
+            assert_eq!(b.len(), 2);
+            assert_eq!(a.get_path(&CoordPath::new([Coord::new(0).unwrap(), Coord::new(0).unwrap()])), Some(&1));
+            assert_eq!(b.get_path(&CoordPath::new([Coord::new(0).unwrap(), Coord::new(0).unwrap()])), Some(&1));
+            assert_eq!(b.get_path(&CoordPath::new([Coord::new(1).unwrap(), Coord::new(1).unwrap()])), Some(&2));
+        }
+
+        #[test]
+        fn tree2_partial_eq() {
+            let mut a = CoordTreeMap::<2, u32>::new();
+            let mut b = CoordTreeMap::<2, u32>::new();
+            let p = CoordPath::new([Coord::new(0).unwrap(), Coord::new(0).unwrap()]);
+            a.insert_path(&p, 42);
+            b.insert_path(&p, 42);
+            assert_eq!(a, b);
+            b.insert_path(&CoordPath::new([Coord::new(1).unwrap(), Coord::new(1).unwrap()]), 99);
+            assert_ne!(a, b);
+        }
+
+        #[test]
+        fn tree2_debug_format() {
+            let mut map = CoordTreeMap::<2, u32>::new();
+            map.insert_path(&CoordPath::new([Coord::new(0).unwrap(), Coord::new(0).unwrap()]), 1);
+            let s = alloc::format!("{:?}", map);
+            assert!(s.contains("CoordTreeMap"));
+            assert!(s.contains("N: 2"));
+            assert!(s.contains("len: 1"));
+        }
 
     #[test]
     fn coord_map1_is_coord_map_1() {

@@ -565,6 +565,29 @@ mod tests {
     }
 
     #[test]
+    fn iter_mut() {
+        let mut map = CoordFlatMap::new();
+        let c = Coord::new(5).unwrap();
+        map.insert(c, 1);
+        for (_, v) in map.iter_mut() {
+            *v += 1;
+        }
+        assert_eq!(map.get(&c), Some(&2));
+    }
+
+    #[test]
+    fn values_mut() {
+        let mut map = CoordFlatMap::new();
+        map.insert(Coord::new(0).unwrap(), 10);
+        map.insert(Coord::new(1).unwrap(), 20);
+        for v in map.values_mut() {
+            *v *= 2;
+        }
+        assert_eq!(map.get(&Coord::new(0).unwrap()), Some(&20));
+        assert_eq!(map.get(&Coord::new(1).unwrap()), Some(&40));
+    }
+
+    #[test]
     fn retain() {
         let mut map = CoordFlatMap::new();
         map.insert(Coord::new(0).unwrap(), 1);
