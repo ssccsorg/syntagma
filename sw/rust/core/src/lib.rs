@@ -51,8 +51,7 @@ pub use map::CoordMap2;
 #[cfg(feature = "alloc")]
 pub use map::CoordMap3;
 
-/// Standard UUID-scale Tagma map: u128 key, 6-syllable address space.
-pub type TagmaMap<V> = CoordKeyMap<6, u128, V>;
+
 #[cfg(feature = "alloc")]
 pub use map::CoordMap6;
 
