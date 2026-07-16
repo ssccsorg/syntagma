@@ -138,6 +138,16 @@ fn cm2_sparse_coverage() {
     assert_eq!(map.len(), 1000);
 }
 
+#[test]
+fn cm2_clone_independent() {
+    let mut a = CoordMap2::new();
+    a.insert_path(&CoordPath::new([Coord::new(0).unwrap(), Coord::new(0).unwrap()]), 1);
+    let mut b = a.clone();
+    b.insert_path(&CoordPath::new([Coord::new(1).unwrap(), Coord::new(1).unwrap()]), 2);
+    assert_eq!(a.len(), 1);
+    assert_eq!(b.len(), 2);
+}
+
 // ── CoordMap3 — three-axis real-world pattern ──
 
 #[test]
@@ -331,6 +341,22 @@ fn coord_path_is_not_a_key() {
     ]);
     assert_eq!(path.len(), 3);
     assert!(!path.is_empty());
+}
+
+// ── DynCoordMap clear + reuse ──
+
+#[test]
+fn dyn_coord_clear_reuse() {
+    use tagma_core::DynCoordMap;
+    let mut map = DynCoordMap::new();
+    map.insert(&[Coord::new(0).unwrap()], 1);
+    map.insert(&[Coord::new(1).unwrap(), Coord::new(0).unwrap()], 2);
+    map.clear();
+    assert!(map.get(&[Coord::new(0).unwrap()]).is_none());
+    assert!(map.get(&[Coord::new(1).unwrap(), Coord::new(0).unwrap()]).is_none());
+    // Reuse after clear
+    map.insert(&[Coord::new(5).unwrap()], 10);
+    assert_eq!(map.get(&[Coord::new(5).unwrap()]), Some(&10));
 }
 
 // ── DynCoordMap stress test ──
