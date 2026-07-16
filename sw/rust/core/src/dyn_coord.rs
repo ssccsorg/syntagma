@@ -199,21 +199,22 @@ impl<V> DynCoordMap<V> {
         }
     }
 
-    fn collect_iter<'a>(&'a self, path: &mut Vec<u16>, out: &mut Vec<(Vec<u16>, &'a V)>) {
+    fn collect_iter<'a>(&'a self, path: &mut Vec<Coord>, out: &mut Vec<(Vec<Coord>, &'a V)>) {
         for (i, slot) in self.slots.iter().enumerate() {
+            let coord = Coord::new(i as u16).unwrap();
             match slot {
                 Some(Slot::Leaf(v)) => {
-                    path.push(i as u16);
+                    path.push(coord);
                     out.push((path.clone(), v));
                     path.pop();
                 }
                 Some(Slot::Node(sub)) => {
-                    path.push(i as u16);
+                    path.push(coord);
                     sub.collect_iter(path, out);
                     path.pop();
                 }
                 Some(Slot::Both(v, sub)) => {
-                    path.push(i as u16);
+                    path.push(coord);
                     out.push((path.clone(), v));
                     sub.collect_iter(path, out);
                     path.pop();
@@ -226,11 +227,11 @@ impl<V> DynCoordMap<V> {
 
 /// An iterator over `(path, value)` pairs in a `DynCoordMap`.
 pub struct DynIter<'a, V> {
-    entries: alloc::vec::IntoIter<(Vec<u16>, &'a V)>,
+    entries: alloc::vec::IntoIter<(Vec<Coord>, &'a V)>,
 }
 
 impl<'a, V> Iterator for DynIter<'a, V> {
-    type Item = (Vec<u16>, &'a V);
+    type Item = (Vec<Coord>, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.entries.next()
@@ -383,10 +384,7 @@ mod tests {
     fn clone_independent() {
         let mut a = DynCoordMap::new();
         a.insert(&[Coord::new(0).unwrap()], 1);
-        a.insert(
-            &[Coord::new(1).unwrap(), Coord::new(2).unwrap()],
-            2,
-        );
+        a.insert(&[Coord::new(1).unwrap(), Coord::new(2).unwrap()], 2);
         let mut b = a.clone();
         b.insert(&[Coord::new(3).unwrap()], 3);
         assert_eq!(a.entry_count(), 2);
@@ -397,10 +395,7 @@ mod tests {
     fn iter_yields_all_entries() {
         let mut m = DynCoordMap::new();
         m.insert(&[Coord::new(0).unwrap()], 10);
-        m.insert(
-            &[Coord::new(1).unwrap(), Coord::new(2).unwrap()],
-            20,
-        );
+        m.insert(&[Coord::new(1).unwrap(), Coord::new(2).unwrap()], 20);
         let entries: Vec<_> = m.iter().collect();
         assert_eq!(entries.len(), 2);
     }
