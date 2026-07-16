@@ -150,7 +150,11 @@ impl<V> DynCoordMap<V> {
         if depth == path.len() - 1 {
             match self.slots[idx].take() {
                 Some(Slot::Leaf(v)) => Some(v),
-                Some(Slot::Both(v, _)) => Some(v),
+                Some(Slot::Both(v, child)) => {
+                    // Preserve deeper paths by keeping the child as a Node.
+                    self.slots[idx] = Some(Slot::Node(child));
+                    Some(v)
+                }
                 _ => None,
             }
         } else {
