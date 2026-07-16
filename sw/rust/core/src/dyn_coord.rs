@@ -169,6 +169,48 @@ impl<V> DynCoordMap<V> {
         }
     }
 
+    // ── String key API (zero hash, base11172 encoding) ─────────────────────
+
+    /// Returns a reference to the value at a string-derived path.
+    /// Encodes the string bytes via base-11172, then traverses the trie.
+    /// O(key.len()), zero hash, zero collision.
+    pub fn get_str(&self, key: &str) -> Option<&V> {
+        self.get(&str_to_coords(key))
+    }
+
+    /// Inserts a value at a string-derived path.
+    /// The string is encoded deterministically into Coord slices.
+    pub fn insert_str(&mut self, key: &str, value: V) -> Option<V> {
+        let path = str_to_coords(key);
+        self.insert(&path, value)
+    }
+
+    /// Removes the value at a string-derived path.
+    pub fn remove_str(&mut self, key: &str) -> Option<V> {
+        self.remove(&str_to_coords(key))
+    }
+}
+
+/// Encode a string as a Coord slice via base-11172.
+/// Every pair of bytes → one Coord. Zero hash, zero collision.
+pub(crate) fn str_to_coords(s: &str) -> Vec<Coord> {
+    let bytes = s.as_bytes();
+    let n = bytes.len().div_ceil(2);
+    let mut out = Vec::with_capacity(n);
+    for chunk in bytes.chunks(2) {
+        let v = if chunk.len() == 2 {
+            u16::from_le_bytes([chunk[0], chunk[1]])
+        } else {
+            chunk[0] as u16
+        };
+        out.push(Coord::new(v % (Coord::N_VALID as u16)).unwrap());
+    }
+    out
+}
+
+// ── Iteration (internal) ───────────────────────────────────────────────
+
+impl<V> DynCoordMap<V> {
     /// Returns the number of entries across all depths.
     /// O(entries) — walks the tree counting occupied leaf slots.
     pub fn entry_count(&self) -> usize {
@@ -378,6 +420,44 @@ mod tests {
     fn empty_path_insert_panics() {
         let mut m: DynCoordMap<u32> = DynCoordMap::new();
         m.insert(&[], 42);
+    }
+
+    #[test]
+    fn insert_str_and_get_str() {
+        let mut m = DynCoordMap::new();
+        m.insert_str("hello", 42);
+        assert_eq!(m.get_str("hello"), Some(&42));
+    }
+
+    #[test]
+    fn insert_str_deterministic() {
+        let mut m = DynCoordMap::new();
+        m.insert_str("alpha", 1);
+        m.insert_str("beta", 2);
+        assert_eq!(m.get_str("alpha"), Some(&1));
+        assert_eq!(m.get_str("beta"), Some(&2));
+    }
+
+    #[test]
+    fn remove_str() {
+        let mut m = DynCoordMap::new();
+        m.insert_str("key", 42);
+        assert_eq!(m.remove_str("key"), Some(42));
+        assert!(m.get_str("key").is_none());
+    }
+
+    #[test]
+    fn str_path_deterministic() {
+        let a = str_to_coords("hello");
+        let b = str_to_coords("hello");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn str_path_differs_for_diff_strings() {
+        let a = str_to_coords("alpha");
+        let b = str_to_coords("beta");
+        assert_ne!(a, b);
     }
 
     #[test]
