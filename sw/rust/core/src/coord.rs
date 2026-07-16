@@ -427,4 +427,42 @@ mod tests {
         assert_eq!(hih.to_axes(), (18, 20, 27));
         assert_eq!(hih.index(), 11171);
     }
+
+    #[test]
+    fn from_axes_rejects_oob() {
+        assert!(Coord::from_axes(19, 0, 0).is_none());
+        assert!(Coord::from_axes(0, 21, 0).is_none());
+        assert!(Coord::from_axes(0, 0, 28).is_none());
+    }
+
+    #[test]
+    fn hamming_distance_max() {
+        let a = Coord::from_axes(0, 0, 0).unwrap();
+        let b = Coord::from_axes(18, 20, 27).unwrap();
+        assert_eq!(a.hamming_distance(b), (18, 20, 27));
+    }
+
+    #[test]
+    fn filler_positions_invalid() {
+        // U+D7A4..U+D7AF are filler positions within the block
+        for cp in 0xD7A4u16..=0xD7AF {
+            assert!(Coord::from_code_point(cp).is_none());
+        }
+    }
+
+    #[test]
+    fn code_point_outside_block() {
+        assert!(Coord::from_code_point(0x0041).is_none()); // 'A'
+        assert!(Coord::from_code_point(0xAC00 - 1).is_none());
+        assert!(Coord::from_code_point(0xD7AF + 1).is_none());
+    }
+
+    #[test]
+    fn serialization_roundtrip() {
+        for raw in [0u16, 1, 256, 11171, 5555] {
+            let c = Coord::new(raw).unwrap();
+            assert_eq!(Coord::from_le_bytes(c.to_le_bytes()), Some(c));
+            assert_eq!(Coord::from_be_bytes(c.to_be_bytes()), Some(c));
+        }
+    }
 }
