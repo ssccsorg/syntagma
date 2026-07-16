@@ -11,7 +11,7 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 | Level | Feature flags | Heap | Available types |
 |-------|---------------|------|-----------------|
 | **no_alloc** | (none) | Never | Coord, CoordPath, CoordSet, CoordFlatMap (CoordMap), CoordKey trait |
-| **alloc** | `alloc` (default) | Optional | + CoordTreeMap\<N\>, DynCoordMap, CoordHashMap, CoordKey impls for String |
+| **alloc** | `alloc` (default) | Optional | + CoordTreeMap\<N\>, DynCoordMap, CoordKeyMap, CoordKey impls for String |
 
 ## Type reference
 
@@ -35,7 +35,7 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 | **CoordMap12\<V\>** | 12-syllable ($2.41 \times 10^{67}$). Type alias for `CoordTreeMap<12, V>` | `core/src/map.rs` |
 | **CoordMap19\<V\>** | 19-syllable ($\approx 2^{256}$, SHA-256-scale). Type alias for `CoordTreeMap<19, V>` | `core/src/map.rs` |
 | **DynCoordMap\<V\>** | Variable-depth trie, `&[Coord]` runtime path. Mixed-depth slot (Both) preserves shallow values | `core/src/dyn_coord.rs` |
-| **CoordHashMap\<N, K, V\>** | HashMap-compatible wrapper over CoordTreeMap. `insert(key, value)`, `get(&key)` — identical to std HashMap | `core/src/hashmap.rs` |
+| **CoordKeyMap\<N, K, V\>** | HashMap-compatible wrapper over CoordTreeMap. `insert(key, value)`, `get(&key)` — identical to std HashMap | `core/src/keymap.rs` |
 
 ## Quick start
 
@@ -57,7 +57,7 @@ cargo build --no-default-features  # Verify no_alloc build
 ## Usage
 
 ```rust
-use tagma_core::{Coord, CoordHashMap, CoordMap, CoordSet};
+use tagma_core::{Coord, CoordKeyMap, CoordMap, CoordSet};
 
 // Compose a coordinate from three axes
 let c = Coord::from_axes(5, 10, 15).unwrap();
@@ -65,7 +65,7 @@ assert_eq!(c.to_axes(), (5, 10, 15));
 assert_eq!(c.to_char(), '걐');  // Hangul syllable display
 
 // Hash-free map — identical API to std HashMap
-let mut map: CoordHashMap<1, &str, &str> = CoordHashMap::new();
+let mut map: CoordKeyMap<1, &str, &str> = CoordKeyMap::new();
 map.insert("user:42", "tagma");
 assert_eq!(map.get(&"user:42"), Some(&"tagma"));
 *map.entry("counter").or_insert("0") = "1";
@@ -92,7 +92,7 @@ assert!(set.contains(c));
 | CoordKey trait | ✅ | ✅ |
 | CoordTreeMap\<N\> (heap tree) | ❌ | ✅ |
 | DynCoordMap (runtime trie) | ❌ | ✅ |
-| CoordHashMap (HashMap API) | ❌ | ✅ |
+| CoordKeyMap (HashMap API) | ❌ | ✅ |
 | CoordKey for String | ❌ | ✅ |
 | base11172 serialization | ❌ | ✅ |
 
