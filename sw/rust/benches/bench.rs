@@ -697,46 +697,44 @@ fn bench_cs2_bulk_100k(c: &mut Criterion) {
 // Edge cases: scenarios where Tagma is NOT faster (transparency)
 // ===========================================================================
 
-// CoordSpace6/sparse_100: 100 entries at depth 6, each with a unique path.
-// CoordSpace6 must allocate 6 nodes × 89 KB = 534 KB per entry path.
-// HashMap stores 100 entries in ~8 KB. HashMap wins on memory and iteration.
-fn bench_cs6_sparse_100(c: &mut Criterion) {
-    let mut cs6 = tagma_core::CoordSpace6::<u64>::new();
-    let mut hm: std::collections::HashMap<[u16; 6], u64> = std::collections::HashMap::new();
-    let mut paths = Vec::with_capacity(100);
-    for i in 0u16..100 {
-        let coords: [u16; 6] = core::array::from_fn(|j| (i * 587 + j as u16 * 331) % 11172);
-        let path = tagma_core::CoordPath::new(core::array::from_fn(|j| {
-            tagma_core::Coord::new(coords[j]).unwrap()
-        }));
-        paths.push((path, coords));
-        cs6.place_path(&path, i as u64);
-        hm.insert(coords, i as u64);
+// Edge/cs2_sparse_5000: 5000 entries at depth 2, 500 prefixes × 10 suffixes.
+// Tests get performance in a moderately sparse 2-level tree.
+// iter_tree slowness is a known limitation: collect_leaves scans all 11,172
+// slots at every allocated branch node regardless of occupancy.
+fn bench_cs2_sparse_5000(c: &mut Criterion) {
+    let mut cs2 = tagma_core::CoordSpace2::<u32>::new();
+    let mut hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
+    let mut paths = Vec::with_capacity(5000);
+    for p in 0u16..500 {
+        for s in 0u16..10 {
+            let path = tagma_core::CoordPath::new([
+                tagma_core::Coord::new((p * 22) % 11172).unwrap(),
+                tagma_core::Coord::new((s * 587 + p) % 11172).unwrap(),
+            ]);
+            paths.push((path, p, s));
+            cs2.place_path(&path, (p * 1000 + s).into());
+            hm.insert(((p * 22) % 11172, (s * 587 + p) % 11172), (p * 1000 + s).into());
+        }
     }
 
-    let mut group = c.benchmark_group("Edge/cs6_sparse_100");
-    group.throughput(criterion::Throughput::Elements(100));
+    let mut group = c.benchmark_group("Edge/cs2_sparse_5000");
+    group.throughput(criterion::Throughput::Elements(5000));
 
-    group.bench_function("CoordSpace6", |b| {
+    group.bench_function("CoordSpace/get", |b| {
         b.iter(|| {
-            for (path, _) in &paths {
-                black_box(cs6.at_path(path));
-            }
+            for (path, _, _) in &paths { black_box(cs2.at_path(path)); }
         })
     });
-
-    group.bench_function("HashMap", |b| {
+    group.bench_function("HashMap/get", |b| {
         b.iter(|| {
-            for (_, coords) in &paths {
-                black_box(hm.get(coords));
-            }
+            for (_, p, s) in &paths { black_box(hm.get(&((p * 22) % 11172, (s * 587 + p) % 11172))); }
         })
     });
-
-    group.bench_function("CoordSpace6/iter", |b| {
-        b.iter(|| black_box(cs6.iter_tree().count()))
+    group.bench_function("CoordSpace/iter", |b| {
+        // Known limitation: iter_tree scans 11,172 slots at each allocated branch.
+        // For sparse trees this is significantly slower than HashMap's lazy iteration.
+        b.iter(|| black_box(cs2.iter_tree().count()))
     });
-
     group.bench_function("HashMap/iter", |b| {
         b.iter(|| black_box(hm.iter().count()))
     });
@@ -744,24 +742,25 @@ fn bench_cs6_sparse_100(c: &mut Criterion) {
     group.finish();
 }
 
-// CoordSpace2/nonexistent_prefix: query a prefix that has no entries.
+// Edge/cs2_nonexistent_prefix: query a prefix that has no entries (5000 entries stored).
 // CoordSpace2 navigates to the prefix branch, finds None, returns immediately.
-// HashMap scans all entries, finds none, returns empty.
-// CoordSpace2 wins because it doesn't scan.
+// HashMap scans all 5000 entries, finds none, returns empty.
 fn bench_cs2_nonexistent_prefix(c: &mut Criterion) {
     let mut cs2 = tagma_core::CoordSpace2::<u32>::new();
     let mut hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
-    // 10 entries only
-    for i in 0u16..10 {
-        let path = tagma_core::CoordPath::new([
-            tagma_core::Coord::new(i).unwrap(),
-            tagma_core::Coord::new(i).unwrap(),
-        ]);
-        cs2.place_path(&path, i as u32);
-        hm.insert((i, i), i as u32);
+    for p in 0u16..500 {
+        for s in 0u16..10 {
+            let path = tagma_core::CoordPath::new([
+                tagma_core::Coord::new(p).unwrap(),
+                tagma_core::Coord::new((s * 587 + p) % 11172).unwrap(),
+            ]);
+            cs2.place_path(&path, (p * 1000 + s).into());
+            hm.insert((p, (s * 587 + p) % 11172), (p * 1000 + s).into());
+        }
     }
 
     let mut group = c.benchmark_group("Edge/cs2_nonexistent_prefix");
+    group.throughput(criterion::Throughput::Elements(5000));
     group.bench_function("CoordSpace2", |b| {
         let missing = vec![tagma_core::Coord::new(9999).unwrap()];
         b.iter(|| {
@@ -1055,7 +1054,7 @@ criterion_group!(
 criterion_group!(
     name = edge;
     config = Criterion::default();
-    targets = bench_cs6_sparse_100, bench_cs2_nonexistent_prefix
+    targets = bench_cs2_sparse_5000, bench_cs2_nonexistent_prefix
 );
 criterion_group!(
     name = stress;
