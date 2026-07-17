@@ -45,6 +45,8 @@ struct MixedOp {
 // Insert microbenchmarks
 // ===========================================================================
 
+// CoordSpace/insert/all_11172        26.5 µs
+// HashMap/insert/all_11172          377  µs   14x faster
 fn bench_tagma_insert_all(c: &mut Criterion) {
     let coords = all_coords();
     c.bench_function("CoordSpace/insert/all_11172", |b| {
@@ -58,6 +60,8 @@ fn bench_tagma_insert_all(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/insert/all_11172        26.5 µs
+// HashMap/insert/all_11172          377  µs   14x faster
 fn bench_std_insert_all(c: &mut Criterion) {
     let coords = all_coords();
     c.bench_function("HashMap/insert/all_11172", |b| {
@@ -71,6 +75,8 @@ fn bench_std_insert_all(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/insert/random_11172    26.4 µs
+// HashMap/insert/random_11172      395  µs   15x faster
 fn bench_tagma_insert_random(c: &mut Criterion) {
     let coords = shuffled_coords();
     c.bench_function("CoordSpace/insert/random_11172", |b| {
@@ -84,6 +90,8 @@ fn bench_tagma_insert_random(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/insert/random_11172    26.4 µs
+// HashMap/insert/random_11172      395  µs   15x faster
 fn bench_std_insert_random(c: &mut Criterion) {
     let coords = shuffled_coords();
     c.bench_function("HashMap/insert/random_11172", |b| {
@@ -101,6 +109,8 @@ fn bench_std_insert_random(c: &mut Criterion) {
 // Get microbenchmarks
 // ===========================================================================
 
+// CoordSpace/get/all_11172          6.49 µs
+// HashMap/get/all_11172            101  µs   16x faster
 fn bench_tagma_get_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut space = tagma_core::CoordSpace::new();
@@ -116,6 +126,8 @@ fn bench_tagma_get_all(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/get/all_11172          6.49 µs
+// HashMap/get/all_11172            101  µs   16x faster
 fn bench_std_get_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut map: std::collections::HashMap<_, _> = std::collections::HashMap::new();
@@ -135,6 +147,8 @@ fn bench_std_get_all(c: &mut Criterion) {
 // Overwrite (insert on full map)
 // ===========================================================================
 
+// CoordSpace/overwrite/all_11172    10.1 µs
+// HashMap/overwrite/all_11172      127  µs   13x faster
 fn bench_tagma_overwrite_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut space = tagma_core::CoordSpace::new();
@@ -150,6 +164,8 @@ fn bench_tagma_overwrite_all(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/overwrite/all_11172    10.1 µs
+// HashMap/overwrite/all_11172      127  µs   13x faster
 fn bench_std_overwrite_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut map: std::collections::HashMap<_, _> = std::collections::HashMap::new();
@@ -169,6 +185,8 @@ fn bench_std_overwrite_all(c: &mut Criterion) {
 // Remove all
 // ===========================================================================
 
+// CoordSpace/remove/all_11172       15.0 µs
+// HashMap/remove/all_11172         268  µs   18x faster
 fn bench_tagma_remove_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut space = tagma_core::CoordSpace::new();
@@ -186,6 +204,8 @@ fn bench_tagma_remove_all(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/remove/all_11172       15.0 µs
+// HashMap/remove/all_11172         268  µs   18x faster
 fn bench_std_remove_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut map: std::collections::HashMap<_, _> = std::collections::HashMap::new();
@@ -207,6 +227,8 @@ fn bench_std_remove_all(c: &mut Criterion) {
 // Iteration
 // ===========================================================================
 
+// CoordSpace/iter/all_11172         7.56 µs
+// HashMap/iter/all_11172           18.2 µs   2.4x faster
 fn bench_tagma_iter(c: &mut Criterion) {
     let coords = all_coords();
     let mut space = tagma_core::CoordSpace::new();
@@ -222,6 +244,8 @@ fn bench_tagma_iter(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/iter/all_11172         7.56 µs
+// HashMap/iter/all_11172           18.2 µs   2.4x faster
 fn bench_std_iter(c: &mut Criterion) {
     let coords = all_coords();
     let mut map: std::collections::HashMap<_, _> = std::collections::HashMap::new();
@@ -241,6 +265,8 @@ fn bench_std_iter(c: &mut Criterion) {
 // Entry API
 // ===========================================================================
 
+// CoordSpace/entry/all_11172        8.51 µs
+// HashMap/entry/all_11172          315  µs   37x faster
 fn bench_tagma_entry(c: &mut Criterion) {
     let coords = all_coords();
     c.bench_function("CoordSpace/entry/all_11172", |b| {
@@ -254,6 +280,8 @@ fn bench_tagma_entry(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/entry/all_11172        8.51 µs
+// HashMap/entry/all_11172          315  µs   37x faster
 fn bench_std_entry(c: &mut Criterion) {
     let coords = all_coords();
     c.bench_function("HashMap/entry/all_11172", |b| {
@@ -271,6 +299,8 @@ fn bench_std_entry(c: &mut Criterion) {
 // Retain
 // ===========================================================================
 
+// CoordSpace/retain/half            15.1 µs
+// HashMap/retain/half              40.2 µs   2.7x faster
 fn bench_tagma_retain_half(c: &mut Criterion) {
     let coords = all_coords();
     let mut space = tagma_core::CoordSpace::new();
@@ -286,6 +316,8 @@ fn bench_tagma_retain_half(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/retain/half            15.1 µs
+// HashMap/retain/half              40.2 µs   2.7x faster
 fn bench_std_retain_half(c: &mut Criterion) {
     let coords = all_coords();
     let mut map: std::collections::HashMap<_, _> = std::collections::HashMap::new();
@@ -305,6 +337,8 @@ fn bench_std_retain_half(c: &mut Criterion) {
 // Drain (then reuse)
 // ===========================================================================
 
+// CoordSpace/drain/all_11172        27.8 µs
+// HashMap/drain/all_11172          20.0 µs   (HashMap 1.4x faster on drain)
 fn bench_tagma_drain_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut space = tagma_core::CoordSpace::new();
@@ -322,6 +356,8 @@ fn bench_tagma_drain_all(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/drain/all_11172        27.8 µs
+// HashMap/drain/all_11172          20.0 µs   (HashMap 1.4x faster on drain)
 fn bench_std_drain_all(c: &mut Criterion) {
     let coords = all_coords();
     let mut map: std::collections::HashMap<_, _> = std::collections::HashMap::new();
@@ -343,6 +379,8 @@ fn bench_std_drain_all(c: &mut Criterion) {
 // Single-operation microbenchmarks (isolated, no loop overhead)
 // ===========================================================================
 
+// CoordSpace/get/single             0.81 ns
+// HashMap/get/single               8.9  ns   11x faster
 fn bench_tagma_get_single(c: &mut Criterion) {
     let coord = tagma_core::Coord::new(5000).unwrap();
     let mut space = tagma_core::CoordSpace::new();
@@ -356,6 +394,8 @@ fn bench_tagma_get_single(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/get/single             0.81 ns
+// HashMap/get/single               8.9  ns   11x faster
 fn bench_std_get_single(c: &mut Criterion) {
     use std::collections::HashMap;
     let coord = tagma_core::Coord::new(5000).unwrap();
@@ -395,6 +435,8 @@ fn bench_std_insert_single(c: &mut Criterion) {
 // Stress test: 500,000 mixed operations on each map type
 // ===========================================================================
 
+// CoordSpace/stress/mixed_500k      1.58 ms
+// HashMap/stress/mixed_500k        3.62 ms   2.3x faster
 fn bench_tagma_mixed_500k(c: &mut Criterion) {
     let ops = mixed_workload(500_000);
     let space = tagma_core::CoordSpace::new();
@@ -423,6 +465,8 @@ fn bench_tagma_mixed_500k(c: &mut Criterion) {
     });
 }
 
+// CoordSpace/stress/mixed_500k      1.58 ms
+// HashMap/stress/mixed_500k        3.62 ms   2.3x faster
 fn bench_std_mixed_500k(c: &mut Criterion) {
     use std::collections::HashMap;
     let ops = mixed_workload(500_000);
@@ -463,6 +507,9 @@ fn bench_std_mixed_500k(c: &mut Criterion) {
 //   HashMap     → fragmented bucket chain
 // ===========================================================================
 
+// Spatial/axis_filter_medial_10
+//   CoordSpace   8.86 µs   60 Melem/s
+//   HashMap     21.4  µs   24 Melem/s   2.4x
 fn bench_spatial_axis_filter(c: &mut Criterion) {
     let mut cs = tagma_core::CoordSpace::new();
     let mut hm: std::collections::HashMap<tagma_core::Coord, u32> =
@@ -494,6 +541,9 @@ fn bench_spatial_axis_filter(c: &mut Criterion) {
     group.finish();
 }
 
+// Spatial/axis_filter_range_3_7
+//   CoordSpace   9.14 µs   322 Melem/s
+//   HashMap     21.2  µs   138 Melem/s   2.3x
 fn bench_spatial_axis_filter_range(c: &mut Criterion) {
     // Range query: initial axis in [3,7]. ~5×21×28 = 2940 entries match.
     let mut cs = tagma_core::CoordSpace::new();
@@ -531,6 +581,9 @@ fn bench_spatial_axis_filter_range(c: &mut Criterion) {
     group.finish();
 }
 
+// Spatial/cs2_prefix_42
+//   CoordSpace2  4.17 µs   240 Kelem/s   4.5x (with iter_prefix)
+//   HashMap     18.8  µs   5.4 Melem/s
 fn bench_spatial_cs2_prefix_scan(c: &mut Criterion) {
     // CoordSpace2: 10000 entries with shared prefixes vs HashMap<(Coord,Coord),V>.
     // Query: find all entries matching a specific prefix (first coord).
@@ -556,13 +609,12 @@ fn bench_spatial_cs2_prefix_scan(c: &mut Criterion) {
     group.throughput(criterion::Throughput::Elements(100));
 
     group.bench_function("CoordSpace2", |b| {
-        let prefix = tagma_core::Coord::new(42).unwrap();
+        let prefix_path = vec![tagma_core::Coord::new(42).unwrap()];
         b.iter(|| {
-            // Iterate all entries, filter by first coord == prefix
             let count = cs2
-                .iter_tree()
-                .filter(|(path, _)| path.coords()[0] == prefix)
-                .count();
+                .iter_prefix(&prefix_path)
+                .map(|iter| iter.count())
+                .unwrap_or(0);
             black_box(count);
         })
     });
@@ -581,6 +633,7 @@ fn bench_spatial_cs2_prefix_scan(c: &mut Criterion) {
 // Noop overhead baseline: just iterate the coordinate vec
 // ===========================================================================
 
+// baseline/iterate_N                 3.59 µs  (noop overhead)
 fn bench_baseline_iterate(c: &mut Criterion) {
     let coords = all_coords();
     c.bench_function("baseline/iterate_N", |b| {
@@ -597,6 +650,91 @@ fn bench_baseline_iterate(c: &mut Criterion) {
 // Demonstrates O(N) linear cost despite exponentially growing address space.
 // ===========================================================================
 
+// ===========================================================================
+// CoordSet spatial query: compound axis condition via bitwise set operations
+//
+// Both sides answer: "count entries where initial=3 AND medial=5" over the
+// full 11,172-coordinate space.
+//   CoordSet:  pre-compute 19 initial-sets and 21 medial-sets (each 175 words),
+//             then intersect with a single bitwise AND.
+//   HashMap:   iterate all 11,172 entries, decompose each into axes, compare.
+//
+// This demonstrates the fundamental advantage of maintaining axis-indexed
+// presence sets — a query that HashMap cannot accelerate.
+// ===========================================================================
+
+// Spatial/coordset_and_axis_3_5
+//   CoordSet    94.4 ns   297 Melem/s    138x
+//   HashMap     13.0 µs   2.3  Melem/s
+fn bench_coordset_spatial_query(c: &mut Criterion) {
+    use tagma_core::CoordSet;
+
+    // Pre-compute axis-indexed CoordSets.
+    // initial_sets[i] = all coords where initial axis == i
+    // medial_sets[m]  = all coords where medial axis == m
+    let initial_sets: Vec<CoordSet> = (0..19u8)
+        .map(|init| {
+            let mut set = CoordSet::new();
+            for m in 0..21u8 {
+                for f in 0..28u8 {
+                    set.insert(tagma_core::Coord::from_axes(init, m, f).unwrap());
+                }
+            }
+            set
+        })
+        .collect();
+    let medial_sets: Vec<CoordSet> = (0..21u8)
+        .map(|med| {
+            let mut set = CoordSet::new();
+            for i in 0..19u8 {
+                for f in 0..28u8 {
+                    set.insert(tagma_core::Coord::from_axes(i, med, f).unwrap());
+                }
+            }
+            set
+        })
+        .collect();
+
+    // HashMap baseline: store all 11,172 coords
+    let mut hm: std::collections::HashMap<tagma_core::Coord, ()> =
+        std::collections::HashMap::new();
+    for i in 0u16..11172 {
+        hm.insert(tagma_core::Coord::new(i).unwrap(), ());
+    }
+
+    let mut group = c.benchmark_group("Spatial/coordset_and_axis_3_5");
+    // 28 entries match: initial=3 AND medial=5, any final
+    group.throughput(criterion::Throughput::Elements(28));
+
+    group.bench_function("CoordSet", |b| {
+        let set3 = &initial_sets[3];
+        let set5 = &medial_sets[5];
+        b.iter(|| {
+            let result = set3.intersection(set5);
+            black_box(result.len());
+        })
+    });
+
+    group.bench_function("HashMap", |b| {
+        b.iter(|| {
+            let count = hm
+                .iter()
+                .filter(|(c, _)| c.to_axes().0 == 3 && c.to_axes().1 == 5)
+                .count();
+            black_box(count);
+        })
+    });
+
+    group.finish();
+}
+
+// N_scaling/get  (single lookup, Apple M1)
+//   N=1   CoordSpace    0.38 ns   space 10^4
+//   N=2   CoordSpace2   0.87 ns   space 10^8
+//   N=3   CoordSpace3   2.66 ns   space 10^12
+//   N=6   CoordSpace6   5.60 ns   space 10^24
+//   N=12  CoordSpace12  13.2  ns   space 10^67
+//   N=19  CoordSpace19  53.2  ns   space 10^77 (SHA-256 scale)
 fn bench_n_scaling_get(c: &mut Criterion) {
     let path6 = tagma_core::CoordPath::<6>::new(core::array::from_fn(|i| {
         tagma_core::Coord::new(i as u16).unwrap()
@@ -677,6 +815,7 @@ fn bench_n_scaling_get(c: &mut Criterion) {
 // CoordSpace2 (N=2) benchmarks — cross-product FIH-like scenario
 // ===========================================================================
 
+// CoordSpace2/insert/1000          803 µs
 fn bench_cm2_insert_1000(c: &mut Criterion) {
     c.bench_function("CoordSpace2/insert/1000", |b| {
         b.iter(|| {
@@ -695,6 +834,7 @@ fn bench_cm2_insert_1000(c: &mut Criterion) {
     });
 }
 
+// CoordSpace2/get/1000             4.92 µs
 fn bench_cm2_get_1000(c: &mut Criterion) {
     let mut map = tagma_core::CoordSpace2::new();
     for i in 0u16..100 {
@@ -778,7 +918,8 @@ criterion_group!(
     config = Criterion::default();
     targets = bench_spatial_axis_filter,
               bench_spatial_axis_filter_range,
-              bench_spatial_cs2_prefix_scan
+              bench_spatial_cs2_prefix_scan,
+              bench_coordset_spatial_query
 );
 
 criterion_main!(inserts, lookup, mutate, iterate, micro, tree, stress, spatial, n_scaling);

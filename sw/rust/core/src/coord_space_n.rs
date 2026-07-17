@@ -613,6 +613,46 @@ impl<const N: usize, V> CoordSpaceN<N, V> {
             indices: indices.into_iter(),
         }
     }
+
+    /// Returns an iterator over entries whose path starts with the given prefix.
+    ///
+    /// Only traverses the subtree under `prefix`, skipping all other branches.
+    /// Returns `None` if the prefix depth exceeds N or if the prefix path does
+    /// not exist in the tree.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let prefix = CoordPath::new([Coord::new(42).unwrap()]);
+    /// for (path, val) in space.iter_prefix(&prefix) {
+    ///     // all entries where the first coord is 42
+    /// }
+    /// ```
+    pub fn iter_prefix(&self, prefix: &[Coord]) -> Option<TreeIter<'_, N, V>> {
+        let k = prefix.len();
+        if k >= N {
+            return None;
+        }
+        // Navigate to the branch at depth k.
+        let mut node = &self.root;
+        let mut current = [0u16; N];
+        for (i, coord) in prefix.iter().enumerate() {
+            current[i] = coord.index();
+            match node {
+                Node::Branch(children) => {
+                    node = children[coord.index() as usize].as_ref()?;
+                }
+                Node::Leaf(_) => return None, // prefix goes deeper than this leaf
+            }
+        }
+        // Collect all leaves from this node, continuing from depth k.
+        let mut indices = Vec::new();
+        collect_leaves::<N, V>(node, k, &mut current, &mut indices);
+        Some(TreeIter {
+            map: self,
+            indices: indices.into_iter(),
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
