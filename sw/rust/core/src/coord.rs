@@ -81,6 +81,16 @@ impl Coord {
         }
     }
 
+    /// Creates a `Coord` without bounds check.
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure `value < N_VALID` (0..11172).
+    #[inline]
+    pub(crate) const unsafe fn new_unchecked(value: u16) -> Self {
+        Self(value)
+    }
+
     /// Creates a `Coord` from its three structural axes.
     ///
     /// Returns `None` if any axis is out of bounds.

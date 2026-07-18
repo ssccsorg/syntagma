@@ -585,7 +585,8 @@ impl<'a, const N: usize, V> Iterator for TreeIter<'a, N, V> {
                 return None;
             }
             let depth = self.base_depth + stack_len - 1;
-            let frame = self.stack.last_mut().unwrap();
+            // SAFETY: stack is non-empty (checked above via stack_len > 0).
+            let frame = unsafe { self.stack.last_mut().unwrap_unchecked() };
             match frame.node {
                 Node::Leaf(slots) => {
                     // Scan remaining leaf slots for an occupied one.
@@ -593,9 +594,17 @@ impl<'a, const N: usize, V> Iterator for TreeIter<'a, N, V> {
                         if slots[i].is_some() {
                             frame.idx = i + 1;
                             self.path[depth] = i as u16;
-                            let coords =
-                                core::array::from_fn(|j| Coord::new(self.path[j]).unwrap());
-                            return Some((CoordPath::new(coords), slots[i].as_ref().unwrap()));
+                            let coords = core::array::from_fn(|j| {
+                                // SAFETY: self.path[j] is always < N_VALID (11172)
+                                // because it's set from slot indices which are bounded
+                                // by the tree's fixed 11172-slot arrays.
+                                unsafe { Coord::new_unchecked(self.path[j]) }
+                            });
+                            return Some((
+                                CoordPath::new(coords),
+                                // SAFETY: checked is_some() in the enclosing if
+                                unsafe { slots[i].as_ref().unwrap_unchecked() },
+                            ));
                         }
                     }
                     // Leaf exhausted; backtrack to parent.
