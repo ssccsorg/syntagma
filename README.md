@@ -119,8 +119,8 @@ The three-axis composition formula admits unbounded recursive embedding: each ax
 
 | Metric | SHA-256 | Tagma (1-syll) | Tagma (6-syll) | Tagma (19-syll) |
 |--------|---------|---------------|---------------|----------------|
-| Latency | 227 ns/op | 0.38 ns/op | 5.58 ns/op | 23.5 ns/op |
-| Speedup | baseline | 597x | 41x | 9.7x |
+| Latency | 227 ns/op | 0.38 ns/op | 5.57 ns/op | 54.9 ns/op |
+| Speedup | baseline | 597x | 41x | 4.1x |
 | Address space | 2^256 | 1.1e4 | 1.9e24 | 2^256 |
 
 ## Benchmark: Spatial query vs HashMap (Apple M1)
@@ -129,14 +129,14 @@ Same algorithm (iterate + decompose + filter on axis), different memory layout. 
 
 | Category | Operation | CoordSpace | HashMap | Ratio |
 |----------|-----------|-----------|---------|-------|
-| Single-op micro | Get single (random coord) | 0.82 ns | 8.79 ns | 10.7x |
-| Bulk 11,172 | Insert | 26.5 µs | 377 µs | 14x |
-| Bulk 11,172 | Get | 6.49 µs | 101 µs | 16x |
-| Bulk 11,172 | Remove | 15.0 µs | 268 µs | 18x |
-| Spatial query | Axis filter (medial=10) | 58.8 Melem/s | 24.2 Melem/s | 2.4x |
-| Spatial query | CoordSet compound (initial=3 AND medial=5) | 94.4 ns | 13.0 µs | 138x |
+| Single-op micro | Get single (random coord) | 0.82 ns | 8.50 ns | 10.4x |
+| Bulk 11,172 | Insert | 26.4 µs | 385 µs | 14.6x |
+| Bulk 11,172 | Get | 6.48 µs | 102 µs | 15.7x |
+| Bulk 11,172 | Remove | 15.9 µs | 275 µs | 17.3x |
+| Spatial query | Axis filter (medial=10) | 58.0 Melem/s | 24.5 Melem/s | 2.4x |
+| Spatial query | CoordSet compound (initial=3 AND medial=5) | 85.0 ns | 11.5 µs | 135x |
 | Edge (CS2) | Sparse get 10M | 44.9 ms | 1.05 s | 23.4x |
-| Edge (CS2) | Nonexistent key (hash get) | 1.60 ns | 8.83 ns | 5.6x |
+| Edge (CS2) | Nonexistent key (hash get) | 1.60 ns | 8.83 ns | 5.5x |
 
 *Nonexistent key (hash get): CoordSpace cost is depth-independent (~1.3–1.6 ns in both CS2 and CS19, variance is measurement noise). The ratio gap (CS2: 5.6x, CS19: 14.4x) comes entirely from HashMap — hashing a 19-element key costs more than a 2-element key, while CoordSpace returns None at the first nonexistent branch regardless of depth.*
 
