@@ -138,7 +138,7 @@ Same algorithm (iterate + decompose + filter on axis), different memory layout. 
 | Edge (CS2) | Sparse get 10M | 44.9 ms | 1.05 s | 23.4x |
 | Edge (CS2) | Nonexistent key (hash get) | 1.60 ns | 8.83 ns | 5.6x |
 
-*CS19 nonexistent key (hash get): CoordSpace 1.27 ns vs HashMap 18.3 ns (14.4x). CS2 vs CS19 ratio difference (5.6x vs 14.4x) reflects HashMap hash cost scaling with key length (2 vs 19 u16 values). CoordSpace cost is near-constant (~1.3-1.6 ns) regardless of depth or entry count.*
+*Nonexistent key (hash get): CoordSpace cost is depth-independent (~1.3–1.6 ns in both CS2 and CS19, variance is measurement noise). The ratio gap (CS2: 5.6x, CS19: 14.4x) comes entirely from HashMap — hashing a 19-element key costs more than a 2-element key, while CoordSpace returns None at the first nonexistent branch regardless of depth.*
 
 ## Documentation
 
