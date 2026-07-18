@@ -3,15 +3,22 @@ name = "tagma-core"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "Tagma: content-addressable structural primitive — Coord, CoordMap, CoordSet, CoordPath"
+description = "Tagma: content-addressable structural primitive — Coord, CoordSpace, CoordSet, CoordPath"
 
 [features]
 default = ["alloc"]
 
-# Enables heap-backed data structures (CoordMap with N>1 tree, Box-based N=1 flat map).
+# Enables heap-backed data structures (CoordSpace with N>1 tree, Box-based N=1 flat map).
 # Without this feature, only core types are available:
 #   Coord, CoordPath, CoordSet (all no_std, no alloc).
-# CoordMap and related types require this feature.
+# CoordSpace and related types require this feature.
 alloc = []
+
+# Integration tests require alloc (use CoordSpaceN, DynCoordSpace, etc.).
+# `cargo test --no-default-features` automatically skips this binary.
+[[test]]
+name = "coord_space"
+path = "tests/coord_space.rs"
+required-features = ["alloc"]
 
 [dev-dependencies]

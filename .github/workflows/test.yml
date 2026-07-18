@@ -1,4 +1,4 @@
-name: Test Suite
+name: CI
 
 on:
   push:
@@ -6,17 +6,11 @@ on:
     paths:
       - "sw/rust/**"
       - "run.sh"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/*.yml"
       - "!sw/rust/**/*.md"
       - "!**/*.qmd"
   pull_request:
     branches: ["main"]
-    paths:
-      - "sw/rust/**"
-      - "run.sh"
-      - ".github/workflows/test.yml"
-      - "!sw/rust/**/*.md"
-      - "!**/*.qmd"
   workflow_dispatch:
 
 permissions:
@@ -26,18 +20,37 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sw/rust
+      - name: Full pipeline (fmt, clippy, build, test, no_alloc)
+        run: bash run.sh --check
 
-      - name: Full pipeline
-        run: bash run.sh
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sw/rust
+      - name: Build + test + core benchmarks
+        run: bash run.sh --bench
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sw/rust
+      - name: Build API docs
+        run: bash run.sh --doc

@@ -3,39 +3,39 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 // ---------------------------------------------------------------------------
-// DynCoordMap — dynamic-depth Coord-addressed map
+// DynCoordSpace — dynamic-depth Coord-addressed space
 // ---------------------------------------------------------------------------
 
-/// A collision-free map indexed by a slice of [`Coord`], with dynamic depth.
+/// A collision-free space indexed by a slice of [`Coord`], with dynamic depth.
 ///
 /// Each level is a fixed 11,172-slot array indexed directly by `Coord` —
 /// no hashing, no collisions, regardless of depth.
 ///
-/// Unlike [`CoordMap`] (no_alloc, N=1) and [`CoordMap6`] (compile-time N=6),
+/// Unlike [`CoordSpace`] (no_alloc, N=1) and [`CoordSpace6`] (compile-time N=6),
 /// the depth is determined at runtime by the length of the path slice.
 /// Memory is allocated lazily: only paths that are actually written to
 /// consume nodes.
 #[derive(Clone, Debug)]
-pub struct DynCoordMap<V> {
+pub struct DynCoordSpace<V> {
     slots: Box<[Option<Slot<V>>]>,
 }
 
 #[derive(Clone, Debug)]
 enum Slot<V> {
     Leaf(V),
-    Node(Box<DynCoordMap<V>>),
-    Both(V, Box<DynCoordMap<V>>), // holds a value and a child node simultaneously
+    Node(Box<DynCoordSpace<V>>),
+    Both(V, Box<DynCoordSpace<V>>), // holds a value and a child node simultaneously
 }
 
 // ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
 
-impl<V> DynCoordMap<V> {
-    /// Creates an empty `DynCoordMap`.
+impl<V> DynCoordSpace<V> {
+    /// Creates an empty `DynCoordSpace`.
     #[inline]
     pub fn new() -> Self {
-        DynCoordMap {
+        DynCoordSpace {
             slots: (0..11172)
                 .map(|_| None)
                 .collect::<Vec<_>>()
@@ -44,7 +44,7 @@ impl<V> DynCoordMap<V> {
     }
 }
 
-impl<V> Default for DynCoordMap<V> {
+impl<V> Default for DynCoordSpace<V> {
     fn default() -> Self {
         Self::new()
     }
@@ -54,13 +54,13 @@ impl<V> Default for DynCoordMap<V> {
 // Core: get / insert / remove
 // ---------------------------------------------------------------------------
 
-impl<V> DynCoordMap<V> {
+impl<V> DynCoordSpace<V> {
     /// Returns a reference to the value at `path`.
     ///
     /// Returns `None` if `path` is empty.
     ///
     /// Time: O(path.len()) — one array access per coord.
-    pub fn get(&self, path: &[Coord]) -> Option<&V> {
+    pub fn at(&self, path: &[Coord]) -> Option<&V> {
         if path.is_empty() {
             return None;
         }
@@ -84,10 +84,10 @@ impl<V> DynCoordMap<V> {
     /// # Panics
     ///
     /// Panics if `path` is empty (a path must contain at least one coordinate).
-    pub fn insert(&mut self, path: &[Coord], value: V) -> Option<V> {
+    pub fn place(&mut self, path: &[Coord], value: V) -> Option<V> {
         assert!(
             !path.is_empty(),
-            "DynCoordMap::insert: path must not be empty"
+            "DynCoordSpace::insert: path must not be empty"
         );
         self.insert_rec(path, 0, value)
     }
@@ -126,7 +126,7 @@ impl<V> DynCoordMap<V> {
                     Slot::Both(old_val, sub)
                 }
                 Slot::Leaf(old_val) => {
-                    let mut sub: Box<DynCoordMap<V>> = Box::default();
+                    let mut sub: Box<DynCoordSpace<V>> = Box::default();
                     result = sub.insert_rec(path, depth + 1, value);
                     Slot::Both(old_val, sub)
                 }
@@ -138,7 +138,7 @@ impl<V> DynCoordMap<V> {
     /// Removes the value at `path`, returning it if present.
     ///
     /// Returns `None` if `path` is empty.
-    pub fn remove(&mut self, path: &[Coord]) -> Option<V> {
+    pub fn vacate(&mut self, path: &[Coord]) -> Option<V> {
         if path.is_empty() {
             return None;
         }
@@ -150,7 +150,11 @@ impl<V> DynCoordMap<V> {
         if depth == path.len() - 1 {
             match self.slots[idx].take() {
                 Some(Slot::Leaf(v)) => Some(v),
-                Some(Slot::Both(v, _)) => Some(v),
+                Some(Slot::Both(v, child)) => {
+                    // Preserve deeper paths by keeping the child as a Node.
+                    self.slots[idx] = Some(Slot::Node(child));
+                    Some(v)
+                }
                 _ => None,
             }
         } else {
@@ -168,7 +172,11 @@ impl<V> DynCoordMap<V> {
             *slot = None;
         }
     }
+}
 
+// ── Iteration (internal) ───────────────────────────────────────────────
+
+impl<V> DynCoordSpace<V> {
     /// Returns the number of entries across all depths.
     /// O(entries) — walks the tree counting occupied leaf slots.
     pub fn entry_count(&self) -> usize {
@@ -225,7 +233,7 @@ impl<V> DynCoordMap<V> {
     }
 }
 
-/// An iterator over `(path, value)` pairs in a `DynCoordMap`.
+/// An iterator over `(path, value)` pairs in a `DynCoordSpace`.
 pub struct DynIter<'a, V> {
     entries: alloc::vec::IntoIter<(Vec<Coord>, &'a V)>,
 }
@@ -252,157 +260,157 @@ mod tests {
 
     #[test]
     fn empty() {
-        let m: DynCoordMap<u32> = DynCoordMap::new();
-        assert_eq!(m.get(&[Coord::new(0).unwrap()]), None);
+        let m: DynCoordSpace<u32> = DynCoordSpace::new();
+        assert_eq!(m.at(&[Coord::new(0).unwrap()]), None);
     }
 
     #[test]
     fn depth_1() {
-        let mut m = DynCoordMap::new();
+        let mut m = DynCoordSpace::new();
         let c = Coord::new(42).unwrap();
-        assert_eq!(m.insert(&[c], 7), None);
-        assert_eq!(m.get(&[c]), Some(&7));
+        assert_eq!(m.place(&[c], 7), None);
+        assert_eq!(m.at(&[c]), Some(&7));
     }
 
     #[test]
     fn depth_2() {
-        let mut m = DynCoordMap::new();
+        let mut m = DynCoordSpace::new();
         let path = [Coord::new(0).unwrap(), Coord::new(1).unwrap()];
-        m.insert(&path, 42);
-        assert_eq!(m.get(&path), Some(&42));
+        m.place(&path, 42);
+        assert_eq!(m.at(&path), Some(&42));
     }
 
     #[test]
     fn depth_3() {
-        let mut m = DynCoordMap::new();
+        let mut m = DynCoordSpace::new();
         let path = [
             Coord::new(0).unwrap(),
             Coord::new(1).unwrap(),
             Coord::new(2).unwrap(),
         ];
-        m.insert(&path, 99);
-        assert_eq!(m.get(&path), Some(&99));
+        m.place(&path, 99);
+        assert_eq!(m.at(&path), Some(&99));
     }
 
     #[test]
     fn independent_paths() {
-        let mut m = DynCoordMap::new();
+        let mut m = DynCoordSpace::new();
         let a = [Coord::new(0).unwrap(), Coord::new(0).unwrap()];
         let b = [Coord::new(0).unwrap(), Coord::new(1).unwrap()];
-        m.insert(&a, 10);
-        m.insert(&b, 20);
-        assert_eq!(m.get(&a), Some(&10));
-        assert_eq!(m.get(&b), Some(&20));
+        m.place(&a, 10);
+        m.place(&b, 20);
+        assert_eq!(m.at(&a), Some(&10));
+        assert_eq!(m.at(&b), Some(&20));
     }
 
     #[test]
     fn overwrite() {
-        let mut m = DynCoordMap::new();
+        let mut m = DynCoordSpace::new();
         let path = [Coord::new(5).unwrap()];
-        m.insert(&path, 1);
-        assert_eq!(m.insert(&path, 2), Some(1));
-        assert_eq!(m.get(&path), Some(&2));
+        m.place(&path, 1);
+        assert_eq!(m.place(&path, 2), Some(1));
+        assert_eq!(m.at(&path), Some(&2));
     }
 
     #[test]
-    fn remove() {
-        let mut m = DynCoordMap::new();
+    fn vacate() {
+        let mut m = DynCoordSpace::new();
         let path = [Coord::new(0).unwrap(), Coord::new(1).unwrap()];
-        m.insert(&path, 42);
-        assert_eq!(m.remove(&path), Some(42));
-        assert_eq!(m.get(&path), None);
+        m.place(&path, 42);
+        assert_eq!(m.vacate(&path), Some(42));
+        assert_eq!(m.at(&path), None);
     }
 
     #[test]
     fn mixed_depths() {
-        let mut m = DynCoordMap::new();
+        let mut m = DynCoordSpace::new();
         let d1 = [Coord::new(1).unwrap()];
         let d3 = [
             Coord::new(1).unwrap(),
             Coord::new(2).unwrap(),
             Coord::new(3).unwrap(),
         ];
-        m.insert(&d1, 10);
-        m.insert(&d3, 30);
-        assert_eq!(m.get(&d3), Some(&30));
+        m.place(&d1, 10);
+        m.place(&d3, 30);
+        assert_eq!(m.at(&d3), Some(&30));
         // Both should now be accessible
-        assert_eq!(m.get(&d1), Some(&10));
+        assert_eq!(m.at(&d1), Some(&10));
     }
 
     #[test]
     fn clear() {
-        let mut m = DynCoordMap::new();
-        m.insert(&[Coord::new(0).unwrap()], 1);
-        m.insert(&[Coord::new(1).unwrap(), Coord::new(0).unwrap()], 2);
+        let mut m = DynCoordSpace::new();
+        m.place(&[Coord::new(0).unwrap()], 1);
+        m.place(&[Coord::new(1).unwrap(), Coord::new(0).unwrap()], 2);
         m.clear();
         // After clear, both paths should return None
-        assert_eq!(m.get(&[Coord::new(0).unwrap()]), None);
+        assert_eq!(m.at(&[Coord::new(0).unwrap()]), None);
         assert_eq!(
-            m.get(&[Coord::new(1).unwrap(), Coord::new(0).unwrap()]),
+            m.at(&[Coord::new(1).unwrap(), Coord::new(0).unwrap()]),
             None
         );
     }
 
     #[test]
     fn boundary() {
-        let mut m = DynCoordMap::new();
+        let mut m = DynCoordSpace::new();
         let first = Coord::new(0).unwrap();
         let last = Coord::new(11171).unwrap();
-        m.insert(&[first, last], 42);
-        assert_eq!(m.get(&[first, last]), Some(&42));
+        m.place(&[first, last], 42);
+        assert_eq!(m.at(&[first, last]), Some(&42));
     }
 
     #[test]
     fn missing_path() {
-        let m: DynCoordMap<u32> = DynCoordMap::new();
+        let m: DynCoordSpace<u32> = DynCoordSpace::new();
         assert_eq!(
-            m.get(&[Coord::new(0).unwrap(), Coord::new(0).unwrap()]),
+            m.at(&[Coord::new(0).unwrap(), Coord::new(0).unwrap()]),
             None
         );
     }
 
     #[test]
     fn empty_path_get_returns_none() {
-        let m: DynCoordMap<u32> = DynCoordMap::new();
-        assert_eq!(m.get(&[]), None);
+        let m: DynCoordSpace<u32> = DynCoordSpace::new();
+        assert_eq!(m.at(&[]), None);
     }
 
     #[test]
     fn empty_path_remove_returns_none() {
-        let mut m: DynCoordMap<u32> = DynCoordMap::new();
-        assert_eq!(m.remove(&[]), None);
+        let mut m: DynCoordSpace<u32> = DynCoordSpace::new();
+        assert_eq!(m.vacate(&[]), None);
     }
 
     #[test]
     #[should_panic(expected = "path must not be empty")]
     fn empty_path_insert_panics() {
-        let mut m: DynCoordMap<u32> = DynCoordMap::new();
-        m.insert(&[], 42);
+        let mut m: DynCoordSpace<u32> = DynCoordSpace::new();
+        m.place(&[], 42);
     }
 
     #[test]
     fn clone_independent() {
-        let mut a = DynCoordMap::new();
-        a.insert(&[Coord::new(0).unwrap()], 1);
-        a.insert(&[Coord::new(1).unwrap(), Coord::new(2).unwrap()], 2);
+        let mut a = DynCoordSpace::new();
+        a.place(&[Coord::new(0).unwrap()], 1);
+        a.place(&[Coord::new(1).unwrap(), Coord::new(2).unwrap()], 2);
         let mut b = a.clone();
-        b.insert(&[Coord::new(3).unwrap()], 3);
+        b.place(&[Coord::new(3).unwrap()], 3);
         assert_eq!(a.entry_count(), 2);
         assert_eq!(b.entry_count(), 3);
     }
 
     #[test]
     fn iter_yields_all_entries() {
-        let mut m = DynCoordMap::new();
-        m.insert(&[Coord::new(0).unwrap()], 10);
-        m.insert(&[Coord::new(1).unwrap(), Coord::new(2).unwrap()], 20);
+        let mut m = DynCoordSpace::new();
+        m.place(&[Coord::new(0).unwrap()], 10);
+        m.place(&[Coord::new(1).unwrap(), Coord::new(2).unwrap()], 20);
         let entries: Vec<_> = m.iter().collect();
         assert_eq!(entries.len(), 2);
     }
 
     #[test]
     fn iter_empty() {
-        let m: DynCoordMap<u32> = DynCoordMap::new();
+        let m: DynCoordSpace<u32> = DynCoordSpace::new();
         assert_eq!(m.iter().count(), 0);
     }
 }

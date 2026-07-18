@@ -4,49 +4,47 @@
 extern crate alloc;
 
 pub mod coord;
-pub mod path;
-pub mod set;
+pub mod coord_path;
+pub mod coord_set;
+pub mod coord_space;
 
-// CoordMap1: no_alloc, single-syllable, inline array (22 KB).
-// Always available — no heap allocator required.
-pub mod flat;
-
-// CoordMap6, CoordMap12, CoordMap19: multi-syllable, heap-backed tree.
+// CoordSpaceN: multi-syllable, heap-backed tree (N>1).
 // Requires alloc feature (default: on).
 #[cfg(feature = "alloc")]
-pub mod map;
+pub mod coord_space_n;
 
-// DynCoordMap: dynamic depth, heap-backed trie.
+// DynCoordSpace: dynamic depth, heap-backed trie.
 #[cfg(feature = "alloc")]
-pub mod dyn_coord;
+pub mod dyn_coord_space;
 
 pub use coord::Coord;
-pub use path::CoordPath;
-pub use set::CoordSet;
+pub use coord_path::CoordPath;
+pub use coord_set::CoordSet;
 
-// ── CoordMap series — unified naming ──
+// ── CoordSpace series — unified naming ──
 
 /// 1-syllable: 11,172 identifiers. No allocator required.
-pub use flat::CoordMap;
-pub use flat::CoordMap1;
+pub use coord_space::CoordSpace;
 
 #[cfg(feature = "alloc")]
-pub use dyn_coord::DynCoordMap;
+pub use coord_space_n::CoordSpace12;
 #[cfg(feature = "alloc")]
-pub use dyn_coord::DynIter;
+pub use coord_space_n::CoordSpace19;
 #[cfg(feature = "alloc")]
-pub use map::CoordMap12;
+pub use coord_space_n::CoordSpace2;
 #[cfg(feature = "alloc")]
-pub use map::CoordMap19;
+pub use coord_space_n::CoordSpace3;
 #[cfg(feature = "alloc")]
-pub use map::CoordMap2;
+pub use coord_space_n::CoordSpace6;
 #[cfg(feature = "alloc")]
-pub use map::CoordMap3;
+pub use coord_space_n::CoordSpaceN;
 #[cfg(feature = "alloc")]
-pub use map::CoordMap6;
+pub use dyn_coord_space::DynCoordSpace;
+#[cfg(feature = "alloc")]
+pub use dyn_coord_space::DynIter;
 
-// Internal types (used by CoordMap1):
-pub use flat::FlatDrain;
-pub use flat::FlatEntry;
-pub use flat::FlatIter;
-pub use flat::FlatIterMut;
+// Internal types (used by CoordSpace1):
+pub use coord_space::FlatDrain;
+pub use coord_space::FlatEntry;
+pub use coord_space::FlatIter;
+pub use coord_space::FlatIterMut;

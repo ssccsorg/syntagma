@@ -36,7 +36,7 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 | CoordSpace\<V\> | Single-syllable direct-address table. Inline `[Option<V>; 11172]` — zero heap. O(1), no hashing, no collisions | `core/src/coord_space.rs` |
 | base11172 | Self-validating serialization: arbitrary bytes to Hangul syllable strings | `base11172/src/lib.rs` |
 
-Test coverage: 163 unit/integration tests + 15 doc-tests, all passing. Zero clippy warnings. CI runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification).
+Test coverage: 170 unit/integration tests + 15 doc-tests, all passing. Zero clippy warnings. CI runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification).
 
 ### Requires alloc (default feature)
 
@@ -119,23 +119,26 @@ The three-axis composition formula admits unbounded recursive embedding: each ax
 
 | Metric | SHA-256 | Tagma (1-syll) | Tagma (6-syll) | Tagma (19-syll) |
 |--------|---------|---------------|---------------|----------------|
-| Latency | 227 ns/op | 2 ns/op | 11 ns/op | 35 ns/op |
-| Speedup | baseline | 115x | 21x | 6.5x |
+| Latency | 227 ns/op | 0.38 ns/op | 5.57 ns/op | 54.9 ns/op |
+| Speedup | baseline | 597x | 41x | 4.1x |
 | Address space | 2^256 | 1.1e4 | 1.9e24 | 2^256 |
 
 ## Benchmark: Spatial query vs HashMap (Apple M1)
 
 Same algorithm (iterate + decompose + filter on axis), different memory layout. CoordSpace stores values in contiguous `[Option<V>; 11172]` — no hash, no collision, no fragmentation. HashMap scatters across buckets.
 
-| Operation | CoordSpace | HashMap | Ratio |
-|-----------|-----------|---------|-------|
-| Insert 11,172 | 26.5 µs | 377 µs | 14x |
-| Get 11,172 | 6.49 µs | 101 µs | 16x |
-| Remove 11,172 | 15.0 µs | 268 µs | 18x |
-| Axis filter (medial=10) | 58.2 Melem/s | 24.2 Melem/s | 2.4x |
-| Range filter (initial 3--7) | 312 Melem/s | 139 Melem/s | 2.3x |
-| CoordSet compound (initial=3 AND medial=5) | 94.4 ns | 13.0 µs | 138x |
-| Get single (random coord) | 0.81 ns | 8.9 ns | 11x |
+| Category | Operation | CoordSpace | HashMap | Ratio |
+|----------|-----------|-----------|---------|-------|
+| Single-op micro | Get single (random coord) | 0.82 ns | 8.50 ns | 10.4x |
+| Bulk 11,172 | Insert | 26.4 µs | 385 µs | 14.6x |
+| Bulk 11,172 | Get | 6.48 µs | 102 µs | 15.7x |
+| Bulk 11,172 | Remove | 15.9 µs | 275 µs | 17.3x |
+| Spatial query | Axis filter (medial=10) | 58.0 Melem/s | 24.5 Melem/s | 2.4x |
+| Spatial query | CoordSet compound (initial=3 AND medial=5) | 85.0 ns | 11.5 µs | 135x |
+| Edge (CS2) | Sparse get 10M | 44.9 ms | 1.05 s | 23.4x |
+| Edge (CS2) | Nonexistent prefix (iter scan) | 1.65 ns | 23.05 ms | 14.0Mx |
+
+*Nonexistent prefix (structural vs iter scan): HashMap has no prefix index and must scan all 10M entries to determine that no entry has first coord == 11111. CoordSpace navigates to the branch at that prefix and returns None immediately. The gap (14.0Mx) reflects the difference between structural addressing and content scanning, not between two equivalent hash lookups.*
 
 ## Documentation
 

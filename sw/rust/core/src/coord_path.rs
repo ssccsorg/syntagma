@@ -1,6 +1,6 @@
 use crate::Coord;
 
-/// An index path through a `CoordMap`, not a key.
+/// An index path through a `CoordSpace`, not a key.
 ///
 /// Each element selects one of 11,172 slots at the corresponding tree depth.
 /// `N` is a compile-time depth tag ensuring the path length matches the map.
@@ -148,6 +148,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn path_display() {
         let c = Coord::new(0).unwrap();
         let path = CoordPath::<1>::new([c]);

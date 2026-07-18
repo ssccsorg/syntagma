@@ -397,6 +397,7 @@ mod tests {
     fn char_roundtrip() {
         let c = Coord::from_axes(0, 0, 0).unwrap();
         assert_eq!(c.to_char(), '가');
+        #[cfg(feature = "alloc")]
         assert_eq!(c.to_hangul_string(), "가");
 
         let last = Coord::new(11171).unwrap();

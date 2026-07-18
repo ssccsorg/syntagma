@@ -15,7 +15,7 @@ metadata-files:
     - ./_include/format.html.yml
 colorlinks: true
 abstract: |
-  Tagma is the realization that the Unicode Hangul syllable block encodes a 16-bit structural coordinate space with a closed-form composition formula, three independent axes, and a built-in invalidity margin of 54,364 of 65,536 states. This space enables hash-less, collision-free content addressing with a combinational decoder of approximately 300 gates and one cycle. We define the coordinate space, the decoder specification, a RISC-V XIF coprocessor reference implementation, and core data structures (Coord, CoordMap, CoordSet, CoordTreeMap multi-syllable maps). Tagma replaces hash-based identity generation where cryptographic integrity is not required; SHA-256 and other cryptographic primitives remain for signatures and tamper detection.
+  Tagma is the realization that the Unicode Hangul syllable block encodes a 16-bit structural coordinate space with a closed-form composition formula, three independent axes, and a built-in invalidity margin of 54,364 of 65,536 states. This space enables hash-less, collision-free content addressing with a combinational decoder of approximately 300 gates and one cycle. We define the coordinate space, the decoder specification, a RISC-V XIF coprocessor reference implementation, and core data structures (Coord, CoordSpace, CoordSet, CoordSpace multi-syllable maps). Tagma replaces hash-based identity generation where cryptographic integrity is not required; SHA-256 and other cryptographic primitives remain for signatures and tamper detection.
 format:
   html:
     number-sections: true
@@ -140,7 +140,7 @@ C(i,m,f) = 0xAC00 + 588i + 28m + f  →  access    (Tagma, 1 cycle)
 The coordinate space is implemented as a library providing four fundamental types:
 
 - **Coord** -- A 16-bit value guaranteed to be structurally valid. Constructable from raw index, Unicode code point, character, or the three axes (initial, medial, final). Decomposable back to axes. Hamming distance computation. Display as Hangul syllable.
-- **CoordMap** -- A direct-address table indexed by coordinate. Fixed capacity of 11,172 entries. O(1) insert, lookup, and delete with no collisions, no resizing, and no hashing overhead.
+- **CoordSpace** -- A direct-address table indexed by coordinate. Fixed capacity of 11,172 entries. O(1) insert, lookup, and delete with no collisions, no resizing, and no hashing overhead.
 - **CoordSet** -- A bit array over the coordinate space. Insert, remove, and membership test are single-bit operations. Union, intersection, and difference are bitwise operations over 175 machine words.
 - **TagmaTimeIndex** -- Temporal indexing via linearized coordinate: `time × 11172 + coord`. A single multiply-add replaces a full hash computation.
 

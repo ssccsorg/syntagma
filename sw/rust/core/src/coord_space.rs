@@ -1,8 +1,8 @@
 use crate::coord::Coord;
-use crate::path::CoordPath;
+use crate::coord_path::CoordPath;
 
 // ---------------------------------------------------------------------------
-// CoordFlatMap: no_alloc, single-syllable direct-address table
+// CoordSpace: no_alloc, single-syllable direct-address table
 // ---------------------------------------------------------------------------
 
 /// A hash-less, collision-free, single-syllable address table with zero
@@ -18,15 +18,15 @@ use crate::path::CoordPath;
 /// slots[coord]  →  O(1), single array access
 /// ```
 #[derive(Clone, Debug)]
-pub struct CoordFlatMap<V> {
+pub struct CoordSpace<V> {
     slots: [Option<V>; 11172],
     len: usize,
 }
 
-impl<V> CoordFlatMap<V> {
+impl<V> CoordSpace<V> {
     // ── construction ────────────────────────────────────────────────────
 
-    /// Creates an empty `CoordFlatMap`.
+    /// Creates an empty `CoordSpace`.
     ///
     /// All 11,172 slots are initialized to `None`.
     #[inline]
@@ -35,7 +35,7 @@ impl<V> CoordFlatMap<V> {
         // represented as all-zeroes for any V (Option<V> has a niche).
         // This avoids running 11172 drop-and-replace instructions.
         let slots = unsafe { core::mem::zeroed() };
-        CoordFlatMap { slots, len: 0 }
+        CoordSpace { slots, len: 0 }
     }
 
     /// Returns the number of entries.
@@ -44,7 +44,7 @@ impl<V> CoordFlatMap<V> {
         self.len
     }
 
-    /// Returns `true` if the map contains no entries.
+    /// Returns `true` if the space contains no entries.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len == 0
@@ -70,39 +70,39 @@ impl<V> CoordFlatMap<V> {
 
     /// Returns a reference to the value at `coord`.
     #[inline]
-    pub fn get(&self, coord: &Coord) -> Option<&V> {
+    pub fn at(&self, coord: &Coord) -> Option<&V> {
         self.slot(coord).as_ref()
     }
 
     /// Returns a mutable reference to the value at `coord`.
     #[inline]
-    pub fn get_mut(&mut self, coord: &Coord) -> Option<&mut V> {
+    pub fn at_mut(&mut self, coord: &Coord) -> Option<&mut V> {
         self.slot_mut(coord).as_mut()
     }
 
-    /// Returns the key-value pair for `coord`.
+    /// Returns the coordinate-value pair for `coord`.
     #[inline]
-    pub fn get_key_value(&self, coord: &Coord) -> Option<(Coord, &V)> {
+    pub fn get_entry(&self, coord: &Coord) -> Option<(Coord, &V)> {
         self.slot(coord).as_ref().map(|v| (*coord, v))
     }
 
-    /// Returns `true` if the map contains an entry for `coord`.
+    /// Returns `true` if the space contains an entry for `coord`.
     #[inline]
-    pub fn contains_key(&self, coord: &Coord) -> bool {
+    pub fn occupied(&self, coord: &Coord) -> bool {
         self.slot(coord).is_some()
     }
 
     /// Returns a reference to the value at `path` (single-syllable path API).
     #[inline]
-    pub fn get_path(&self, path: &CoordPath<1>) -> Option<&V> {
-        self.get(&path.coords()[0])
+    pub fn at_path(&self, path: &CoordPath<1>) -> Option<&V> {
+        self.at(&path.coords()[0])
     }
 
     // ── write ───────────────────────────────────────────────────────────
 
     /// Inserts a value at `coord`, returning the previous value if any.
     #[inline]
-    pub fn insert(&mut self, coord: Coord, value: V) -> Option<V> {
+    pub fn place(&mut self, coord: Coord, value: V) -> Option<V> {
         let slot = self.slot_mut(&coord);
         let old = slot.take();
         *slot = Some(value);
@@ -114,13 +114,13 @@ impl<V> CoordFlatMap<V> {
 
     /// Inserts a value at `path` (single-syllable path API).
     #[inline]
-    pub fn insert_path(&mut self, path: &CoordPath<1>, value: V) -> Option<V> {
-        self.insert(path.coords()[0], value)
+    pub fn place_path(&mut self, path: &CoordPath<1>, value: V) -> Option<V> {
+        self.place(path.coords()[0], value)
     }
 
     /// Removes the value at `coord`, returning it if present.
     #[inline]
-    pub fn remove(&mut self, coord: &Coord) -> Option<V> {
+    pub fn vacate(&mut self, coord: &Coord) -> Option<V> {
         let slot = self.slot_mut(coord);
         let old = slot.take();
         if old.is_some() {
@@ -131,11 +131,11 @@ impl<V> CoordFlatMap<V> {
 
     /// Removes the value at `path` (single-syllable path API).
     #[inline]
-    pub fn remove_path(&mut self, path: &CoordPath<1>) -> Option<V> {
-        self.remove(&path.coords()[0])
+    pub fn vacate_path(&mut self, path: &CoordPath<1>) -> Option<V> {
+        self.vacate(&path.coords()[0])
     }
 
-    /// Clears the map, removing all entries.
+    /// Clears the space, removing all entries.
     pub fn clear(&mut self) {
         for slot in self.slots.iter_mut() {
             *slot = None;
@@ -152,7 +152,7 @@ impl<V> CoordFlatMap<V> {
         }
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = Coord> + '_ {
+    pub fn coords(&self) -> impl Iterator<Item = Coord> + '_ {
         self.iter().map(|(k, _)| k)
     }
 
@@ -185,21 +185,24 @@ impl<V> CoordFlatMap<V> {
     }
 
     pub fn drain(&mut self) -> FlatDrain<'_, V> {
-        FlatDrain { map: self, idx: 0 }
+        FlatDrain {
+            space: self,
+            idx: 0,
+        }
     }
 
     // ── entry API ──────────────────────────────────────────────────────
 
     pub fn entry(&mut self, coord: Coord) -> FlatEntry<'_, V> {
-        if self.contains_key(&coord) {
-            FlatEntry::Occupied(FlatOccupiedEntry { map: self, coord })
+        if self.occupied(&coord) {
+            FlatEntry::Occupied(FlatOccupiedEntry { space: self, coord })
         } else {
-            FlatEntry::Vacant(FlatVacantEntry { map: self, coord })
+            FlatEntry::Vacant(FlatVacantEntry { space: self, coord })
         }
     }
 }
 
-impl<V> Default for CoordFlatMap<V> {
+impl<V> Default for CoordSpace<V> {
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -231,7 +234,7 @@ impl<'a, V> Iterator for FlatIter<'a, V> {
 }
 
 pub struct FlatDrain<'a, V> {
-    map: &'a mut CoordFlatMap<V>,
+    space: &'a mut CoordSpace<V>,
     idx: u16,
 }
 
@@ -241,7 +244,7 @@ impl<'a, V> Iterator for FlatDrain<'a, V> {
         while self.idx < 11172 {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
-            if let Some(val) = self.map.remove(&coord) {
+            if let Some(val) = self.space.vacate(&coord) {
                 return Some((coord, val));
             }
         }
@@ -257,7 +260,7 @@ impl<'a, V> Drop for FlatDrain<'a, V> {
         while self.idx < 11172 {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
-            self.map.remove(&coord);
+            self.space.vacate(&coord);
         }
     }
 }
@@ -296,30 +299,30 @@ pub enum FlatEntry<'a, V> {
 }
 
 pub struct FlatOccupiedEntry<'a, V> {
-    map: &'a mut CoordFlatMap<V>,
+    space: &'a mut CoordSpace<V>,
     coord: Coord,
 }
 
 impl<'a, V> FlatOccupiedEntry<'a, V> {
-    pub fn key(&self) -> Coord {
+    pub fn coord(&self) -> Coord {
         self.coord
     }
-    pub fn get(&self) -> &V {
-        unsafe { self.map.get(&self.coord).unwrap_unchecked() }
+    pub fn at(&self) -> &V {
+        unsafe { self.space.at(&self.coord).unwrap_unchecked() }
     }
-    pub fn get_mut(&mut self) -> &mut V {
-        unsafe { self.map.get_mut(&self.coord).unwrap_unchecked() }
+    pub fn at_mut(&mut self) -> &mut V {
+        unsafe { self.space.at_mut(&self.coord).unwrap_unchecked() }
     }
-    pub fn insert(&mut self, value: V) -> V {
-        unsafe { self.map.insert(self.coord, value).unwrap_unchecked() }
+    pub fn place(&mut self, value: V) -> V {
+        unsafe { self.space.place(self.coord, value).unwrap_unchecked() }
     }
     pub fn remove_entry(self) -> V {
-        unsafe { self.map.remove(&self.coord).unwrap_unchecked() }
+        unsafe { self.space.vacate(&self.coord).unwrap_unchecked() }
     }
 }
 
 pub struct FlatVacantEntry<'a, V> {
-    map: &'a mut CoordFlatMap<V>,
+    space: &'a mut CoordSpace<V>,
     coord: Coord,
 }
 
@@ -330,16 +333,16 @@ impl<'a, V> FlatVacantEntry<'a, V> {
     pub fn into_key(self) -> Coord {
         self.coord
     }
-    pub fn insert(self, value: V) -> &'a mut V {
-        let _ = self.map.insert(self.coord, value);
-        unsafe { self.map.get_mut(&self.coord).unwrap_unchecked() }
+    pub fn place(self, value: V) -> &'a mut V {
+        let _ = self.space.place(self.coord, value);
+        unsafe { self.space.at_mut(&self.coord).unwrap_unchecked() }
     }
 }
 
 impl<'a, V> FlatEntry<'a, V> {
     pub fn key(&self) -> Coord {
         match self {
-            FlatEntry::Occupied(e) => e.key(),
+            FlatEntry::Occupied(e) => e.coord(),
             FlatEntry::Vacant(e) => e.key(),
         }
     }
@@ -348,22 +351,22 @@ impl<'a, V> FlatEntry<'a, V> {
     }
     pub fn or_insert_with<F: FnOnce() -> V>(self, f: F) -> &'a mut V {
         match self {
-            FlatEntry::Occupied(e) => unsafe { e.map.get_mut(&e.coord).unwrap_unchecked() },
-            FlatEntry::Vacant(e) => e.insert(f()),
+            FlatEntry::Occupied(e) => unsafe { e.space.at_mut(&e.coord).unwrap_unchecked() },
+            FlatEntry::Vacant(e) => e.place(f()),
         }
     }
     pub fn or_insert_with_key<F: FnOnce(Coord) -> V>(self, f: F) -> &'a mut V {
         match self {
-            FlatEntry::Occupied(e) => unsafe { e.map.get_mut(&e.coord).unwrap_unchecked() },
+            FlatEntry::Occupied(e) => unsafe { e.space.at_mut(&e.coord).unwrap_unchecked() },
             FlatEntry::Vacant(e) => {
                 let v = f(e.coord);
-                e.insert(v)
+                e.place(v)
             }
         }
     }
     pub fn and_modify<F: FnOnce(&mut V)>(mut self, f: F) -> Self {
         if let FlatEntry::Occupied(ref mut e) = self {
-            f(e.get_mut());
+            f(e.at_mut());
         }
         self
     }
@@ -371,17 +374,17 @@ impl<'a, V> FlatEntry<'a, V> {
 
 // ── FromIterator / IntoIterator ────────────────────────
 
-impl<V> FromIterator<(Coord, V)> for CoordFlatMap<V> {
+impl<V> FromIterator<(Coord, V)> for CoordSpace<V> {
     fn from_iter<I: IntoIterator<Item = (Coord, V)>>(iter: I) -> Self {
-        let mut map = Self::new();
+        let mut space = Self::new();
         for (coord, value) in iter {
-            map.insert(coord, value);
+            space.place(coord, value);
         }
-        map
+        space
     }
 }
 
-impl<V> IntoIterator for CoordFlatMap<V> {
+impl<V> IntoIterator for CoordSpace<V> {
     type Item = (Coord, V);
     type IntoIter = FlatIntoIter<V>;
     fn into_iter(mut self) -> Self::IntoIter {
@@ -391,7 +394,7 @@ impl<V> IntoIterator for CoordFlatMap<V> {
 }
 
 pub struct FlatIntoIter<V> {
-    map: CoordFlatMap<V>,
+    map: CoordSpace<V>,
     idx: u16,
 }
 
@@ -413,7 +416,7 @@ impl<V> Iterator for FlatIntoIter<V> {
     }
 }
 
-impl<'a, V> IntoIterator for &'a CoordFlatMap<V> {
+impl<'a, V> IntoIterator for &'a CoordSpace<V> {
     type Item = (Coord, &'a V);
     type IntoIter = FlatIter<'a, V>;
     fn into_iter(self) -> Self::IntoIter {
@@ -423,37 +426,36 @@ impl<'a, V> IntoIterator for &'a CoordFlatMap<V> {
 
 // ── Index ──────────────────────────────────────────────
 
-impl<V> core::ops::Index<Coord> for CoordFlatMap<V> {
+impl<V> core::ops::Index<Coord> for CoordSpace<V> {
     type Output = V;
     fn index(&self, coord: Coord) -> &V {
-        self.get(&coord)
-            .expect("CoordFlatMap::index: key not present")
+        self.at(&coord).expect("CoordSpace::index: key not present")
     }
 }
 
-impl<V> core::ops::IndexMut<Coord> for CoordFlatMap<V> {
+impl<V> core::ops::IndexMut<Coord> for CoordSpace<V> {
     fn index_mut(&mut self, coord: Coord) -> &mut V {
-        self.get_mut(&coord)
-            .expect("CoordFlatMap::index_mut: key not present")
+        self.at_mut(&coord)
+            .expect("CoordSpace::index_mut: key not present")
     }
 }
 
 // ── Eq ─────────────────────────────────────────────────
 
-impl<V: PartialEq> PartialEq for CoordFlatMap<V> {
+impl<V: PartialEq> PartialEq for CoordSpace<V> {
     fn eq(&self, other: &Self) -> bool {
         self.len == other.len && self.slots == other.slots
     }
 }
-impl<V: PartialEq> Eq for CoordFlatMap<V> {}
+impl<V: PartialEq> Eq for CoordSpace<V> {}
 
 // ── Type alias ─────────────────────────────────────────
 
 /// Default single-syllable address table. No allocator required.
-pub type CoordMap<V> = CoordFlatMap<V>;
+pub type CoordSpaceN<V> = CoordSpace<V>;
 
 /// 1-syllable: 11,172 identifiers. No allocator required.
-pub type CoordMap1<V> = CoordFlatMap<V>;
+pub type CoordSpace1<V> = CoordSpace<V>;
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -466,7 +468,7 @@ mod tests {
 
     #[test]
     fn new_map_is_empty() {
-        let map: CoordFlatMap<u32> = CoordFlatMap::new();
+        let map: CoordSpace<u32> = CoordSpace::new();
         assert!(map.is_empty());
         assert_eq!(map.len(), 0);
         assert_eq!(map.capacity(), 11172);
@@ -474,46 +476,46 @@ mod tests {
 
     #[test]
     fn insert_and_get() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(0).unwrap();
-        assert_eq!(map.insert(c, 42), None);
-        assert_eq!(map.get(&c), Some(&42));
+        assert_eq!(map.place(c, 42), None);
+        assert_eq!(map.at(&c), Some(&42));
         assert_eq!(map.len(), 1);
     }
 
     #[test]
     fn insert_overwrite() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(0).unwrap();
-        map.insert(c, 1);
-        assert_eq!(map.insert(c, 2), Some(1));
-        assert_eq!(map.get(&c), Some(&2));
+        map.place(c, 1);
+        assert_eq!(map.place(c, 2), Some(1));
+        assert_eq!(map.at(&c), Some(&2));
         assert_eq!(map.len(), 1);
     }
 
     #[test]
-    fn remove() {
-        let mut map = CoordFlatMap::new();
+    fn vacate() {
+        let mut map = CoordSpace::new();
         let c = Coord::new(0).unwrap();
-        map.insert(c, 42);
-        assert_eq!(map.remove(&c), Some(42));
+        map.place(c, 42);
+        assert_eq!(map.vacate(&c), Some(42));
         assert!(map.is_empty());
     }
 
     #[test]
     fn contains_key() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(0).unwrap();
-        assert!(!map.contains_key(&c));
-        map.insert(c, ());
-        assert!(map.contains_key(&c));
+        assert!(!map.occupied(&c));
+        map.place(c, ());
+        assert!(map.occupied(&c));
     }
 
     #[test]
     fn clear() {
-        let mut map = CoordFlatMap::new();
-        map.insert(Coord::new(0).unwrap(), 1);
-        map.insert(Coord::new(100).unwrap(), 2);
+        let mut map = CoordSpace::new();
+        map.place(Coord::new(0).unwrap(), 1);
+        map.place(Coord::new(100).unwrap(), 2);
         map.clear();
         assert!(map.is_empty());
         assert_eq!(map.len(), 0);
@@ -521,11 +523,11 @@ mod tests {
 
     #[test]
     fn iter_non_empty() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c1 = Coord::new(0).unwrap();
         let c2 = Coord::new(9999).unwrap();
-        map.insert(c1, 10);
-        map.insert(c2, 20);
+        map.place(c1, 10);
+        map.place(c2, 20);
         let entries: Vec<_> = map.iter().collect();
         assert_eq!(entries.len(), 2);
         assert!(entries.contains(&(c1, &10)));
@@ -534,9 +536,9 @@ mod tests {
 
     #[test]
     fn into_iter() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(42).unwrap();
-        map.insert(c, "hello");
+        map.place(c, "hello");
         let collected: Vec<_> = map.into_iter().collect();
         assert_eq!(collected.len(), 1);
         assert_eq!(collected[0].0, c);
@@ -546,25 +548,25 @@ mod tests {
     #[test]
     fn from_iterator() {
         let pairs: Vec<_> = (0..5u16).map(|i| (Coord::new(i).unwrap(), i)).collect();
-        let map: CoordFlatMap<u16> = pairs.into_iter().collect();
+        let map: CoordSpace<u16> = pairs.into_iter().collect();
         assert_eq!(map.len(), 5);
     }
 
     #[test]
     fn entry_or_insert() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(0).unwrap();
         map.entry(c).or_insert(42);
-        assert_eq!(map.get(&c), Some(&42));
+        assert_eq!(map.at(&c), Some(&42));
         map.entry(c).or_insert(99);
-        assert_eq!(map.get(&c), Some(&42));
+        assert_eq!(map.at(&c), Some(&42));
     }
 
     #[test]
     fn index_trait() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(5).unwrap();
-        map.insert(c, 42);
+        map.place(c, 42);
         assert_eq!(map[c], 42);
         map[c] = 99;
         assert_eq!(map[c], 99);
@@ -572,41 +574,41 @@ mod tests {
 
     #[test]
     fn iter_mut() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(5).unwrap();
-        map.insert(c, 1);
+        map.place(c, 1);
         for (_, v) in map.iter_mut() {
             *v += 1;
         }
-        assert_eq!(map.get(&c), Some(&2));
+        assert_eq!(map.at(&c), Some(&2));
     }
 
     #[test]
     fn values_mut() {
-        let mut map = CoordFlatMap::new();
-        map.insert(Coord::new(0).unwrap(), 10);
-        map.insert(Coord::new(1).unwrap(), 20);
+        let mut map = CoordSpace::new();
+        map.place(Coord::new(0).unwrap(), 10);
+        map.place(Coord::new(1).unwrap(), 20);
         for v in map.values_mut() {
             *v *= 2;
         }
-        assert_eq!(map.get(&Coord::new(0).unwrap()), Some(&20));
-        assert_eq!(map.get(&Coord::new(1).unwrap()), Some(&40));
+        assert_eq!(map.at(&Coord::new(0).unwrap()), Some(&20));
+        assert_eq!(map.at(&Coord::new(1).unwrap()), Some(&40));
     }
 
     #[test]
     fn retain() {
-        let mut map = CoordFlatMap::new();
-        map.insert(Coord::new(0).unwrap(), 1);
-        map.insert(Coord::new(1).unwrap(), 2);
+        let mut map = CoordSpace::new();
+        map.place(Coord::new(0).unwrap(), 1);
+        map.place(Coord::new(1).unwrap(), 2);
         map.retain(|_, v| *v > 1);
         assert_eq!(map.len(), 1);
     }
 
     #[test]
     fn drain() {
-        let mut map = CoordFlatMap::new();
-        map.insert(Coord::new(0).unwrap(), 1);
-        map.insert(Coord::new(1).unwrap(), 2);
+        let mut map = CoordSpace::new();
+        map.place(Coord::new(0).unwrap(), 1);
+        map.place(Coord::new(1).unwrap(), 2);
         let drained: Vec<_> = map.drain().collect();
         assert_eq!(drained.len(), 2);
         assert!(map.is_empty());
@@ -614,40 +616,40 @@ mod tests {
 
     #[test]
     fn path_api() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         let c = Coord::new(42).unwrap();
-        map.insert_path(&CoordPath::new([c]), 100);
-        assert_eq!(map.get_path(&CoordPath::new([c])), Some(&100));
-        assert_eq!(map.remove_path(&CoordPath::new([c])), Some(100));
+        map.place_path(&CoordPath::new([c]), 100);
+        assert_eq!(map.at_path(&CoordPath::new([c])), Some(&100));
+        assert_eq!(map.vacate_path(&CoordPath::new([c])), Some(100));
         assert!(map.is_empty());
     }
 
     #[test]
     fn insert_11172_values() {
-        let mut map = CoordFlatMap::new();
+        let mut map = CoordSpace::new();
         for i in 0u16..11172 {
-            assert_eq!(map.insert(Coord::new(i).unwrap(), i), None);
+            assert_eq!(map.place(Coord::new(i).unwrap(), i), None);
         }
         assert_eq!(map.len(), 11172);
         for i in 0u16..11172 {
-            assert_eq!(map.get(&Coord::new(i).unwrap()), Some(&i));
+            assert_eq!(map.at(&Coord::new(i).unwrap()), Some(&i));
         }
     }
 
     #[test]
     fn eq() {
-        let mut a = CoordFlatMap::new();
-        let mut b = CoordFlatMap::new();
-        a.insert(Coord::new(0).unwrap(), 1);
-        b.insert(Coord::new(0).unwrap(), 1);
+        let mut a = CoordSpace::new();
+        let mut b = CoordSpace::new();
+        a.place(Coord::new(0).unwrap(), 1);
+        b.place(Coord::new(0).unwrap(), 1);
         assert_eq!(a, b);
-        b.insert(Coord::new(1).unwrap(), 2);
+        b.place(Coord::new(1).unwrap(), 2);
         assert_ne!(a, b);
     }
 
     #[test]
     fn default() {
-        let map: CoordFlatMap<u32> = Default::default();
+        let map: CoordSpace<u32> = Default::default();
         assert!(map.is_empty());
     }
 }
