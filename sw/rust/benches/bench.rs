@@ -697,13 +697,13 @@ fn bench_cs2_bulk_100k(c: &mut Criterion) {
 // Edge cases: scenarios where Tagma is NOT faster (transparency)
 // ===========================================================================
 
-// Edge/cs2_sparse_50k: 50,000 entries at depth 2, 1000 prefixes × 50 suffixes.
-fn bench_cs2_sparse_50k(c: &mut Criterion) {
+// Edge/cs2_sparse_5M: 5,000,000 entries at depth 2, 5000 prefixes × 1000 suffixes.
+fn bench_cs2_sparse_5M(c: &mut Criterion) {
     let mut cs2 = tagma_core::CoordSpace2::<u32>::new();
     let mut hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
-    let mut paths = Vec::with_capacity(50_000);
-    for p in 0u16..1000 {
-        for s in 0u16..50 {
+    let mut paths = Vec::with_capacity(5_000_000);
+    for p in 0u16..5000 {
+        for s in 0u16..1000 {
             let path = tagma_core::CoordPath::new([
                 tagma_core::Coord::new((p * 22) % 11172).unwrap(),
                 tagma_core::Coord::new((s * 587 + p) % 11172).unwrap(),
@@ -714,8 +714,8 @@ fn bench_cs2_sparse_50k(c: &mut Criterion) {
         }
     }
 
-    let mut group = c.benchmark_group("Edge/cs2_sparse_50k");
-    group.throughput(criterion::Throughput::Elements(50_000));
+    let mut group = c.benchmark_group("Edge/cs2_sparse_5M");
+    group.throughput(criterion::Throughput::Elements(5_000_000));
 
     group.bench_function("CoordSpace/get", |b| {
         b.iter(|| {
@@ -737,14 +737,14 @@ fn bench_cs2_sparse_50k(c: &mut Criterion) {
     group.finish();
 }
 
-// Edge/cs2_nonexistent_prefix: query a prefix that has no entries (50k entries stored).
+// Edge/cs2_nonexistent_prefix: query a prefix that has no entries (5M entries stored).
 // CoordSpace2 navigates to the prefix branch, finds None, returns immediately.
 // HashMap scans all 5000 entries, finds none, returns empty.
 fn bench_cs2_nonexistent_prefix(c: &mut Criterion) {
     let mut cs2 = tagma_core::CoordSpace2::<u32>::new();
     let mut hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
-    for p in 0u16..1000 {
-        for s in 0u16..50 {
+    for p in 0u16..5000 {
+        for s in 0u16..1000 {
             let path = tagma_core::CoordPath::new([
                 tagma_core::Coord::new(p).unwrap(),
                 tagma_core::Coord::new((s * 587 + p) % 11172).unwrap(),
@@ -755,7 +755,7 @@ fn bench_cs2_nonexistent_prefix(c: &mut Criterion) {
     }
 
     let mut group = c.benchmark_group("Edge/cs2_nonexistent_prefix");
-    group.throughput(criterion::Throughput::Elements(50_000));
+    group.throughput(criterion::Throughput::Elements(5_000_000));
     group.bench_function("CoordSpace2", |b| {
         let missing = vec![tagma_core::Coord::new(9999).unwrap()];
         b.iter(|| {
@@ -1049,7 +1049,7 @@ criterion_group!(
 criterion_group!(
     name = edge;
     config = Criterion::default();
-    targets = bench_cs2_sparse_50k, bench_cs2_nonexistent_prefix
+    targets = bench_cs2_sparse_5M, bench_cs2_nonexistent_prefix
 );
 criterion_group!(
     name = stress;
