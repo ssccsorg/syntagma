@@ -638,8 +638,8 @@ fn bench_spatial_cs2_prefix_scan(c: &mut Criterion) {
 //   CoordSpace/get      ~0.6 ms
 //   HashMap/get         ~1.2 ms
 fn bench_cs2_bulk_100k(c: &mut Criterion) {
-    let mut cs2 = tagma_core::CoordSpace2::<u32>::new();
-    let mut hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
+    let cs2 = tagma_core::CoordSpace2::<u32>::new();
+    let hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
     let mut paths = Vec::with_capacity(100_000);
     for p in 0u16..1000 {
         for s in 0u16..100 {
@@ -699,8 +699,8 @@ fn bench_cs2_bulk_100k(c: &mut Criterion) {
 
 // Edge/cs2_sparse_5000: 5000 entries at depth 2, 500 prefixes × 10 suffixes.
 // Tests get performance in a moderately sparse 2-level tree.
-// iter_tree slowness is a known limitation: collect_leaves scans all 11,172
-// slots at every allocated branch node regardless of occupancy.
+// iter_tree uses a lazy stack-based DFS — no slot scan overhead.
+// Performance should be O(entries × depth) for any occupancy.
 fn bench_cs2_sparse_5000(c: &mut Criterion) {
     let mut cs2 = tagma_core::CoordSpace2::<u32>::new();
     let mut hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
@@ -736,7 +736,7 @@ fn bench_cs2_sparse_5000(c: &mut Criterion) {
         b.iter(|| black_box(cs2.iter_tree().count()))
     });
     group.bench_function("HashMap/iter", |b| {
-        b.iter(|| black_box(hm.iter().count()))
+        b.iter(|| black_box(hm.len()))
     });
 
     group.finish();

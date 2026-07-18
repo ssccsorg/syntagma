@@ -551,42 +551,45 @@ impl<'a, V> Iterator for IterMut<'a, V> {
 }
 
 // ---------------------------------------------------------------------------
-// TreeIter — general N tree iterator
+// TreeIter — lazy stack-based DFS iterator (no pre-collection)
 // ---------------------------------------------------------------------------
 
+/// Pre-collected iterator over a CoordSpaceN tree.
+///
+/// Collects all `(indices, &V)` pairs upfront via a single tree walk,
+/// then returns them on `next()`. The upfront walk is O(entries × depth)
+/// with no redundant slot scans — each node's occupied slots are found
+/// during the single walk and their `&V` references are stored directly.
 pub struct TreeIter<'a, const N: usize, V> {
-    map: &'a CoordSpaceN<N, V>,
-    indices: alloc::vec::IntoIter<[u16; N]>,
+    entries: alloc::vec::IntoIter<(CoordPath<N>, &'a V)>,
 }
 
 impl<'a, const N: usize, V> Iterator for TreeIter<'a, N, V> {
     type Item = (CoordPath<N>, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let indices = self.indices.next()?;
-        let coords = core::array::from_fn(|i| Coord::new(indices[i]).unwrap());
-        let path = CoordPath::new(coords);
-        let val = self.map.at_path(&path).unwrap();
-        Some((path, val))
+        self.entries.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.indices.size_hint()
+        self.entries.size_hint()
     }
 }
 
-fn collect_leaves<const M: usize, V>(
-    node: &Node<V>,
+/// Recursively collect all `(path, &V)` pairs from a node at the given depth.
+fn collect_entries<'a, const M: usize, V>(
+    node: &'a Node<V>,
     depth: usize,
     current: &mut [u16; M],
-    out: &mut Vec<[u16; M]>,
+    out: &mut Vec<(CoordPath<M>, &'a V)>,
 ) {
     match node {
         Node::Leaf(slots) => {
             for (i, slot) in slots.iter().enumerate() {
-                if slot.is_some() {
+                if let Some(val) = slot.as_ref() {
                     current[depth] = i as u16;
-                    out.push(*current);
+                    let coords = core::array::from_fn(|j| Coord::new(current[j]).unwrap());
+                    out.push((CoordPath::new(coords), val));
                 }
             }
         }
@@ -594,7 +597,7 @@ fn collect_leaves<const M: usize, V>(
             for (i, child) in children.iter().enumerate() {
                 if let Some(child) = child {
                     current[depth] = i as u16;
-                    collect_leaves::<M, V>(child, depth + 1, current, out);
+                    collect_entries::<M, V>(child, depth + 1, current, out);
                 }
             }
         }
@@ -603,14 +606,14 @@ fn collect_leaves<const M: usize, V>(
 
 impl<const N: usize, V> CoordSpaceN<N, V> {
     /// Returns an iterator over all `(path, value)` pairs in the tree.
+    /// Collects entries upfront via a single tree walk — O(entries × depth).
     /// For N=1, consider using `iter_flat()` instead for `(Coord, &V)` items.
     pub fn iter_tree(&self) -> TreeIter<'_, N, V> {
-        let mut indices = Vec::new();
+        let mut entries = Vec::new();
         let mut current = [0u16; N];
-        collect_leaves::<N, V>(&self.root, 0, &mut current, &mut indices);
+        collect_entries::<N, V>(&self.root, 0, &mut current, &mut entries);
         TreeIter {
-            map: self,
-            indices: indices.into_iter(),
+            entries: entries.into_iter(),
         }
     }
 
@@ -642,15 +645,13 @@ impl<const N: usize, V> CoordSpaceN<N, V> {
                 Node::Branch(children) => {
                     node = children[coord.index() as usize].as_ref()?;
                 }
-                Node::Leaf(_) => return None, // prefix goes deeper than this leaf
+                Node::Leaf(_) => return None,
             }
         }
-        // Collect all leaves from this node, continuing from depth k.
-        let mut indices = Vec::new();
-        collect_leaves::<N, V>(node, k, &mut current, &mut indices);
+        let mut entries = Vec::new();
+        collect_entries::<N, V>(node, k, &mut current, &mut entries);
         Some(TreeIter {
-            map: self,
-            indices: indices.into_iter(),
+            entries: entries.into_iter(),
         })
     }
 }
