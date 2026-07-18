@@ -1143,7 +1143,19 @@ criterion_group!(
 );
 
 criterion_main!(
-    inserts, lookup, mutate, iterate, micro, tree, stress, spatial, n_scaling, large, edge, deep
+    inserts, lookup, mutate, iterate, micro, tree, stress, spatial, n_scaling, large, edge, deep,
+    set
+);
+
+// ===========================================================================
+// CoordSetN (N=2) benchmarks
+// ===========================================================================
+
+criterion_group!(
+    set,
+    bench_coordsetn_insert_1000_n2,
+    bench_coordsetn_union_n2,
+    bench_coordsetn_iter_1000_n2
 );
 
 // ===========================================================================
@@ -1426,4 +1438,106 @@ fn bench_cs19_nonexistent_prefix(c: &mut Criterion) {
         b.iter(|| black_box(hm.get(&hk)))
     });
     group.finish();
+}
+
+// ===========================================================================
+// CoordSetN benchmarks
+// ===========================================================================
+
+fn bench_coordsetn_insert_1000_n2(c: &mut Criterion) {
+    use tagma_core::CoordSetN;
+
+    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mut paths: Vec<tagma_core::CoordPath<2>> = Vec::with_capacity(1000);
+    let mut hkeys: Vec<[u16; 2]> = Vec::with_capacity(1000);
+    for i in 0u16..1000 {
+        let p = tagma_core::CoordPath::new([mk(i), mk(i + 100)]);
+        hkeys.push([p.coords()[0].index(), p.coords()[1].index()]);
+        paths.push(p);
+    }
+
+    let mut group = c.benchmark_group("CoordSetN<2>/insert/1000");
+    group.bench_function("CoordSetN", |b| {
+        b.iter(|| {
+            let mut s = CoordSetN::<2>::new();
+            for p in &paths {
+                black_box(s.insert(*p));
+            }
+            black_box(s.len());
+        })
+    });
+    group.bench_function("HashSet", |b| {
+        b.iter(|| {
+            let mut s = std::collections::HashSet::new();
+            for k in &hkeys {
+                black_box(s.insert(*k));
+            }
+            black_box(s.len());
+        })
+    });
+    group.finish();
+}
+
+fn bench_coordsetn_union_n2(c: &mut Criterion) {
+    use tagma_core::CoordSetN;
+
+    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mut a = CoordSetN::<2>::new();
+    let mut b = CoordSetN::<2>::new();
+    let mut ha = std::collections::HashSet::new();
+    let mut hb = std::collections::HashSet::new();
+    for i in 0u16..500 {
+        let p = tagma_core::CoordPath::new([mk(i), mk(i)]);
+        a.insert(p);
+        ha.insert([mk(i).index(), mk(i).index()]);
+    }
+    for i in 250u16..750 {
+        let p = tagma_core::CoordPath::new([mk(i), mk(i)]);
+        b.insert(p);
+        hb.insert([mk(i).index(), mk(i).index()]);
+    }
+
+    let mut group = c.benchmark_group("CoordSetN<2>/set_ops");
+    group.bench_function("union_500_500", |bench| {
+        bench.iter(|| black_box(a.union(&b)))
+    });
+    group.bench_function("intersection_500_500", |bench| {
+        bench.iter(|| black_box(a.intersection(&b)))
+    });
+    group.bench_function("difference_500_500", |bench| {
+        bench.iter(|| black_box(a.difference(&b)))
+    });
+    group.bench_function("is_subset_500_500", |bench| {
+        bench.iter(|| black_box(a.is_subset(&b)))
+    });
+    group.bench_function("is_disjoint_500_500", |bench| {
+        bench.iter(|| black_box(a.is_disjoint(&b)))
+    });
+    group.bench_function("HashSet_union_500_500", |bench| {
+        bench.iter(|| black_box(&ha | &hb))
+    });
+    group.bench_function("HashSet_is_disjoint_500_500", |bench| {
+        bench.iter(|| black_box(ha.is_disjoint(&hb)))
+    });
+    group.finish();
+}
+
+fn bench_coordsetn_iter_1000_n2(c: &mut Criterion) {
+    use tagma_core::CoordSetN;
+
+    let mut set = CoordSetN::<2>::new();
+    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    for i in 0u16..1000 {
+        set.insert(tagma_core::CoordPath::new([mk(i), mk(i + 100)]));
+    }
+
+    c.bench_function("CoordSetN<2>/iter/1000", |b| {
+        b.iter(|| {
+            let mut count = 0usize;
+            for (_, _) in set.iter() {
+                count += 1;
+            }
+            black_box(count);
+        })
+    });
 }

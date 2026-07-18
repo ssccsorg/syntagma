@@ -21,4 +21,19 @@ name = "coord_space"
 path = "tests/coord_space.rs"
 required-features = ["alloc"]
 
+[[test]]
+name = "coord_set_n"
+path = "tests/coord_set_n.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "coord_space_n"
+path = "tests/coord_space_n.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "dyn_coord_space"
+path = "tests/dyn_coord_space.rs"
+required-features = ["alloc"]
+
 [dev-dependencies]

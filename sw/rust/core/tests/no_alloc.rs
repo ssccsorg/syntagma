@@ -266,3 +266,180 @@ fn coord_path_is_not_a_key() {
     assert_eq!(path1.len(), 2);
     assert_eq!(path1.coords()[0], Coord::new(0).unwrap());
 }
+
+// ── From src/coord_space.rs inline tests ──
+
+#[test]
+fn cm_new_map_is_empty() {
+    let map: CoordSpace<u32> = CoordSpace::new();
+    assert!(map.is_empty());
+    assert_eq!(map.len(), 0);
+    assert_eq!(map.capacity(), 11172);
+}
+
+#[test]
+fn cm_insert_and_get() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(0).unwrap();
+    assert_eq!(map.place(c, 42), None);
+    assert_eq!(map.at(&c), Some(&42));
+    assert_eq!(map.len(), 1);
+}
+
+#[test]
+fn cm_insert_overwrite() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(0).unwrap();
+    map.place(c, 1);
+    assert_eq!(map.place(c, 2), Some(1));
+    assert_eq!(map.at(&c), Some(&2));
+    assert_eq!(map.len(), 1);
+}
+
+#[test]
+fn cm_vacate() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(0).unwrap();
+    map.place(c, 42);
+    assert_eq!(map.vacate(&c), Some(42));
+    assert!(map.is_empty());
+}
+
+#[test]
+fn cm_contains_key() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(0).unwrap();
+    assert!(!map.occupied(&c));
+    map.place(c, ());
+    assert!(map.occupied(&c));
+}
+
+#[test]
+fn cm_clear2() {
+    let mut map = CoordSpace::new();
+    map.place(Coord::new(0).unwrap(), 1);
+    map.place(Coord::new(100).unwrap(), 2);
+    map.clear();
+    assert!(map.is_empty());
+    assert_eq!(map.len(), 0);
+}
+
+#[test]
+fn cm_iter_non_empty() {
+    let mut map = CoordSpace::new();
+    let c1 = Coord::new(0).unwrap();
+    let c2 = Coord::new(9999).unwrap();
+    map.place(c1, 10);
+    map.place(c2, 20);
+    let entries: Vec<_> = map.iter().collect();
+    assert_eq!(entries.len(), 2);
+    assert!(entries.contains(&(c1, &10)));
+    assert!(entries.contains(&(c2, &20)));
+}
+
+#[test]
+fn cm_into_iter() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(42).unwrap();
+    map.place(c, "hello");
+    let collected: Vec<_> = map.into_iter().collect();
+    assert_eq!(collected.len(), 1);
+    assert_eq!(collected[0].0, c);
+    assert_eq!(collected[0].1, "hello");
+}
+
+#[test]
+fn cm_from_iterator() {
+    let pairs: Vec<_> = (0..5u16).map(|i| (Coord::new(i).unwrap(), i)).collect();
+    let map: CoordSpace<u16> = pairs.into_iter().collect();
+    assert_eq!(map.len(), 5);
+}
+
+#[test]
+fn cm_entry_or_insert() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(0).unwrap();
+    map.entry(c).or_insert(42);
+    assert_eq!(map.at(&c), Some(&42));
+    map.entry(c).or_insert(99);
+    assert_eq!(map.at(&c), Some(&42));
+}
+
+#[test]
+fn cm_index_trait2() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(5).unwrap();
+    map.place(c, 42);
+    assert_eq!(map[c], 42);
+    map[c] = 99;
+    assert_eq!(map[c], 99);
+}
+
+#[test]
+fn cm_iter_mut() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(5).unwrap();
+    map.place(c, 1);
+    for (_, v) in map.iter_mut() {
+        *v += 1;
+    }
+    assert_eq!(map.at(&c), Some(&2));
+}
+
+#[test]
+fn cm_values_mut() {
+    let mut map = CoordSpace::new();
+    map.place(Coord::new(0).unwrap(), 10);
+    map.place(Coord::new(1).unwrap(), 20);
+    for v in map.values_mut() {
+        *v *= 2;
+    }
+    assert_eq!(map.at(&Coord::new(0).unwrap()), Some(&20));
+    assert_eq!(map.at(&Coord::new(1).unwrap()), Some(&40));
+}
+
+#[test]
+fn cm_retain() {
+    let mut map = CoordSpace::new();
+    map.place(Coord::new(0).unwrap(), 1);
+    map.place(Coord::new(1).unwrap(), 2);
+    map.retain(|_, v| *v > 1);
+    assert_eq!(map.len(), 1);
+}
+
+#[test]
+fn cm_drain() {
+    let mut map = CoordSpace::new();
+    map.place(Coord::new(0).unwrap(), 1);
+    map.place(Coord::new(1).unwrap(), 2);
+    let drained: Vec<_> = map.drain().collect();
+    assert_eq!(drained.len(), 2);
+    assert!(map.is_empty());
+}
+
+#[test]
+fn cm_path_api2() {
+    let mut map = CoordSpace::new();
+    let c = Coord::new(42).unwrap();
+    map.place_path(&CoordPath::new([c]), 100);
+    assert_eq!(map.at_path(&CoordPath::new([c])), Some(&100));
+    assert_eq!(map.vacate_path(&CoordPath::new([c])), Some(100));
+    assert!(map.is_empty());
+}
+
+#[test]
+fn cm_eq() {
+    let mut a = CoordSpace::new();
+    let mut b = CoordSpace::new();
+    a.place(Coord::new(0).unwrap(), 1);
+    b.place(Coord::new(0).unwrap(), 1);
+    assert_eq!(a, b);
+    b.place(Coord::new(1).unwrap(), 2);
+    assert_ne!(a, b);
+}
+
+#[test]
+fn cm_default() {
+    let map: CoordSpace<u32> = Default::default();
+    assert!(map.is_empty());
+}

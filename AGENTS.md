@@ -85,3 +85,4 @@ digraph DOTGraph {
 - Do not generate unnecessary code. Produce only what is **essential** for the goal.
 - Do not use text characters to draw diagrams (e.g., trees or boxes using ╔═) in code comments.
 - For bulk find-and-replace (renames, type substitutions), use `sed` across the relevant subtree; avoid LLM token-expensive per-file `edit_file` calls.
+- Locate tests in `/tests` folder: Do not create inline test.
