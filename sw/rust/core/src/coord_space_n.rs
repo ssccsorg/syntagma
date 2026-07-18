@@ -1,6 +1,8 @@
 use crate::coord::Coord;
 use crate::coord_path::CoordPath;
 use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::vec;
 use alloc::vec::Vec;
 
 // ---------------------------------------------------------------------------
@@ -554,66 +556,91 @@ impl<'a, V> Iterator for IterMut<'a, V> {
 // TreeIter — lazy stack-based DFS iterator (no pre-collection)
 // ---------------------------------------------------------------------------
 
-/// Pre-collected iterator over a CoordSpaceN tree.
+/// A single frame on the DFS stack. Holds a node reference and the next
+/// slot index to scan. Stack depth is at most N (tree depth), guaranteeing
+/// minimal allocation regardless of entry count.
+struct StackFrame<'a, V> {
+    node: &'a Node<V>,
+    idx: usize,
+}
+
+/// Lazy stack-based DFS iterator over a CoordSpaceN tree.
 ///
-/// Collects all `(indices, &V)` pairs upfront via a single tree walk,
-/// then returns them on `next()`. The upfront walk is O(entries × depth)
-/// with no redundant slot scans — each node's occupied slots are found
-/// during the single walk and their `&V` references are stored directly.
+/// Uses a small stack (at most N frames) instead of pre-collecting all
+/// entries into a Vec. Each `next()` advances the DFS in place, yielding
+/// entries one at a time with O(1) amortized cost per element.
 pub struct TreeIter<'a, const N: usize, V> {
-    entries: alloc::vec::IntoIter<(CoordPath<N>, &'a V)>,
+    stack: Vec<StackFrame<'a, V>>,
+    path: [u16; N],
+    base_depth: usize,
 }
 
 impl<'a, const N: usize, V> Iterator for TreeIter<'a, N, V> {
     type Item = (CoordPath<N>, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.entries.next()
+        'outer: loop {
+            let stack_len = self.stack.len();
+            if stack_len == 0 {
+                return None;
+            }
+            let depth = self.base_depth + stack_len - 1;
+            let frame = self.stack.last_mut().unwrap();
+            match frame.node {
+                Node::Leaf(slots) => {
+                    // Scan remaining leaf slots for an occupied one.
+                    for i in frame.idx..slots.len() {
+                        if slots[i].is_some() {
+                            frame.idx = i + 1;
+                            self.path[depth] = i as u16;
+                            let coords =
+                                core::array::from_fn(|j| Coord::new(self.path[j]).unwrap());
+                            return Some((CoordPath::new(coords), slots[i].as_ref().unwrap()));
+                        }
+                    }
+                    // Leaf exhausted; backtrack to parent.
+                    self.stack.pop();
+                }
+                Node::Branch(children) => {
+                    // Scan remaining branch slots for an occupied child.
+                    for i in frame.idx..children.len() {
+                        if let Some(child) = &children[i] {
+                            frame.idx = i + 1;
+                            self.path[depth] = i as u16;
+                            self.stack.push(StackFrame {
+                                node: child,
+                                idx: 0,
+                            });
+                            continue 'outer;
+                        }
+                    }
+                    // Branch exhausted; backtrack to parent.
+                    self.stack.pop();
+                }
+            }
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.entries.size_hint()
-    }
-}
-
-/// Recursively collect all `(path, &V)` pairs from a node at the given depth.
-fn collect_entries<'a, const M: usize, V>(
-    node: &'a Node<V>,
-    depth: usize,
-    current: &mut [u16; M],
-    out: &mut Vec<(CoordPath<M>, &'a V)>,
-) {
-    match node {
-        Node::Leaf(slots) => {
-            for (i, slot) in slots.iter().enumerate() {
-                if let Some(val) = slot.as_ref() {
-                    current[depth] = i as u16;
-                    let coords = core::array::from_fn(|j| Coord::new(current[j]).unwrap());
-                    out.push((CoordPath::new(coords), val));
-                }
-            }
-        }
-        Node::Branch(children) => {
-            for (i, child) in children.iter().enumerate() {
-                if let Some(child) = child {
-                    current[depth] = i as u16;
-                    collect_entries::<M, V>(child, depth + 1, current, out);
-                }
-            }
-        }
+        // Cannot determine remaining count without traversing.
+        (0, None)
     }
 }
 
 impl<const N: usize, V> CoordSpaceN<N, V> {
     /// Returns an iterator over all `(path, value)` pairs in the tree.
-    /// Collects entries upfront via a single tree walk — O(entries × depth).
+    ///
+    /// Uses a lazy stack-based DFS with O(1) amortized `next()` and no
+    /// pre-collection allocation. Stack depth is bounded by N.
     /// For N=1, consider using `iter_flat()` instead for `(Coord, &V)` items.
     pub fn iter_tree(&self) -> TreeIter<'_, N, V> {
-        let mut entries = Vec::new();
-        let mut current = [0u16; N];
-        collect_entries::<N, V>(&self.root, 0, &mut current, &mut entries);
         TreeIter {
-            entries: entries.into_iter(),
+            stack: vec![StackFrame {
+                node: &self.root,
+                idx: 0,
+            }],
+            path: [0u16; N],
+            base_depth: 0,
         }
     }
 
@@ -633,11 +660,11 @@ impl<const N: usize, V> CoordSpaceN<N, V> {
         if k >= N {
             return None;
         }
-        // Navigate to the branch at depth k.
+        // Navigate to the subtree at depth k.
         let mut node = &self.root;
-        let mut current = [0u16; N];
+        let mut path = [0u16; N];
         for (i, coord) in prefix.iter().enumerate() {
-            current[i] = coord.index();
+            path[i] = coord.index();
             match node {
                 Node::Branch(children) => {
                     node = children[coord.index() as usize].as_ref()?;
@@ -645,10 +672,10 @@ impl<const N: usize, V> CoordSpaceN<N, V> {
                 Node::Leaf(_) => return None,
             }
         }
-        let mut entries = Vec::new();
-        collect_entries::<N, V>(node, k, &mut current, &mut entries);
         Some(TreeIter {
-            entries: entries.into_iter(),
+            stack: vec![StackFrame { node, idx: 0 }],
+            path,
+            base_depth: k,
         })
     }
 }

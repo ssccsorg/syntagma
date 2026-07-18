@@ -342,3 +342,49 @@ fn is_superset_equal_sets() {
     assert!(a.is_superset(&b));
     assert!(b.is_superset(&a));
 }
+
+#[test]
+fn iter_tree_yields_same_as_len() {
+    let mut s = CoordSetN::<2>::new();
+    for i in 0u16..30 {
+        s.insert(CoordPath::new([
+            Coord::new(i).unwrap(),
+            Coord::new(i + 50).unwrap(),
+        ]));
+    }
+    assert_eq!(s.iter().count(), 30);
+}
+
+#[test]
+fn iter_tree_order_deterministic() {
+    let mut s = CoordSetN::<2>::new();
+    // Reverse insert order
+    for i in (0u16..20).rev() {
+        s.insert(CoordPath::new([
+            Coord::new(i).unwrap(),
+            Coord::new(0).unwrap(),
+        ]));
+    }
+    let mut last = 0u16;
+    for (path, _) in s.iter() {
+        assert!(path.coords()[0].index() >= last, "iter must be ascending");
+        last = path.coords()[0].index();
+    }
+}
+
+#[test]
+fn iter_size_hint_covers_contents() {
+    let mut s = CoordSetN::<2>::new();
+    for i in 0u16..10 {
+        s.insert(CoordPath::new([
+            Coord::new(i).unwrap(),
+            Coord::new(i).unwrap(),
+        ]));
+    }
+    // size_hint lower bound is 0 (lazy iter), upper bound None
+    // But iter must still yield all entries
+    let iter = s.iter();
+    let (lower, _upper) = iter.size_hint();
+    assert_eq!(lower, 0);
+    assert_eq!(iter.count(), 10);
+}

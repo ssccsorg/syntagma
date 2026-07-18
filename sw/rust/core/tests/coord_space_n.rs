@@ -459,3 +459,124 @@ fn iter_prefix_test() {
     let missing = [Coord::new(11111).unwrap()];
     assert!(space.iter_prefix(&missing).is_none());
 }
+
+// ── TreeIter lazy DFS coverage ─────────────────────────────────────
+
+#[test]
+fn iter_tree_yields_all_entries() {
+    let mut space: CoordSpaceN<2, u32> = CoordSpaceN::new();
+    let paths: Vec<CoordPath<2>> = (0u16..50)
+        .map(|i| CoordPath::new([Coord::new(i).unwrap(), Coord::new(i + 100).unwrap()]))
+        .collect();
+    for (i, p) in paths.iter().enumerate() {
+        space.place_path(p, i as u32);
+    }
+
+    let count = space.iter_tree().count();
+    assert_eq!(count, 50, "iter_tree must yield all entries");
+}
+
+#[test]
+fn iter_tree_paths_match_at_path() {
+    let mut space: CoordSpaceN<2, u32> = CoordSpaceN::new();
+    let inserted: Vec<(CoordPath<2>, u32)> = (0u16..50)
+        .map(|i| {
+            let p = CoordPath::new([Coord::new(i).unwrap(), Coord::new(i + 100).unwrap()]);
+            space.place_path(&p, i as u32);
+            (p, i as u32)
+        })
+        .collect();
+
+    for (path, val) in space.iter_tree() {
+        // Every entry from iter_tree must match at_path
+        assert_eq!(space.at_path(&path), Some(val));
+        // And must be one of the inserted values
+        assert!(inserted.iter().any(|(p, v)| p == &path && v == val));
+    }
+}
+
+#[test]
+fn iter_tree_order_is_deterministic() {
+    let mut space: CoordSpaceN<2, u32> = CoordSpaceN::new();
+    // Insert in reverse order
+    for i in (0u16..100).rev() {
+        let p = CoordPath::new([Coord::new(i).unwrap(), Coord::new(0).unwrap()]);
+        space.place_path(&p, i as u32);
+    }
+    // iter_tree must yield in ascending coordinate order (depth-first)
+    let mut last = 0u16;
+    for (path, _) in space.iter_tree() {
+        assert!(
+            path.coords()[0].index() >= last,
+            "iter_tree must be in ascending coord order"
+        );
+        last = path.coords()[0].index();
+    }
+}
+
+#[test]
+fn iter_tree_produces_same_entries_as_count() {
+    // Verify tree with mixed depths and values.
+    let mut space: CoordSpaceN<3, u32> = CoordSpaceN::new();
+    for i in 0u16..5 {
+        for j in 0u16..3 {
+            let p = CoordPath::new([
+                Coord::new(i).unwrap(),
+                Coord::new(j).unwrap(),
+                Coord::new(0).unwrap(),
+            ]);
+            space.place_path(&p, (i * 3 + j) as u32);
+        }
+    }
+    let count_from_len = space.len();
+    let count_from_iter = space.iter_tree().count();
+    assert_eq!(
+        count_from_len, count_from_iter,
+        "len() and iter_tree().count() must agree"
+    );
+}
+
+// ── iter_prefix coverage ───────────────────────────────────────────
+
+#[test]
+fn iter_prefix_yields_correct_subset() {
+    let mut space: CoordSpaceN<2, u32> = CoordSpaceN::new();
+    space.place_path(
+        &CoordPath::new([Coord::new(1).unwrap(), Coord::new(1).unwrap()]),
+        10,
+    );
+    space.place_path(
+        &CoordPath::new([Coord::new(1).unwrap(), Coord::new(2).unwrap()]),
+        20,
+    );
+    space.place_path(
+        &CoordPath::new([Coord::new(2).unwrap(), Coord::new(1).unwrap()]),
+        30,
+    );
+    space.place_path(
+        &CoordPath::new([Coord::new(2).unwrap(), Coord::new(2).unwrap()]),
+        40,
+    );
+
+    // prefix [Coord(1)] should yield 2 entries
+    let prefix = [Coord::new(1).unwrap()];
+    let count = space.iter_prefix(&prefix).unwrap().count();
+    assert_eq!(count, 2, "iter_prefix must yield only entries under prefix");
+
+    // Entries under prefix must have matching first coord
+    for (path, _) in space.iter_prefix(&prefix).unwrap() {
+        assert_eq!(path.coords()[0].index(), 1);
+    }
+}
+
+#[test]
+fn iter_prefix_nonexistent_returns_none() {
+    let mut space: CoordSpaceN<2, u32> = CoordSpaceN::new();
+    space.place_path(
+        &CoordPath::new([Coord::new(1).unwrap(), Coord::new(1).unwrap()]),
+        10,
+    );
+
+    // prefix that doesn't exist
+    assert!(space.iter_prefix(&[Coord::new(9999).unwrap()]).is_none());
+}
