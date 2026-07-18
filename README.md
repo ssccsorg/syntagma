@@ -127,17 +127,17 @@ The three-axis composition formula admits unbounded recursive embedding: each ax
 
 Same algorithm (iterate + decompose + filter on axis), different memory layout. CoordSpace stores values in contiguous `[Option<V>; 11172]` — no hash, no collision, no fragmentation. HashMap scatters across buckets.
 
-| Operation | CoordSpace | HashMap | Ratio |
-|-----------|-----------|---------|-------|
-| Insert 11,172 | 26.5 µs | 377 µs | 14x |
-| Get 11,172 | 6.49 µs | 101 µs | 16x |
-| Remove 11,172 | 15.0 µs | 268 µs | 18x |
-| Axis filter (medial=10) | 58.8 Melem/s | 24.2 Melem/s | 2.4x |
-| CoordSet compound (initial=3 AND medial=5) | 94.4 ns | 13.0 µs | 138x |
-| Get single (random coord) | 0.82 ns | 8.79 ns | 10.7x |
-| **Sparse get 10M (CS2)** | **44.9 ms** | **1.05 s** | **23.4x** |
-| **Nonexistent prefix 10M (CS2)** | **1.60 ns** | **23.1 ms** | **14.4Mx** |
-| **Nonexistent prefix 100 (CS19)** | **1.27 ns** | **18.5 ns** | **14.6x** |
+| Category | Operation | CoordSpace | HashMap | Ratio |
+|----------|-----------|-----------|---------|-------|
+| Single-op micro | Get single (random coord) | 0.82 ns | 8.79 ns | 10.7x |
+| Bulk 11,172 | Insert | 26.5 µs | 377 µs | 14x |
+| Bulk 11,172 | Get | 6.49 µs | 101 µs | 16x |
+| Bulk 11,172 | Remove | 15.0 µs | 268 µs | 18x |
+| Spatial query | Axis filter (medial=10) | 58.8 Melem/s | 24.2 Melem/s | 2.4x |
+| Spatial query | CoordSet compound (initial=3 AND medial=5) | 94.4 ns | 13.0 µs | 138x |
+| Edge 10M (CS2) | Sparse get (10M entries) | 44.9 ms | 1.05 s | 23.4x |
+| Edge 10M (CS2) | Nonexistent prefix (10M stored) | 1.60 ns | 23.1 ms | 14.4Mx |
+| Edge 100 (CS19) | Nonexistent prefix (100 stored) | 1.27 ns | 18.5 ns | 14.6x |
 
 ## Documentation
 
