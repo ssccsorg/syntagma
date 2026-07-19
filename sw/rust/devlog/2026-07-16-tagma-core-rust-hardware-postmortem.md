@@ -84,7 +84,7 @@ Each level is a fixed 11,172-slot array. With lazy allocation (CoordSpace), only
 | `u64` | 89 KB | 89 KB |
 | `Box<dyn Trait>` | 89 KB | 89 KB |
 
-For CoordSpace6N, a single leaf path at the deepest level creates one Branch at level 0 + one Branch at level 1 + ... + one Leaf at level 5 = 5 x 89 KB + 44 KB = 489 KB for a single `u32` entry. This is the worst-case memory overhead for sparse trees.
+For CoordSpaceN6, a single leaf path at the deepest level creates one Branch at level 0 + one Branch at level 1 + ... + one Leaf at level 5 = 5 x 89 KB + 44 KB = 489 KB for a single `u32` entry. This is the worst-case memory overhead for sparse trees.
 
 ### 2.2 Cache behavior
 
@@ -100,7 +100,7 @@ For CoordSpace6N, a single leaf path at the deepest level creates one Branch at 
 CoordSpace allocates one node per unique prefix path. For sparse distribution:
 
 ```
-CoordSpace6N with 1000 entries at random coords:
+CoordSpaceN6 with 1000 entries at random coords:
   Expected unique prefixes at level 0: ~1000 (spread across 11,172 slots)
   → 1000 Branch nodes at level 0
   → 1000 Branch nodes at level 1 (if each prefix maps to unique level-1 coord)
@@ -126,7 +126,7 @@ Each allocation is a separate `Box<[Option<...>]>`. The allocator sees many medi
 | **6** | DynCoordSpace mixed-depth path destroys shallow values | `Slot::Both(V, Box<Child>)` — both value and sub-node coexist | PR #5 |
 | **11** | CoordSpace missing Clone/PartialEq/Debug | Manual Debug (occupied count), PartialEq+Eq, Clone derive | PR #5 |
 | **13** | DynCoordSpace stress test | 100-path insert/verify/remove/reverify cycle | PR #5 |
-| **14** | Benchmark coverage gap | CoordSpace2N insert/get 1000 added | PR #5 |
+| **14** | Benchmark coverage gap | CoordSpaceN2 insert/get 1000 added | PR #5 |
 | **15** | iter_flat vs iter_tree naming | N=1: `iter_flat()`. N>1: `iter_tree()`. Distinction documented. | PR #5 |
 | | FlatMap missing iter_mut | `FlatIterMut` + `values_mut()` added | PR #5 |
 | | clear() heap reallocation | `clear_node()` tree walk instead of re-allocating | PR #5 |
@@ -177,7 +177,7 @@ Priority order:
 
 3. **`zeroed()` safe replacement** — Replace with documented `MaybeUninit` + transmute pattern, or accept the 3-5 µs construction cost.
 
-4. **CoordSpace6N/12/19 full benchmark suite** — Current benches only cover CoordFlatMap and CoordSpace2N. Add CoordSpace6N/12/19 benchmarks for insert/get/iter across varying entry counts (sparse to dense).
+4. **CoordSpaceN6/12/19 full benchmark suite** — Current benches only cover CoordFlatMap and CoordSpaceN2. Add CoordSpaceN6/12/19 benchmarks for insert/get/iter across varying entry counts (sparse to dense).
 
 5. **Miri test for unsafe blocks** — Run `cargo miri test` on the `zeroed()` path and the `IterMut` raw pointer path to verify no UB.
 

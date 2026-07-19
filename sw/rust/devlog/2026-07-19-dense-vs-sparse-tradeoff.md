@@ -167,7 +167,7 @@ The `N` suffix is structural, not cosmetic. It says "this type allocates on the 
 and accesses cost N dereferences." The concrete aliases carry the suffix consistently:
 `CoordSpaceN2`, `CoordSpaceN6`, `CoordSpaceN19`.
 
-Before the convention was established, the aliases were `CoordSpace2N`, `CoordSpace6N`,
+Before the convention was established, the aliases were `CoordSpaceN2`, `CoordSpaceN6`,
 etc., which was misleading: they looked like `CoordSpace` variants with different
 depths, but they had fundamentally different implementation characteristics (heap
 allocation, tree traversal). The rename was applied retroactively in PR #27.
