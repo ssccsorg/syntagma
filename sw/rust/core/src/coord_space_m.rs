@@ -7,20 +7,14 @@ use core::ptr::{self, NonNull};
 
 /// Slot count for a mmap-backed dense CoordSpace at depth N.
 ///
-/// Computed via wrapping multiplication to avoid const-eval overflow errors.
-/// At N=12 and above the value wraps; the actual allocation will saturate
-/// to the OS virtual address limit at runtime.
+/// Only N=3 ($11{,}172^3$) fits in `usize` on 64-bit without overflow.
+/// N >= 6 exceeds `usize` (1.94e24 > u64::MAX) and is not supported.
+/// Use `CoordSpaceN` (sparse tree) for depths >= 4.
 const fn coord_slots(n: usize) -> usize {
     let sq = 11172usize.wrapping_mul(11172); // 124,813,584
     match n {
-        3 => sq.wrapping_mul(11172),            // = 11172^3
-        6 => {
-            let cu = sq.wrapping_mul(11172);     // = 11172^3
-            cu.wrapping_mul(cu)                  // = 11172^6
-        }
-        12 => usize::MAX,  // saturate; actual size set at runtime
-        19 => usize::MAX,  // saturate; actual size set at runtime
-        _ => 0,
+        3 => sq.wrapping_mul(11172),  // = 11172^3, fits in 64-bit
+        _ => 0,  // unsupported depth; new() will panic
     }
 }
 
@@ -104,6 +98,7 @@ impl<const N: usize, V> CoordSpaceM<N, V> {
     #[inline]
     pub fn at_path(&self, path: &CoordPath<N>) -> Option<&V> {
         let idx = linear_index::<N>(path);
+        debug_assert!(idx < Self::SLOT_COUNT, "CoordSpaceM at_path: index {} out of bounds (max {})", idx, Self::SLOT_COUNT - 1);
         unsafe { (*self.ptr.as_ptr().add(idx)).as_ref() }
     }
 
@@ -111,6 +106,7 @@ impl<const N: usize, V> CoordSpaceM<N, V> {
     #[inline]
     pub fn place_path(&mut self, path: &CoordPath<N>, value: V) -> Option<V> {
         let idx = linear_index::<N>(path);
+        debug_assert!(idx < Self::SLOT_COUNT, "CoordSpaceM place_path: index {} out of bounds (max {})", idx, Self::SLOT_COUNT - 1);
         let slot = unsafe { &mut *self.ptr.as_ptr().add(idx) };
         let prev = slot.take();
         *slot = Some(value);
@@ -124,6 +120,7 @@ impl<const N: usize, V> CoordSpaceM<N, V> {
     #[inline]
     pub fn vacate_path(&mut self, path: &CoordPath<N>) -> Option<V> {
         let idx = linear_index::<N>(path);
+        debug_assert!(idx < Self::SLOT_COUNT, "CoordSpaceM vacate_path: index {} out of bounds (max {})", idx, Self::SLOT_COUNT - 1);
         let slot = unsafe { &mut *self.ptr.as_ptr().add(idx) };
         let prev = slot.take();
         if prev.is_some() {
@@ -139,7 +136,7 @@ impl<const N: usize, V> CoordSpaceM<N, V> {
         if size > 0 && size < usize::MAX {
             unsafe {
                 // Re-mmap over the existing region to zero it atomically.
-                libc::mmap(
+                let result = libc::mmap(
                     ptr,
                     size,
                     libc::PROT_READ | libc::PROT_WRITE,
@@ -147,6 +144,7 @@ impl<const N: usize, V> CoordSpaceM<N, V> {
                     -1,
                     0,
                 );
+                assert!(result != libc::MAP_FAILED, "CoordSpaceM: MAP_FIXED remap failed on clear");
             }
         }
         self.len = 0;

@@ -84,12 +84,14 @@ macro_rules! define_dense_coord_space {
 
             pub fn at_path(&self, path: &CoordPath<$n>) -> Option<&V> {
                 let idx = linear_index::<$n>(path);
+                debug_assert!(idx < SLOT_COUNT, "CoordSpaceN at_path: index {} out of bounds (max {})", idx, SLOT_COUNT - 1);
                 // SAFETY: linear_index returns a value < SLOT_COUNT for valid CoordPaths.
                 unsafe { (*self.slots.as_ptr().add(idx)).as_ref() }
             }
 
             pub fn place_path(&mut self, path: &CoordPath<$n>, value: V) -> Option<V> {
                 let idx = linear_index::<$n>(path);
+                debug_assert!(idx < SLOT_COUNT, "CoordSpaceN place_path: index {} out of bounds (max {})", idx, SLOT_COUNT - 1);
                 let slot = unsafe { &mut *self.slots.as_mut_ptr().add(idx) };
                 let prev = slot.take();
                 *slot = Some(value);
@@ -101,6 +103,7 @@ macro_rules! define_dense_coord_space {
 
             pub fn vacate_path(&mut self, path: &CoordPath<$n>) -> Option<V> {
                 let idx = linear_index::<$n>(path);
+                debug_assert!(idx < SLOT_COUNT, "CoordSpaceN vacate_path: index {} out of bounds (max {})", idx, SLOT_COUNT - 1);
                 let slot = unsafe { &mut *self.slots.as_mut_ptr().add(idx) };
                 let prev = slot.take();
                 if prev.is_some() {
