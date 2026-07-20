@@ -1,15 +1,15 @@
-use tagma_kv::TagmaKV;
+use tagma_kv::CoordKV;
 
 #[test]
 fn new_is_empty() {
-    let kv = TagmaKV::new();
+    let kv = CoordKV::new();
     assert!(kv.is_empty());
     assert_eq!(kv.len(), 0);
 }
 
 #[test]
 fn insert_and_get() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("hello", b"world".to_vec());
     assert_eq!(kv.get("hello"), Some(b"world".to_vec()));
     assert_eq!(kv.len(), 1);
@@ -17,7 +17,7 @@ fn insert_and_get() {
 
 #[test]
 fn insert_overwrite() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("key", b"v1".to_vec());
     kv.insert("key", b"v2".to_vec());
     assert_eq!(kv.get("key"), Some(b"v2".to_vec()));
@@ -26,7 +26,7 @@ fn insert_overwrite() {
 
 #[test]
 fn remove() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("key", b"value".to_vec());
     assert_eq!(kv.remove("key"), Some(b"value".to_vec()));
     assert!(kv.is_empty());
@@ -34,7 +34,7 @@ fn remove() {
 
 #[test]
 fn multiple_keys() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("a", b"1".to_vec());
     kv.insert("b", b"2".to_vec());
     kv.insert("c", b"3".to_vec());
@@ -46,46 +46,46 @@ fn multiple_keys() {
 
 #[test]
 fn nonexistent_key() {
-    let kv = TagmaKV::new();
+    let kv = CoordKV::new();
     assert_eq!(kv.get("nonexistent"), None);
 }
 
 #[test]
 fn empty_string_returns_none() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("", b"empty".to_vec());
     assert_eq!(kv.get(""), None);
 }
 
 #[test]
 fn unicode_key() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("\u{d55c}\u{ae00}", b"hangul".to_vec());
     assert_eq!(kv.get("\u{d55c}\u{ae00}"), Some(b"hangul".to_vec()));
 }
 
 #[test]
 fn short_insert_and_get() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert_short("abcd", b"short".to_vec()).unwrap();
     assert_eq!(kv.get_short("abcd"), Some(b"short".to_vec()));
 }
 
 #[test]
 fn short_key_too_long() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     assert!(kv.insert_short("abcde", b"too long".to_vec()).is_err());
 }
 
 #[test]
 fn short_get_too_long_returns_none() {
-    let kv = TagmaKV::new();
+    let kv = CoordKV::new();
     assert_eq!(kv.get_short("abcde"), None);
 }
 
 #[test]
 fn clear() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("a", b"1".to_vec());
     kv.insert("b", b"2".to_vec());
     assert_eq!(kv.len(), 2);
@@ -96,7 +96,7 @@ fn clear() {
 
 #[test]
 fn roundtrip_large_key() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     let key = "this is a relatively long key that exceeds four bytes";
     let val = b"some value".to_vec();
     kv.insert(key, val.clone());
@@ -105,7 +105,7 @@ fn roundtrip_large_key() {
 
 #[test]
 fn short_and_long_dont_conflict() {
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert_short("abcd", b"short".to_vec()).unwrap();
     assert_eq!(kv.get("abcd"), Some(b"short".to_vec()));
     assert_eq!(kv.get_short("abcd"), Some(b"short".to_vec()));
@@ -116,7 +116,7 @@ fn short_path_modulo_collision_not_visible_to_get() {
     // string_to_short_path uses % 11172, so two different 4-byte keys
     // can collide on the same CoordPath<2>.  get() must NOT see this
     // collision because it only uses the injective byte-wise path.
-    let mut kv = TagmaKV::new();
+    let mut kv = CoordKV::new();
     kv.insert("aaaa", b"value_a".to_vec());
     kv.insert("bbbb", b"value_b".to_vec());
     // get() reads from the injective dyn path only

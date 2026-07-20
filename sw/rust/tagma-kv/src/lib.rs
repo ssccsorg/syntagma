@@ -3,7 +3,7 @@ pub mod coord_gen;
 use tagma_core::{Coord, CoordPath, CoordSpace2, DynCoordSpace};
 
 // Re-exports from the coord_gen module.
-pub use coord_gen::{ByteFold, ByteWise, CharWise, CoordGen, GenError, Prefix, DefaultDynamic};
+pub use coord_gen::{ByteFold, ByteWise, CharWise, CoordGen, FixedKey, GenError, Prefix, DefaultDynamic};
 
 // ---------------------------------------------------------------------------
 // String → CoordPath conversion (zero hash, zero collision)
@@ -78,16 +78,16 @@ fn box_to_vec_owned(v: Box<[u8]>) -> Vec<u8> {
 ///   For keys ≤4 bytes only.
 ///
 /// No hash functions are used anywhere in this crate.
-pub struct TagmaKV {
+pub struct CoordKV {
     dyn_space: DynCoordSpace<Box<[u8]>>,
     short_space: CoordSpace2<Box<[u8]>>,
     len: usize,
 }
 
-impl TagmaKV {
+impl CoordKV {
     /// Creates an empty store.
     pub fn new() -> Self {
-        TagmaKV {
+        CoordKV {
             dyn_space: DynCoordSpace::new(),
             short_space: CoordSpace2::new(),
             len: 0,
@@ -192,7 +192,7 @@ impl TagmaKV {
     }
 }
 
-impl Default for TagmaKV {
+impl Default for CoordKV {
     fn default() -> Self {
         Self::new()
     }

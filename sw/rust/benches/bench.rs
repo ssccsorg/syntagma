@@ -1334,7 +1334,7 @@ fn bench_kv_single_insert_dyn(c: &mut Criterion) {
 fn bench_kv_single_insert_hashmap(c: &mut Criterion) {
     let key = "k000";
     
-    c.bench_function("HashMap/insert/single", |b| {
+    c.bench_function("tagma-kv/hashmap/insert/single", |b| {
         let mut map: std::collections::HashMap<String, Box<[u8]>> =
             std::collections::HashMap::new();
         b.iter(|| {
@@ -1376,7 +1376,7 @@ fn bench_kv_single_get_hashmap(c: &mut Criterion) {
         std::collections::HashMap::new();
     map.insert(key.to_string(), kv_boxed(&kv_value()));
 
-    c.bench_function("HashMap/get/single", |b| {
+    c.bench_function("tagma-kv/hashmap/get/single", |b| {
         b.iter(|| {
             black_box(black_box(&map).get(key));
         })
@@ -1432,7 +1432,7 @@ fn bench_kv_batch_insert_hashmap_short(c: &mut Criterion) {
         .map(|k| (k.clone(), kv_boxed(&kv_value())))
         .collect();
 
-    c.bench_function("HashMap/insert/short_1k", |b| {
+    c.bench_function("tagma-kv/hashmap/insert/short_1k", |b| {
         let mut map: std::collections::HashMap<String, Box<[u8]>> =
             std::collections::HashMap::new();
         b.iter(|| {
@@ -1493,7 +1493,7 @@ fn bench_kv_batch_insert_hashmap_medium(c: &mut Criterion) {
         .map(|k| (k.clone(), kv_boxed(&kv_value())))
         .collect();
 
-    c.bench_function("HashMap/insert/medium_1k", |b| {
+    c.bench_function("tagma-kv/hashmap/insert/medium_1k", |b| {
         let mut map: std::collections::HashMap<String, Box<[u8]>> =
             std::collections::HashMap::new();
         b.iter(|| {
@@ -1559,7 +1559,7 @@ fn bench_kv_batch_get_all(c: &mut Criterion) {
         for k in &short_keys {
             map.insert(k.clone(), kv_boxed(&kv_value()));
         }
-        group.bench_function("HashMap/String", |b| {
+        group.bench_function("hashmap/String", |b| {
             b.iter(|| {
                 for k in &short_keys {
                     black_box(black_box(&map).get(k));
