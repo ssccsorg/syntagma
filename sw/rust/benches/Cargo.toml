@@ -14,6 +14,7 @@ tagma-core.workspace = true
 [dev-dependencies]
 criterion = { version = "0.5" }
 rand = "0.8"
+tagma-kv.workspace = true
 
 [[bench]]
 name = "bench"
