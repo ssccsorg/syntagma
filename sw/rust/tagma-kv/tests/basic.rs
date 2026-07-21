@@ -157,6 +157,44 @@ fn kv2_contains_key_by_coordkey() {
     assert!(kv.contains_key_by_coordkey(&key));
 }
 
+// ── iter ──────────────────────────────────────────────────────────────────
+
+#[test]
+fn dyn_iter_empty() {
+    let kv = DynCoordKV::new();
+    assert_eq!(kv.iter().count(), 0);
+}
+
+#[test]
+fn dyn_iter_yields_inserted() {
+    let mut kv = DynCoordKV::new();
+    kv.insert("abc", b"123".to_vec());
+    kv.insert("def", b"456".to_vec());
+    let mut entries: Vec<_> = kv.iter().collect();
+    entries.sort_by_key(|(k, _)| k.clone());
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0], (b"abc".to_vec(), &b"123"[..]));
+    assert_eq!(entries[1], (b"def".to_vec(), &b"456"[..]));
+}
+
+#[test]
+fn kvn_iter_empty() {
+    let kv: CoordKVN<2> = CoordKVN::new();
+    assert_eq!(kv.iter().count(), 0);
+}
+
+#[test]
+fn kvn_iter_yields_inserted() {
+    let mut kv = CoordKVN::<2>::new();
+    kv.insert("aa", b"1".to_vec());
+    kv.insert("bb", b"2".to_vec());
+    let mut entries: Vec<_> = kv.iter().collect();
+    entries.sort_by_key(|(k, _)| *k);
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0], ([b'a', b'a'], &b"1"[..]));
+    assert_eq!(entries[1], ([b'b', b'b'], &b"2"[..]));
+}
+
 // ── CoordKV2 (fixed 2-byte, str API) ─────────────────────────────────────
 
 #[test]

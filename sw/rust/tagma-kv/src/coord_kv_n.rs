@@ -17,6 +17,14 @@ fn box_to_vec_owned(v: Box<[u8]>) -> Vec<u8> {
     v.into_vec()
 }
 
+fn path_to_key_bytes<const N: usize>(path: &tagma_core::CoordPath<N>) -> [u8; N] {
+    let mut key = [0u8; N];
+    for (i, c) in path.coords().iter().enumerate() {
+        key[i] = c.index() as u8;
+    }
+    key
+}
+
 // ── CoordKVN ──────────────────────────────────────────────────────────────
 
 /// A fixed-N-byte-key KV store backed by [`CoordSpaceN`] — the sparse
@@ -52,6 +60,15 @@ impl<const N: usize> CoordKVN<N> {
         CoordKVN {
             space: CoordSpaceN::new(),
             len: 0,
+        }
+    }
+
+    /// Returns an iterator over `(key_bytes, value)` pairs in
+    /// ascending coordinate order.
+    pub fn iter(&self) -> CoordKVNIter<'_, N> {
+        CoordKVNIter {
+            inner: self.space.iter_tree(),
+            _phantom: core::marker::PhantomData,
         }
     }
 }
@@ -121,5 +138,27 @@ impl<const N: usize> CoordKVKey<N> for CoordKVN<N> {
 impl<const N: usize> Default for CoordKVN<N> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Iterator ──────────────────────────────────────────────────────────────
+
+/// An iterator over [`CoordKVN<N>`] entries, yielding `(key_bytes, value)`.
+pub struct CoordKVNIter<'a, const N: usize> {
+    inner: tagma_core::coord_space_n::TreeIter<'a, N, Box<[u8]>>,
+    _phantom: core::marker::PhantomData<[u8; N]>,
+}
+
+impl<'a, const N: usize> Iterator for CoordKVNIter<'a, N> {
+    type Item = ([u8; N], &'a [u8]);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (path, val) = self.inner.next()?;
+        let key = path_to_key_bytes(&path);
+        Some((key, val.as_ref()))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }

@@ -1575,8 +1575,8 @@ fn bench_kv_batch_get_all(c: &mut Criterion) {
 // through the CoordKV trait API (insert/get via &str)
 // ===========================================================================
 
-use tagma_kv::{CoordKV, CoordKV2, DynCoordKV};
 use tagma_kv::coord_kv_n::CoordKVN;
+use tagma_kv::{CoordKV, CoordKV2, DynCoordKV};
 
 // ── Single insert ────────────────────────────────────────────────────────
 
@@ -1611,8 +1611,7 @@ fn bench_kv_wrapper_single_insert(c: &mut Criterion) {
     });
 
     group.bench_function("HashMap<String>", |b| {
-        let mut map: std::collections::HashMap<String, Vec<u8>> =
-            std::collections::HashMap::new();
+        let mut map: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
         b.iter(|| {
             black_box(map.insert("k0".to_string(), kv_value()));
         })
@@ -1651,8 +1650,7 @@ fn bench_kv_wrapper_single_get(c: &mut Criterion) {
     });
 
     group.bench_function("HashMap<String>", |b| {
-        let mut map: std::collections::HashMap<String, Vec<u8>> =
-            std::collections::HashMap::new();
+        let mut map: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
         map.insert("k0".to_string(), kv_value());
         b.iter(|| {
             black_box(map.get("k0"));
@@ -1707,8 +1705,7 @@ fn bench_kv_wrapper_batch_get(c: &mut Criterion) {
     });
 
     group.bench_function("HashMap<String>", |b| {
-        let mut map: std::collections::HashMap<String, Vec<u8>> =
-            std::collections::HashMap::new();
+        let mut map: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
         for k in &short_keys {
             map.insert(k.clone(), val.clone());
         }
