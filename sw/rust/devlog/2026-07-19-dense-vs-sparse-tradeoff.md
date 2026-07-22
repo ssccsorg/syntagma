@@ -130,7 +130,7 @@ deeper levels. The overhead per entry decreases as density increases.
 
 ## Cache behavior
 
-Measured on Apple M1:
+Measured on ARMv8.4-A Firestorm:
 
 | Depth | Access pattern | Typical latency | Bottleneck |
 |-------|---------------|-----------------|------------|
@@ -143,7 +143,7 @@ Measured on Apple M1:
 
 At N=19, each dereference is a separate heap allocation. CPU prefetch cannot predict
 the Box pointer target. Worst case: 19 sequential DRAM reads at ~10 ns each = 190 ns
-minimum for the memory subsystem, plus CPU decode = ~53 ns measured (Apple M1 has
+minimum for the memory subsystem, plus CPU decode = ~53 ns measured (ARMv8.4-A Firestorm has
 fast memory controller and large cache).
 
 Compare with HashMap on the same N=19 lookup: HashMap requires computing SHA-256 of

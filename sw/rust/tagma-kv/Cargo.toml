@@ -1,0 +1,14 @@
+[package]
+name = "tagma-kv"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Hashless string key-value store on Tagma coordinate space"
+
+[features]
+default = ["alloc"]
+alloc = []
+mmap = ["tagma-core/mmap"]
+
+[dependencies]
+tagma-core = { workspace = true, features = ["alloc"] }

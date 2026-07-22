@@ -523,6 +523,7 @@ dependencies = [
  "criterion",
  "rand",
  "tagma-core",
+ "tagma-kv",
 ]
 
 [[package]]
@@ -530,6 +531,13 @@ name = "tagma-core"
 version = "0.1.0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "tagma-kv"
+version = "0.1.0"
+dependencies = [
+ "tagma-core",
 ]
 
 [[package]]

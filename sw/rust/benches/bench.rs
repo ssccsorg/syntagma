@@ -2,34 +2,45 @@
 // Tagma-core CoordSpace family — implementation summary
 // ===========================================================================
 //
-//                        ┌─────────────────────────────────────────────┐
-//                        │              CoordSpace                    │
-//                        │  ┌──────────┬───────────┬────────┬──────┐  │
-//                        │  │ N=1      │ N=2 heap  │ N≥3    │ any N│
-//                        │  │          │           │ mmap   │ tree │  │
-//                        │  │ CoordSp   │ CoordSp2  │ CoordM │ CoordN│ │
-//                        │  │ 22 KB     │ 119 MB    │1.27 TB+│ entry│  │
-//                        │  │ load      │ load      │ page   │ Box+ │  │
-//                        │  │ 0.39 ns   │ 0.39 ns   │0.40 ns │0.94- │  │
-//                        │  │ ✅완전    │ ✅완전    │✅완전  │⚠️폴백│  │
-//                        │  └──────────┴───────────┴────────┴──────┘  │
-//                        │   true Tagma   │      software fallback     │
-//                        └─────────────────────────────────────────────┘
+//                    CoordSpace family (ARMv8.4-A Firestorm, V=u64):
 //
-// Single-syllable get latency (Apple M1):
-//   CoordSpace   N=1  inline  0.39 ns  22 KB (array on stack, no alloc)
-//   CoordSpace2  N=2  heap  0.39 ns  119 MB (single alloc_zeroed)
-//   CoordSpaceM3 N=3  mmap  0.40 ns  1.27 TB (MAP_NORESERVE, lazy page)
-//   CoordSpaceN2 N=2  tree  0.94 ns  (sparse, per-entry heap alloc)
-//   CoordSpaceN3 N=3  tree  2.69 ns
-//   CoordSpaceN6 N=6  tree  5.91 ns
-//   CoordSpaceN12 N=12 tree  23.3 ns
-//   CoordSpaceN19 N=19 tree  58.6 ns
+//  ┌─────────────────────────────────────────────────────────────────────┐
+//  │                     CoordSpace                                     │
+//  │  ┌────────────┬────────────┬──────────────┬────────────┬─────────┐  │
+//  │  │  N=1 heap  │  N=2 heap  │  N≥3 mmap    │  any N     │ var len │  │
+//  │  │  (inline)  │(alloc_zero)│ (MAP_NORESV) │ tree       │ trie    │  │
+//  │  │  CoordSp   │  CoordSp2  │  CoordSpM3   │ CoordSpN<N>│ DynCoord│  │
+//  │  │  22 KB     │  119 MB    │  1.27 TB+    │ entry 단위  │ node    │  │
+//  │  │  single    │  single    │  lazy page   │ per entry   │ per     │  │
+//  │  │  load      │  load      │  fault       │ Box+match   │ coord   │  │
+//  │  │  0.38 ns   │  0.39 ns   │  0.40 ns     │ 0.87-53 ns  │ ~0.4n   │  │
+//  │  └────────────┴────────────┴──────────────┴────────────┴─────────┘  │
+//  │       true Tagma (dense)    │        software fallback (sparse)      │
+//  └─────────────────────────────────────────────────────────────────────┘
+//
+// Single-syllable get latency (ARMv8.4-A Firestorm, measured):
+//   CoordSpace   N=1  inline  0.38 ns   22 KB  (array, no alloc)
+//   CoordSpace2  N=2  heap    0.39 ns  119 MB  (single alloc_zeroed)
+//   CoordSpaceM3 N=3  mmap    0.40 ns  1.27 TB (MAP_NORESERVE, lazy page)
+//   CoordSpaceN2 N=2  tree    0.87 ns  (sparse, per-entry heap alloc)
+//   CoordSpaceN3 N=3  tree    2.69 ns
+//   CoordSpaceN6 N=6  tree    5.60 ns
+//   CoordSpaceN12 N=12 tree   13.2 ns
+//   CoordSpaceN19 N=19 tree   53.2 ns
+//   DynCoordSpace var trie    ~0.4 ns/coord + enum match
 //
 // Naming convention:
-//   No suffix (CoordSpace)       = dense array, true Tagma
+//   No suffix (CoordSpace)       = dense inline array, true Tagma (N=1)
+//   No suffix + number (CoordSpace2) = dense heap-alloc, true Tagma (N>=2)
 //   N suffix  (CoordSpaceN<N>)   = sparse tree, software fallback
-//   M suffix  (CoordSpaceM<N>)   = mmap-backed dense, N>=3
+//   M suffix  (CoordSpaceM<N>)   = mmap-backed dense, N>=3, MAP_NORESERVE
+//   Dyn prefix (DynCoordSpace)   = depth-dynamic trie, software fallback
+//
+// Implementation note:
+//   alloc_zeroed relies on the `None` niche being the all-zero bit pattern.
+//   This holds for Option<Box<T>>, Option<&T>, Option<NonNull<T>>, and
+//   primitives, but NOT for Option<Vec<T>> (which uses 0x8000... as None).
+//   tagma-kv wraps Vec<u8> as Box<[u8]> to maintain compatibility.
 // ===========================================================================
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -972,7 +983,7 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
     group.finish();
 }
 
-// N_scaling/get  (single lookup, Apple M1)
+// N_scaling/get  (single lookup, ARMv8.4-A Firestorm)
 //   N=1   CoordSpace      0.39 ns   space 10^4  (inline stack array, no alloc)
 //   N=2   CoordSpace2     0.39 ns   space 10^8  (dense heap, 2.4x faster)
 //   N=2   CoordSpaceN2    0.94 ns   space 10^8  (tree)
@@ -1070,7 +1081,7 @@ fn bench_n_scaling_get(c: &mut Criterion) {
 // CoordSpaceN2 (N=2) benchmarks — cross-product FIH-like scenario
 // ===========================================================================
 
-// Dense vs tree comparison at N=2 (Apple M1, CoordSpace2 vs CoordSpaceN2):
+// Dense vs tree comparison at N=2 (ARMv8.4-A Firestorm, CoordSpace2 vs CoordSpaceN2):
 //   insert/1000   CoordSpace2   155 µs   CoordSpaceN2   841 µs    5.4x faster
 //   get/1000      CoordSpace2  0.39 µs   CoordSpaceN2  1.15 µs    2.9x faster
 //   single get    CoordSpace2  0.39 ns   CoordSpaceN2  0.90 ns    2.3x faster
@@ -1248,6 +1259,778 @@ criterion_group!(
               bench_coordset_spatial_query
 );
 
+// ===========================================================================
+// tagma-kv: 3-way comparison — static CoordSpace2 vs dynamic DynCoordSpace
+//            vs std HashMap for string-key KV workloads
+// ===========================================================================
+//
+// Single-op results (ns):
+//   tagma-kv/static/insert/single        16.9  ns
+//   tagma-kv/dynamic/insert/single       29.0  ns
+//   tagma-kv/hashmap/insert/single       47.6  ns
+//   tagma-kv/static/get/single            1.07 ns
+//   tagma-kv/dynamic/get/single           4.19 ns
+//   tagma-kv/hashmap/get/single          13.4  ns
+//
+// Batch results:
+//   tagma-kv/static/insert/short_1k      21.4 µs
+//   tagma-kv/dynamic/insert/short_1k     42.6 µs
+//   tagma-kv/hashmap/insert/short_1k     57.1 µs
+//   tagma-kv/static/insert/medium_1k     21.4 µs
+//   tagma-kv/dynamic/insert/medium_1k    73.6 µs
+//   tagma-kv/hashmap/insert/medium_1k    57.6 µs
+//
+// Batch get (10k keys, per-key ns):
+//   tagma-kv/batch-get/static             0.84 ns
+//   tagma-kv/batch-get/dynamic           12.0  ns
+//   tagma-kv/batch-get/hashmap           19.1  ns
+//
+// Wrapper single-op (ns):
+//   DynCoordKV/insert/single             49.4 ns
+//   CoordKV2/insert/single               18.2 ns
+//   CoordKVN<2>/insert/single            19.2 ns
+//   HashMap<String>/insert/single        44.7 ns
+//   DynCoordKV/get/single                42.4 ns
+//   CoordKV2/get/single                  21.5 ns
+//   CoordKVN<2>/get/single               21.8 ns
+//   HashMap<String>/get/single           24.0 ns
+//
+// Wrapper batch get (10k keys, total):
+//   DynCoordKV                          541 µs
+//   CoordKV2                           14.5 µs
+//   CoordKVN<2>                        14.7 µs
+//   HashMap<String>                    236 µs
+//
+// Scale workload (get, per-op ns):
+//               10k      1M      10M
+//   CoordKV2   22.0    21.4    21.5     (flat)
+//   CoordKVN<2> 22.7   21.9    22.1     (flat)
+//   DynCoordKV 55.8    57.4    60.6     (+7%)
+//   HashMap    21.9    24.2    23.8     (+19%)
+//
+// Scale workload (contains, per-op ns):
+//               10k      1M      10M
+//   CoordKV2   22.3    21.6    21.6     (flat)
+//   CoordKVN<2> 23.2   —        —
+//   DynCoordKV 54.7    —        —
+//   HashMap    13.2    19.9    19.9     (+53%)
+//
+// Scale workload (insert, 65k keys):
+//   CoordKV2   227 ms   (119 MB alloc dominated)
+//   CoordKVN<2> 10.4 ms (65536 keys)
+//   DynCoordKV 416 ms   (65k trie nodes)
+//   HashMap    9.2 ms
+// ===========================================================================
+
+fn kv_short_keys(count: usize) -> Vec<String> {
+    (0..count)
+        .map(|i| format!("k{:05}", i % 100_000)) // "k00000" .. "k99999" (6 bytes each)
+        .collect()
+}
+
+fn kv_medium_keys(count: usize) -> Vec<String> {
+    (0..count)
+        .map(|i| format!("key_{:08}", i % 100_000_000)) // "key_00000000" .. "key_99999999"
+        .collect()
+}
+
+fn kv_value() -> Vec<u8> {
+    b"value_data_32_bytes_xxxxxxxx".to_vec()
+}
+
+fn kv_boxed(v: &[u8]) -> Box<[u8]> {
+    v.to_vec().into_boxed_slice()
+}
+
+use tagma_core::CoordPath;
+use tagma_kv::coord_gen::{ByteWise, CoordGen, Prefix};
+
+// ── Single-operation microbenchmarks (pre-built containers) ────────────
+
+fn bench_kv_single_insert_static(c: &mut Criterion) {
+    let key = "k000";
+    let path = Prefix::<2>.generate(key).unwrap();
+    let cp = CoordPath::new([path[0], path[1]]);
+
+    c.bench_function("tagma-kv/static/insert/single", |b| {
+        let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
+        b.iter(|| {
+            black_box(space.place_path(black_box(&cp), kv_boxed(&kv_value())));
+        })
+    });
+}
+
+fn bench_kv_single_insert_dyn(c: &mut Criterion) {
+    let key = "k000";
+    let path = ByteWise.generate(key).unwrap();
+
+    c.bench_function("tagma-kv/dynamic/insert/single", |b| {
+        let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
+        b.iter(|| {
+            black_box(space.place(black_box(&path), kv_boxed(&kv_value())));
+        })
+    });
+}
+
+fn bench_kv_single_insert_hashmap(c: &mut Criterion) {
+    let key = "k000";
+
+    c.bench_function("tagma-kv/hashmap/insert/single", |b| {
+        let mut map: std::collections::HashMap<String, Box<[u8]>> =
+            std::collections::HashMap::new();
+        b.iter(|| {
+            black_box(map.insert(key.to_string(), kv_boxed(&kv_value())));
+        })
+    });
+}
+
+fn bench_kv_single_get_static(c: &mut Criterion) {
+    let key = "k000";
+    let path = Prefix::<2>.generate(key).unwrap();
+    let cp = CoordPath::new([path[0], path[1]]);
+    let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
+    space.place_path(&cp, kv_boxed(&kv_value()));
+
+    c.bench_function("tagma-kv/static/get/single", |b| {
+        b.iter(|| {
+            black_box(black_box(&space).at_path(black_box(&cp)));
+        })
+    });
+}
+
+fn bench_kv_single_get_dyn(c: &mut Criterion) {
+    let key = "k000";
+    let path = ByteWise.generate(key).unwrap();
+    let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
+    space.place(&path, kv_boxed(&kv_value()));
+
+    c.bench_function("tagma-kv/dynamic/get/single", |b| {
+        b.iter(|| {
+            black_box(black_box(&space).at(black_box(&path)));
+        })
+    });
+}
+
+fn bench_kv_single_get_hashmap(c: &mut Criterion) {
+    let key = "k000";
+    let mut map: std::collections::HashMap<String, Box<[u8]>> = std::collections::HashMap::new();
+    map.insert(key.to_string(), kv_boxed(&kv_value()));
+
+    c.bench_function("tagma-kv/hashmap/get/single", |b| {
+        b.iter(|| {
+            black_box(black_box(&map).get(key));
+        })
+    });
+}
+
+// ── Batch insert: 1,000 short keys (4 bytes) ───────────────────────────
+
+fn bench_kv_batch_insert_static_short(c: &mut Criterion) {
+    let keys: Vec<(CoordPath<2>, Box<[u8]>)> = kv_short_keys(1000)
+        .iter()
+        .map(|k| {
+            let path = Prefix::<2>.generate(k).unwrap();
+            let cp = CoordPath::new([path[0], path[1]]);
+            (cp, kv_boxed(&kv_value()))
+        })
+        .collect();
+
+    c.bench_function("tagma-kv/static/insert/short_1k", |b| {
+        let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
+        b.iter(|| {
+            for (cp, val) in &keys {
+                black_box(space.place_path(cp, kv_boxed(val)));
+            }
+            black_box(&space);
+        })
+    });
+}
+
+fn bench_kv_batch_insert_dyn_short(c: &mut Criterion) {
+    let keys: Vec<(Vec<tagma_core::Coord>, Box<[u8]>)> = kv_short_keys(1000)
+        .iter()
+        .map(|k| {
+            let path = ByteWise.generate(k).unwrap();
+            (path, kv_boxed(&kv_value()))
+        })
+        .collect();
+
+    c.bench_function("tagma-kv/dynamic/insert/short_1k", |b| {
+        let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
+        b.iter(|| {
+            for (path, val) in &keys {
+                black_box(space.place(path, kv_boxed(val)));
+            }
+            black_box(&space);
+        })
+    });
+}
+
+fn bench_kv_batch_insert_hashmap_short(c: &mut Criterion) {
+    let keys: Vec<(String, Box<[u8]>)> = kv_short_keys(1000)
+        .iter()
+        .map(|k| (k.clone(), kv_boxed(&kv_value())))
+        .collect();
+
+    c.bench_function("tagma-kv/hashmap/insert/short_1k", |b| {
+        let mut map: std::collections::HashMap<String, Box<[u8]>> =
+            std::collections::HashMap::new();
+        b.iter(|| {
+            for (k, val) in &keys {
+                black_box(map.insert(k.clone(), kv_boxed(val)));
+            }
+            black_box(&map);
+        })
+    });
+}
+
+// ── Batch insert: 1,000 medium keys (14 bytes) ─────────────────────────
+
+fn bench_kv_batch_insert_static_medium(c: &mut Criterion) {
+    let keys: Vec<(CoordPath<2>, Box<[u8]>)> = kv_medium_keys(1000)
+        .iter()
+        .map(|k| {
+            let path = Prefix::<2>.generate(k).unwrap();
+            let cp = CoordPath::new([path[0], path[1]]);
+            (cp, kv_boxed(&kv_value()))
+        })
+        .collect();
+
+    c.bench_function("tagma-kv/static/insert/medium_1k", |b| {
+        let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
+        b.iter(|| {
+            for (cp, val) in &keys {
+                black_box(space.place_path(cp, kv_boxed(val)));
+            }
+            black_box(&space);
+        })
+    });
+}
+
+fn bench_kv_batch_insert_dyn_medium(c: &mut Criterion) {
+    let keys: Vec<(Vec<tagma_core::Coord>, Box<[u8]>)> = kv_medium_keys(1000)
+        .iter()
+        .map(|k| {
+            let path = ByteWise.generate(k).unwrap();
+            (path, kv_boxed(&kv_value()))
+        })
+        .collect();
+
+    c.bench_function("tagma-kv/dynamic/insert/medium_1k", |b| {
+        let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
+        b.iter(|| {
+            for (path, val) in &keys {
+                black_box(space.place(path, kv_boxed(val)));
+            }
+            black_box(&space);
+        })
+    });
+}
+
+fn bench_kv_batch_insert_hashmap_medium(c: &mut Criterion) {
+    let keys: Vec<(String, Box<[u8]>)> = kv_medium_keys(1000)
+        .iter()
+        .map(|k| (k.clone(), kv_boxed(&kv_value())))
+        .collect();
+
+    c.bench_function("tagma-kv/hashmap/insert/medium_1k", |b| {
+        let mut map: std::collections::HashMap<String, Box<[u8]>> =
+            std::collections::HashMap::new();
+        b.iter(|| {
+            for (k, val) in &keys {
+                black_box(map.insert(k.clone(), kv_boxed(val)));
+            }
+            black_box(&map);
+        })
+    });
+}
+
+// ── Batch get: all three variants in a single benchmark group ──────────
+
+fn bench_kv_batch_get_all(c: &mut Criterion) {
+    let short_keys = kv_short_keys(10_000);
+    let mut group = c.benchmark_group("tagma-kv/batch-get/short_10k");
+
+    // Static: pre-populate CoordSpace2
+    {
+        let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
+        let paths: Vec<CoordPath<2>> = short_keys
+            .iter()
+            .map(|k| {
+                let p = Prefix::<2>.generate(k).unwrap();
+                CoordPath::new([p[0], p[1]])
+            })
+            .collect();
+        for cp in &paths {
+            space.place_path(cp, kv_boxed(&kv_value()));
+        }
+        group.bench_function("static/Prefix2/CoordSpace2", |b| {
+            b.iter(|| {
+                for cp in &paths {
+                    black_box(black_box(&space).at_path(cp));
+                }
+            })
+        });
+    }
+
+    // Dynamic: pre-populate DynCoordSpace
+    {
+        let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
+        let paths: Vec<Vec<tagma_core::Coord>> = short_keys
+            .iter()
+            .map(|k| ByteWise.generate(k).unwrap())
+            .collect();
+        for path in &paths {
+            space.place(path, kv_boxed(&kv_value()));
+        }
+        group.bench_function("dynamic/ByteWise/DynCoordSpace", |b| {
+            b.iter(|| {
+                for path in &paths {
+                    black_box(black_box(&space).at(path));
+                }
+            })
+        });
+    }
+
+    // HashMap: pre-populate
+    {
+        let mut map: std::collections::HashMap<String, Box<[u8]>> =
+            std::collections::HashMap::new();
+        for k in &short_keys {
+            map.insert(k.clone(), kv_boxed(&kv_value()));
+        }
+        group.bench_function("hashmap/String", |b| {
+            b.iter(|| {
+                for k in &short_keys {
+                    black_box(black_box(&map).get(k));
+                }
+            })
+        });
+    }
+
+    group.finish();
+}
+
+// ===========================================================================
+// Wrapper-type benchmarks: DynCoordKV vs CoordKV2 vs CoordKVN vs HashMap
+// through the CoordKV trait API (insert/get via &str)
+// ===========================================================================
+
+use tagma_kv::coord_kv_n::CoordKVN;
+use tagma_kv::{CoordKV, CoordKV2, CoordKVKey, CoordKey, DynCoordKV};
+
+fn kv_2byte_keys(count: usize) -> Vec<String> {
+    // 2-char alphanumeric keys: "00", "01", ... "zz" (1296 unique from 36^2)
+    let chars: Vec<char> = "0123456789abcdefghijklmnopqrstuvwxyz".chars().collect();
+    let base = chars.len();
+    (0..count)
+        .map(|i| {
+            let idx = i % (base * base);
+            let hi = idx / base;
+            let lo = idx % base;
+            format!("{}{}", chars[hi], chars[lo])
+        })
+        .collect()
+}
+
+fn kv_2byte_all() -> Vec<CoordKey<2>> {
+    // All 65536 possible 2-byte CoordKey<2> values
+    let mut keys = Vec::with_capacity(65536);
+    for hi in 0u8..=255 {
+        for lo in 0u8..=255 {
+            keys.push(CoordKey::new([hi, lo]));
+        }
+    }
+    keys
+}
+
+fn bench_kv_wrapper_single_insert(c: &mut Criterion) {
+    let mut group = c.benchmark_group("tagma-kv-wrapper/insert/single");
+
+    group.bench_function("DynCoordKV", |b| {
+        let mut kv = DynCoordKV::new();
+        b.iter(|| {
+            black_box(kv.insert("k000", kv_value()));
+        })
+    });
+
+    group.bench_function("CoordKV2", |b| {
+        let mut kv = CoordKV2::new();
+        b.iter(|| {
+            black_box(kv.insert("k0", kv_value()));
+        })
+    });
+
+    group.bench_function("CoordKVN<2>", |b| {
+        let mut kv = CoordKVN::<2>::new();
+        b.iter(|| {
+            black_box(kv.insert("k0", kv_value()));
+        })
+    });
+
+    group.bench_function("HashMap<String>", |b| {
+        let mut map: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
+        b.iter(|| {
+            black_box(map.insert("k0".to_string(), kv_value()));
+        })
+    });
+
+    group.finish();
+}
+
+// ── Single get ───────────────────────────────────────────────────────────
+
+fn bench_kv_wrapper_single_get(c: &mut Criterion) {
+    let mut group = c.benchmark_group("tagma-kv-wrapper/get/single");
+
+    group.bench_function("DynCoordKV", |b| {
+        let mut kv = DynCoordKV::new();
+        kv.insert("k000", kv_value());
+        b.iter(|| {
+            black_box(kv.get("k000"));
+        })
+    });
+
+    group.bench_function("CoordKV2", |b| {
+        let mut kv = CoordKV2::new();
+        kv.insert("k0", kv_value());
+        b.iter(|| {
+            black_box(kv.get("k0"));
+        })
+    });
+
+    group.bench_function("CoordKVN<2>", |b| {
+        let mut kv = CoordKVN::<2>::new();
+        kv.insert("k0", kv_value());
+        b.iter(|| {
+            black_box(kv.get("k0"));
+        })
+    });
+
+    group.bench_function("HashMap<String>", |b| {
+        let mut map: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
+        map.insert("k0".to_string(), kv_value());
+        b.iter(|| {
+            black_box(map.get("k0"));
+        })
+    });
+
+    group.finish();
+}
+
+// ── Batch get: 1,000 short keys, all five stores ───────────────────────
+
+fn bench_kv_wrapper_batch_get(c: &mut Criterion) {
+    let short_keys = kv_short_keys(10_000);
+    let byte2_keys = kv_2byte_keys(676);
+    let val = kv_value();
+    let mut group = c.benchmark_group("tagma-kv-wrapper/batch-get/10k");
+
+    group.bench_function("DynCoordKV", |b| {
+        let mut kv = DynCoordKV::new();
+        for k in &short_keys {
+            kv.insert(k, val.clone());
+        }
+        b.iter(|| {
+            for k in &short_keys {
+                black_box(kv.get(k));
+            }
+        })
+    });
+
+    group.bench_function("CoordKV2", |b| {
+        let mut kv = CoordKV2::new();
+        for k in &byte2_keys {
+            kv.insert(k, val.clone());
+        }
+        b.iter(|| {
+            for k in &byte2_keys {
+                black_box(kv.get(k));
+            }
+        })
+    });
+
+    group.bench_function("CoordKVN<2>", |b| {
+        let mut kv = CoordKVN::<2>::new();
+        for k in &byte2_keys {
+            kv.insert(k, val.clone());
+        }
+        b.iter(|| {
+            for k in &byte2_keys {
+                black_box(kv.get(k));
+            }
+        })
+    });
+
+    group.bench_function("HashMap<String>", |b| {
+        let mut map: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
+        for k in &short_keys {
+            map.insert(k.clone(), val.clone());
+        }
+        b.iter(|| {
+            for k in &short_keys {
+                black_box(map.get(k));
+            }
+        })
+    });
+
+    group.finish();
+}
+
+// ── Three-scale workload: 10k, 1M, 10M ─────────────────────────────────
+// kv_workload(name, unique_keys, cycles):
+//   get/contains: unique_keys × cycles total operations
+//   insert: unique_keys unique inserts
+//
+// Key count notes:
+//   - DynCoordKV/HashMap: uses kv_short_keys (up to 100k unique 6-char keys)
+//   - CoordKV2/CoordKVN<2>: str API limited to 1296 unique 2-char keys
+//     (CoordKey<2> from str must be valid UTF-8, so only ASCII printable)
+//   - For scales above 1296 unique 2-char keys, CoordKV2/CoordKVN<2> fall
+//     back to by_coordkey API which accepts all 65536 byte pairs directly.
+
+const STR_2BYTE_UNIQUE: usize = 1296; // 36^2 alphanumeric 2-char keys
+
+fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
+    let keys = kv_short_keys(n);
+    let k2_str = kv_2byte_keys(STR_2BYTE_UNIQUE); // 1296 unique 2-char str keys
+    let all_k2 = kv_2byte_all(); // 65536 raw CoordKey<2>
+    let val = kv_value();
+    let group_name = format!("tagma-kv/workload/{}", scale);
+    let mut group = c.benchmark_group(&group_name);
+
+    // Use by_coordkey API when n exceeds the str-usable key limit
+    let use_coordkey_api = n > STR_2BYTE_UNIQUE;
+
+    // DynCoordKV
+    {
+        let mut kv = DynCoordKV::new();
+        for k in &keys {
+            kv.insert(k, val.clone());
+        }
+        group.bench_function("DynCoordKV/get", |b| {
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(kv.get(k));
+                    }
+                }
+            })
+        });
+        group.bench_function("DynCoordKV/contains", |b| {
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(kv.contains_key(k));
+                    }
+                }
+            })
+        });
+        group.bench_function("DynCoordKV/insert", |b| {
+            b.iter(|| {
+                let mut kv = DynCoordKV::new();
+                for k in &keys {
+                    kv.insert(k, val.clone());
+                }
+            })
+        });
+    }
+
+    // CoordKV2 — str API for small scale, by_coordkey for 1M/10M
+    {
+        if !use_coordkey_api {
+            let mut kv = CoordKV2::new();
+            for k in &k2_str {
+                kv.insert(k, val.clone());
+            }
+            group.bench_function("CoordKV2/get", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.get(k));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKV2/contains", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.contains_key(k));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKV2/insert", |b| {
+                b.iter(|| {
+                    let mut kv = CoordKV2::new();
+                    for k in &k2_str {
+                        kv.insert(k, val.clone());
+                    }
+                })
+            });
+        } else {
+            let mut kv = CoordKV2::new();
+            for ck in &all_k2 {
+                kv.insert_by_coordkey(ck, val.clone());
+            }
+            group.bench_function("CoordKV2/get", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.get_by_coordkey(ck));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKV2/contains", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.contains_key_by_coordkey(ck));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKV2/insert", |b| {
+                b.iter(|| {
+                    let mut kv = CoordKV2::new();
+                    for ck in &all_k2 {
+                        kv.insert_by_coordkey(ck, val.clone());
+                    }
+                })
+            });
+        }
+    }
+
+    // CoordKVN<2> — str API for small scale, by_coordkey for 1M/10M
+    {
+        if !use_coordkey_api {
+            let mut kv = CoordKVN::<2>::new();
+            for k in &k2_str {
+                kv.insert(k, val.clone());
+            }
+            group.bench_function("CoordKVN<2>/get", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.get(k));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/contains", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.contains_key(k));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/insert", |b| {
+                b.iter(|| {
+                    let mut kv = CoordKVN::<2>::new();
+                    for k in &k2_str {
+                        kv.insert(k, val.clone());
+                    }
+                })
+            });
+        } else {
+            let mut kv = CoordKVN::<2>::new();
+            for ck in &all_k2 {
+                kv.insert_by_coordkey(ck, val.clone());
+            }
+            group.bench_function("CoordKVN<2>/get", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.get_by_coordkey(ck));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/contains", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.contains_key_by_coordkey(ck));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/insert", |b| {
+                b.iter(|| {
+                    let mut kv = CoordKVN::<2>::new();
+                    for ck in &all_k2 {
+                        kv.insert_by_coordkey(ck, val.clone());
+                    }
+                })
+            });
+        }
+    }
+
+    // HashMap<String>
+    {
+        let mut hm: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
+        for k in &keys {
+            hm.insert(k.clone(), val.clone());
+        }
+        group.bench_function("HashMap<String>/get", |b| {
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(hm.get(k));
+                    }
+                }
+            })
+        });
+        group.bench_function("HashMap<String>/contains", |b| {
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(hm.contains_key(k));
+                    }
+                }
+            })
+        });
+        group.bench_function("HashMap<String>/insert", |b| {
+            b.iter(|| {
+                let mut hm: std::collections::HashMap<String, Vec<u8>> =
+                    std::collections::HashMap::new();
+                for k in &keys {
+                    hm.insert(k.clone(), val.clone());
+                }
+            })
+        });
+    }
+
+    group.finish();
+}
+
+fn kv_workload_10k(c: &mut Criterion) {
+    kv_workload(c, "10k", 10_000, 1);
+}
+fn kv_workload_1m(c: &mut Criterion) {
+    kv_workload(c, "1M", 65_536, 15);
+}
+fn kv_workload_10m(c: &mut Criterion) {
+    kv_workload(c, "10M", 65_536, 153);
+}
+
+criterion_group!(
+    name = kv;
+    config = Criterion::default().sample_size(10);
+    targets = bench_kv_single_insert_static, bench_kv_single_insert_dyn, bench_kv_single_insert_hashmap,
+              bench_kv_single_get_static,    bench_kv_single_get_dyn,    bench_kv_single_get_hashmap,
+              bench_kv_batch_insert_static_short, bench_kv_batch_insert_dyn_short, bench_kv_batch_insert_hashmap_short,
+              bench_kv_batch_insert_static_medium, bench_kv_batch_insert_dyn_medium, bench_kv_batch_insert_hashmap_medium,
+              bench_kv_batch_get_all,
+              bench_kv_wrapper_single_insert, bench_kv_wrapper_single_get,
+              bench_kv_wrapper_batch_get,
+              kv_workload_10k, kv_workload_1m, kv_workload_10m,
+);
+
 criterion_main!(
     inserts,
     lookup,
@@ -1261,7 +2044,8 @@ criterion_main!(
     large,
     edge,
     deep,
-    set
+    set,
+    kv
 );
 
 // ===========================================================================
