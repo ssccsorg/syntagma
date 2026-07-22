@@ -1304,16 +1304,20 @@ criterion_group!(
 // Scale workload (get, per-op ns):
 //               10k      1M      10M
 //   CoordKV2   22.0    21.4    21.5     (flat)
-//   CoordKVN<2> 22.0   21.9    22.1     (flat)
-//   DynCoordKV 56.3    57.4    60.6     (+7%)
-//   HashMap    20.0    24.2    23.8     (+19%)
+//   CoordKVN<2> 22.7   21.9    22.1     (flat)
+//   DynCoordKV 55.8    57.4    60.6     (+7%)
+//   HashMap    21.9    24.2    23.8     (+19%)
 //
 // Scale workload (contains, per-op ns):
-//   CoordKV2   21.7    21.6    21.6     (flat)
-//   HashMap    13.0    19.9    19.9     (+53%)
+//               10k      1M      10M
+//   CoordKV2   22.3    21.6    21.6     (flat)
+//   CoordKVN<2> 23.2   —        —
+//   DynCoordKV 54.7    —        —
+//   HashMap    13.2    19.9    19.9     (+53%)
 //
 // Scale workload (insert, 65k keys):
-//   CoordKV2   233 ms   (119 MB alloc dominated)
+//   CoordKV2   227 ms   (119 MB alloc dominated)
+//   CoordKVN<2> 10.4 ms (65536 keys)
 //   DynCoordKV 416 ms   (65k trie nodes)
 //   HashMap    9.2 ms
 // ===========================================================================
@@ -1613,7 +1617,7 @@ fn bench_kv_batch_get_all(c: &mut Criterion) {
 // ===========================================================================
 
 use tagma_kv::coord_kv_n::CoordKVN;
-use tagma_kv::{CoordKV, CoordKV2, CoordKey, CoordKVKey, DynCoordKV};
+use tagma_kv::{CoordKV, CoordKV2, CoordKVKey, CoordKey, DynCoordKV};
 
 fn kv_2byte_keys(count: usize) -> Vec<String> {
     // 2-char alphanumeric keys: "00", "01", ... "zz" (1296 unique from 36^2)
@@ -1777,96 +1781,242 @@ fn bench_kv_wrapper_batch_get(c: &mut Criterion) {
 // kv_workload(name, unique_keys, cycles):
 //   get/contains: unique_keys × cycles total operations
 //   insert: unique_keys unique inserts
+//
+// Key count notes:
+//   - DynCoordKV/HashMap: uses kv_short_keys (up to 100k unique 6-char keys)
+//   - CoordKV2/CoordKVN<2>: str API limited to 1296 unique 2-char keys
+//     (CoordKey<2> from str must be valid UTF-8, so only ASCII printable)
+//   - For scales above 1296 unique 2-char keys, CoordKV2/CoordKVN<2> fall
+//     back to by_coordkey API which accepts all 65536 byte pairs directly.
+
+const STR_2BYTE_UNIQUE: usize = 1296; // 36^2 alphanumeric 2-char keys
 
 fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
     let keys = kv_short_keys(n);
-    let k2 = if n <= 1296 { kv_2byte_keys(n) } else { kv_2byte_keys(1296) };
-    let all_k2 = kv_2byte_all();
+    let k2_str = kv_2byte_keys(STR_2BYTE_UNIQUE); // 1296 unique 2-char str keys
+    let all_k2 = kv_2byte_all(); // 65536 raw CoordKey<2>
     let val = kv_value();
     let group_name = format!("tagma-kv/workload/{}", scale);
     let mut group = c.benchmark_group(&group_name);
 
+    // Use by_coordkey API when n exceeds the str-usable key limit
+    let use_coordkey_api = n > STR_2BYTE_UNIQUE;
+
     // DynCoordKV
     {
         let mut kv = DynCoordKV::new();
-        for k in &keys { kv.insert(k, val.clone()); }
+        for k in &keys {
+            kv.insert(k, val.clone());
+        }
         group.bench_function("DynCoordKV/get", |b| {
-            b.iter(|| { for _ in 0..cycles { for k in &keys { black_box(kv.get(k)); } } })
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(kv.get(k));
+                    }
+                }
+            })
         });
         group.bench_function("DynCoordKV/contains", |b| {
-            b.iter(|| { for _ in 0..cycles { for k in &keys { black_box(kv.contains_key(k)); } } })
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(kv.contains_key(k));
+                    }
+                }
+            })
         });
         group.bench_function("DynCoordKV/insert", |b| {
-            b.iter(|| { let mut kv = DynCoordKV::new(); for k in &keys { kv.insert(k, val.clone()); } })
+            b.iter(|| {
+                let mut kv = DynCoordKV::new();
+                for k in &keys {
+                    kv.insert(k, val.clone());
+                }
+            })
         });
     }
 
-    // CoordKV2 — uses full 65k key space for 1M/10M scales
+    // CoordKV2 — str API for small scale, by_coordkey for 1M/10M
     {
-        if n <= 1296 {
+        if !use_coordkey_api {
             let mut kv = CoordKV2::new();
-            for k in &k2 { kv.insert(k, val.clone()); }
+            for k in &k2_str {
+                kv.insert(k, val.clone());
+            }
             group.bench_function("CoordKV2/get", |b| {
-                b.iter(|| { for _ in 0..cycles { for k in &k2 { black_box(kv.get(k)); } } })
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.get(k));
+                        }
+                    }
+                })
             });
             group.bench_function("CoordKV2/contains", |b| {
-                b.iter(|| { for _ in 0..cycles { for k in &k2 { black_box(kv.contains_key(k)); } } })
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.contains_key(k));
+                        }
+                    }
+                })
             });
             group.bench_function("CoordKV2/insert", |b| {
-                b.iter(|| { let mut kv = CoordKV2::new(); for k in &k2 { kv.insert(k, val.clone()); } })
+                b.iter(|| {
+                    let mut kv = CoordKV2::new();
+                    for k in &k2_str {
+                        kv.insert(k, val.clone());
+                    }
+                })
             });
         } else {
             let mut kv = CoordKV2::new();
-            for ck in &all_k2 { kv.insert_by_coordkey(ck, val.clone()); }
+            for ck in &all_k2 {
+                kv.insert_by_coordkey(ck, val.clone());
+            }
             group.bench_function("CoordKV2/get", |b| {
-                b.iter(|| { for _ in 0..cycles { for ck in &all_k2 { black_box(kv.get_by_coordkey(ck)); } } })
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.get_by_coordkey(ck));
+                        }
+                    }
+                })
             });
             group.bench_function("CoordKV2/contains", |b| {
-                b.iter(|| { for _ in 0..cycles { for ck in &all_k2 { black_box(kv.contains_key_by_coordkey(ck)); } } })
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.contains_key_by_coordkey(ck));
+                        }
+                    }
+                })
             });
             group.bench_function("CoordKV2/insert", |b| {
-                b.iter(|| { let mut kv = CoordKV2::new(); for ck in &all_k2 { kv.insert_by_coordkey(ck, val.clone()); } })
+                b.iter(|| {
+                    let mut kv = CoordKV2::new();
+                    for ck in &all_k2 {
+                        kv.insert_by_coordkey(ck, val.clone());
+                    }
+                })
             });
         }
     }
 
-    // CoordKVN<2>
+    // CoordKVN<2> — str API for small scale, by_coordkey for 1M/10M
     {
-        let mut kv = CoordKVN::<2>::new();
-        // Use k2 strings for get/contains, all_k2 for insert
-        for k in &k2 { kv.insert(k, val.clone()); }
-        group.bench_function("CoordKVN<2>/get", |b| {
-            b.iter(|| { for _ in 0..cycles { for k in &k2 { black_box(kv.get(k)); } } })
-        });
-        group.bench_function("CoordKVN<2>/contains", |b| {
-            b.iter(|| { for _ in 0..cycles { for k in &k2 { black_box(kv.contains_key(k)); } } })
-        });
-        group.bench_function("CoordKVN<2>/insert", |b| {
-            b.iter(|| { let mut kv = CoordKVN::<2>::new(); for k in &k2 { kv.insert(k, val.clone()); } })
-        });
+        if !use_coordkey_api {
+            let mut kv = CoordKVN::<2>::new();
+            for k in &k2_str {
+                kv.insert(k, val.clone());
+            }
+            group.bench_function("CoordKVN<2>/get", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.get(k));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/contains", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for k in &k2_str {
+                            black_box(kv.contains_key(k));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/insert", |b| {
+                b.iter(|| {
+                    let mut kv = CoordKVN::<2>::new();
+                    for k in &k2_str {
+                        kv.insert(k, val.clone());
+                    }
+                })
+            });
+        } else {
+            let mut kv = CoordKVN::<2>::new();
+            for ck in &all_k2 {
+                kv.insert_by_coordkey(ck, val.clone());
+            }
+            group.bench_function("CoordKVN<2>/get", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.get_by_coordkey(ck));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/contains", |b| {
+                b.iter(|| {
+                    for _ in 0..cycles {
+                        for ck in &all_k2 {
+                            black_box(kv.contains_key_by_coordkey(ck));
+                        }
+                    }
+                })
+            });
+            group.bench_function("CoordKVN<2>/insert", |b| {
+                b.iter(|| {
+                    let mut kv = CoordKVN::<2>::new();
+                    for ck in &all_k2 {
+                        kv.insert_by_coordkey(ck, val.clone());
+                    }
+                })
+            });
+        }
     }
 
     // HashMap<String>
     {
         let mut hm: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new();
-        for k in &keys { hm.insert(k.clone(), val.clone()); }
+        for k in &keys {
+            hm.insert(k.clone(), val.clone());
+        }
         group.bench_function("HashMap<String>/get", |b| {
-            b.iter(|| { for _ in 0..cycles { for k in &keys { black_box(hm.get(k)); } } })
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(hm.get(k));
+                    }
+                }
+            })
         });
         group.bench_function("HashMap<String>/contains", |b| {
-            b.iter(|| { for _ in 0..cycles { for k in &keys { black_box(hm.contains_key(k)); } } })
+            b.iter(|| {
+                for _ in 0..cycles {
+                    for k in &keys {
+                        black_box(hm.contains_key(k));
+                    }
+                }
+            })
         });
         group.bench_function("HashMap<String>/insert", |b| {
-            b.iter(|| { let mut hm: std::collections::HashMap<String, Vec<u8>> = std::collections::HashMap::new(); for k in &keys { hm.insert(k.clone(), val.clone()); } })
+            b.iter(|| {
+                let mut hm: std::collections::HashMap<String, Vec<u8>> =
+                    std::collections::HashMap::new();
+                for k in &keys {
+                    hm.insert(k.clone(), val.clone());
+                }
+            })
         });
     }
 
     group.finish();
 }
 
-fn kv_workload_10k(c: &mut Criterion) { kv_workload(c, "10k", 10_000, 1); }
-fn kv_workload_1m(c: &mut Criterion) { kv_workload(c, "1M", 65_536, 15); }
-fn kv_workload_10m(c: &mut Criterion) { kv_workload(c, "10M", 65_536, 153); }
+fn kv_workload_10k(c: &mut Criterion) {
+    kv_workload(c, "10k", 10_000, 1);
+}
+fn kv_workload_1m(c: &mut Criterion) {
+    kv_workload(c, "1M", 65_536, 15);
+}
+fn kv_workload_10m(c: &mut Criterion) {
+    kv_workload(c, "10M", 65_536, 153);
+}
 
 criterion_group!(
     name = kv;

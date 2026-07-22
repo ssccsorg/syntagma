@@ -193,16 +193,40 @@ Same algorithm (iterate + decompose + filter on axis), different memory layout. 
 
 tagma-kv is a hashless KV store: it converts `&str` to Coord sequences instead of hashing them. The critical question is whether this conversion is faster than SipHash-2-4.
 
-| Variant | Insert (single) | Get (single) | Batch get (1k, per key) | vs HashMap get |
-|---------|----------------|--------------|------------------------|----------------|
-| `CoordKV2` (fixed 2B) | 18.7 ns | 22.0 ns | 22.5 ns | **1.1x faster** |
-| `HashMap<String>` | 44.8 ns | 23.8 ns | 23.5 ns | baseline |
-| `DynCoordKV` (dynamic) | 49.3 ns | 42.4 ns | 44.4 ns | 1.9x slower |
-| Raw CoordSpace2 (no conv) | 16.8 ns | 1.07 ns | 0.85 ns | 28x faster |
+### Single operation
 
-CoordKV2 converts `&str` to Coord faster than SipHash hashes it. The 21 ns conversion accounts for nearly all of the 22 ns get latency; the actual slot load is 1.07 ns (the pure Tagma promise). DynCoordKV is slower for single ops due to per-byte Vec allocation, but only by the allocation cost.
+| Variant | Insert | Get | Contains |
+|---------|--------|-----|----------|
+| **CoordKV2** (fixed 2B) | **18.7 ns** | **22.1 ns** | **21.7 ns** |
+| CoordKVN\<2\> (fixed 2B) | 18.9 ns | 21.7 ns | 21.7 ns |
+| DynCoordKV (variable) | 49.4 ns | 42.4 ns | 42.4 ns |
+| **HashMap\<String\>** | 44.9 ns | 23.8 ns | 13.0 ns |
 
-Once data is in Tagma coordinate space, all spatial capabilities (prefix scan, axis filter, range query) are available at zero additional cost.
+CoordKV2 get is 1.08x faster than HashMap. The difference (21.67 ns) is the str-to-CoordKey conversion cost plus Vec clone; the slot load itself is 0.39 ns.
+
+### Three-scale workload (get, per-op ns)
+
+| Variant | 10k ops | 1M ops | 10M ops | Trend |
+|---------|---------|--------|---------|-------|
+| **CoordKV2** | **22.0 ns** | **21.4 ns** | **21.5 ns** | **flat** |
+| CoordKVN\<2\> | 22.7 ns | 21.9 ns | 22.1 ns | flat |
+| DynCoordKV | 55.8 ns | 57.4 ns | 60.6 ns | +7% |
+| **HashMap\<String\>** | 21.9 ns | 24.2 ns | 23.8 ns | **+19%** |
+
+CoordKV2 latency is scale-invariant: 22.0 ns at 10k, 21.5 ns at 10M. HashMap per-op cost rises 19% from 10k to 10M as the working set exceeds cache capacity.
+
+### Contains key (per-op ns)
+
+| Variant | 10k ops | 1M ops | 10M ops |
+|---------|---------|--------|---------|
+| CoordKV2 | 22.3 ns | 21.6 ns | 21.6 ns |
+| CoordKVN\<2\> | 23.2 ns | — | — |
+| DynCoordKV | 54.7 ns | — | — |
+| HashMap | 13.2 ns | 19.9 ns | 19.9 ns |
+
+HashMap's bool-return advantage is erased by cache pressure at scale.
+
+Once data is in Tagma coordinate space, spatial capabilities (prefix scan, axis filter, range query) are available at zero additional conversion cost.
 
 ## Documentation
 
