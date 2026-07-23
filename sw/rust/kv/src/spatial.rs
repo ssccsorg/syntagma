@@ -1,4 +1,4 @@
-use tagma_core::{CoordPath, CoordCube};
+use tagma_core::{CoordCube, CoordPath};
 use tagma_geo::spatial::SpatialOps;
 use tagma_geo::BoundingBoxIter;
 
@@ -35,10 +35,7 @@ pub trait SpatialKV<const N: usize> {
 
     /// Returns all entries within a bounding box defined by per-syllable
     /// `(min, max)` ranges.
-    fn bounding_box_range(
-        &self,
-        ranges: &[(u16, u16); N],
-    ) -> Vec<(CoordPath<N>, Vec<u8>)>;
+    fn bounding_box_range(&self, ranges: &[(u16, u16); N]) -> Vec<(CoordPath<N>, Vec<u8>)>;
 }
 
 // ── Implementations ──────────────────────────────────────────────────────
@@ -59,10 +56,7 @@ impl SpatialKV<2> for CoordKV2 {
         results
     }
 
-    fn bounding_box_range(
-        &self,
-        ranges: &[(u16, u16); 2],
-    ) -> Vec<(CoordPath<2>, Vec<u8>)> {
+    fn bounding_box_range(&self, ranges: &[(u16, u16); 2]) -> Vec<(CoordPath<2>, Vec<u8>)> {
         let mut results = Vec::new();
         for path in BoundingBoxIter::<2>::new(*ranges) {
             if let Some(val) = self.get_by_coordpath(&path) {
@@ -89,10 +83,7 @@ impl<const N: usize> SpatialKV<N> for CoordKVN<N> {
         results
     }
 
-    fn bounding_box_range(
-        &self,
-        ranges: &[(u16, u16); N],
-    ) -> Vec<(CoordPath<N>, Vec<u8>)> {
+    fn bounding_box_range(&self, ranges: &[(u16, u16); N]) -> Vec<(CoordPath<N>, Vec<u8>)> {
         let mut results = Vec::new();
         for path in BoundingBoxIter::<N>::new(*ranges) {
             if let Some(val) = self.get_by_coordpath(&path) {
@@ -219,18 +210,9 @@ mod tests {
             Coord::new(20).unwrap(),
         ]);
 
-        kv.insert_by_coordkey(
-            &CoordKey::from_coord_path(&center_path),
-            b"center".to_vec(),
-        );
-        kv.insert_by_coordkey(
-            &CoordKey::from_coord_path(&nearby_path),
-            b"nearby".to_vec(),
-        );
-        kv.insert_by_coordkey(
-            &CoordKey::from_coord_path(&far_path),
-            b"far".to_vec(),
-        );
+        kv.insert_by_coordkey(&CoordKey::from_coord_path(&center_path), b"center".to_vec());
+        kv.insert_by_coordkey(&CoordKey::from_coord_path(&nearby_path), b"nearby".to_vec());
+        kv.insert_by_coordkey(&CoordKey::from_coord_path(&far_path), b"far".to_vec());
 
         let results = kv.proximity::<3, 1>(&center_path, 1);
 
@@ -241,10 +223,34 @@ mod tests {
     #[test]
     fn kvn_proximity_empty_when_none_nearby() {
         let kv: CoordKVN<2> = CoordKVN::new();
-        let center_path = CoordPath::<2>::new([
-            Coord::new(5).unwrap(),
-            Coord::new(5).unwrap(),
-        ]);
+        let center_path = CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
+        let results = kv.proximity::<2, 1>(&center_path, 1);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn kvn_bounding_box_range() {
+        let mut kv = CoordKVN::<2>::new();
+
+        kv.insert_by_coordkey(&CoordKey::new([5, 5]), b"v1".to_vec());
+        kv.insert_by_coordkey(&CoordKey::new([5, 6]), b"v2".to_vec());
+        kv.insert_by_coordkey(&CoordKey::new([10, 10]), b"v3".to_vec());
+
+        let ranges = [(4u16, 6u16), (5u16, 7u16)];
+        let results = kv.bounding_box_range(&ranges);
+
+        // Should find (5,5) and (5,6), but not (10,10)
+        assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn spatial_kv_empty_store_returns_empty() {
+        let kv: CoordKVN<2> = CoordKVN::new();
+        let ranges = [(0u16, 100u16), (0u16, 100u16)];
+        let results = kv.bounding_box_range(&ranges);
+        assert!(results.is_empty());
+
+        let center_path = CoordPath::<2>::new([Coord::new(50).unwrap(), Coord::new(50).unwrap()]);
         let results = kv.proximity::<2, 1>(&center_path, 1);
         assert!(results.is_empty());
     }

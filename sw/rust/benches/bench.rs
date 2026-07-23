@@ -991,7 +991,7 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   CoordCube proximity generation: all paths within L∞ radius of center
 //   Measures path generation throughput, NOT storage lookup
 fn bench_coordcube_proximity_radius(c: &mut Criterion) {
-    use tagma_core::{Coord, CoordPath, CoordCube};
+    use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
 
     // D=2, R=1: 2-syllable path interpreted as 2D cube
@@ -1001,7 +1001,7 @@ fn bench_coordcube_proximity_radius(c: &mut Criterion) {
     let mut group = c.benchmark_group("Spatial/cubeproximity");
 
     for radius in [0, 1, 2, 3, 5] {
-        let width = (2 * radius + 1) as usize;
+        let width = 2 * radius + 1;
         let count = width * width;
         group.throughput(criterion::Throughput::Elements(count as u64));
         group.bench_function(format!("radius_{}", radius), |b| {
@@ -1017,7 +1017,7 @@ fn bench_coordcube_proximity_radius(c: &mut Criterion) {
 // Spatial/cubebox/generation
 //   CoordCube bounding box generation: enumerate all paths in a box
 fn bench_coordcube_bounding_box(c: &mut Criterion) {
-    use tagma_core::{Coord, CoordPath, CoordCube};
+    use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
 
     let path = CoordPath::<2>::new([Coord::new(5586).unwrap(), Coord::new(5586).unwrap()]);

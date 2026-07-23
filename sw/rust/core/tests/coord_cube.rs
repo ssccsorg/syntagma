@@ -36,8 +36,7 @@ fn cube_into_path_roundtrip() {
 
 #[test]
 fn cube_from_path_via_from_trait() {
-    let path =
-        CoordPath::<2>::new([Coord::new(42).unwrap(), Coord::new(99).unwrap()]);
+    let path = CoordPath::<2>::new([Coord::new(42).unwrap(), Coord::new(99).unwrap()]);
     let cube: CoordCube<2, 2, 1> = path.into();
     assert_eq!(cube.axis(0).coords()[0].index(), 42);
     assert_eq!(cube.axis(1).coords()[0].index(), 99);
@@ -49,6 +48,34 @@ fn cube_into_path_via_from_trait() {
     let cube = CoordCube::<2, 2, 1>::from_path(path);
     let path_back: CoordPath<2> = cube.into();
     assert_eq!(path_back.coords()[0].index(), 7);
+}
+
+#[test]
+fn cube_as_path() {
+    let path = CoordPath::<2>::new([Coord::new(10).unwrap(), Coord::new(20).unwrap()]);
+    let cube = CoordCube::<2, 2, 1>::from_path(path);
+    let path_ref = cube.as_path();
+    assert_eq!(path_ref.coords()[0].index(), 10);
+    assert_eq!(path_ref.coords()[1].index(), 20);
+}
+
+#[test]
+fn cube_coords_accessor() {
+    let path = CoordPath::<2>::new([Coord::new(10).unwrap(), Coord::new(20).unwrap()]);
+    let cube = CoordCube::<2, 2, 1>::from_path(path);
+    let coords = cube.coords();
+    assert_eq!(coords.len(), 2);
+    assert_eq!(coords[0].index(), 10);
+    assert_eq!(coords[1].index(), 20);
+}
+
+#[test]
+fn cube_from_path_unchecked() {
+    let path = CoordPath::<2>::new([Coord::new(7).unwrap(), Coord::new(8).unwrap()]);
+    // SAFETY: D * R = 2 * 1 = 2 = N
+    let cube = unsafe { CoordCube::<2, 2, 1>::from_path_unchecked(path) };
+    assert_eq!(cube.axis(0).coords()[0].index(), 7);
+    assert_eq!(cube.axis(1).coords()[0].index(), 8);
 }
 
 #[test]

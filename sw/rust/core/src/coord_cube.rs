@@ -137,7 +137,8 @@ impl<const N: usize, const D: usize, const R: usize> CoordCube<N, D, R> {
         assert!(
             dim < D,
             "CoordCube::axis: dim {} out of range [0, {})",
-            dim, D
+            dim,
+            D
         );
         let start = dim * R;
         let init = unsafe { Coord::new_unchecked(0) };
@@ -159,12 +160,14 @@ impl<const N: usize, const D: usize, const R: usize> CoordCube<N, D, R> {
         assert!(
             dim < D,
             "CoordCube::coord_at: dim {} out of range [0, {})",
-            dim, D
+            dim,
+            D
         );
         assert!(
             syllable < R,
             "CoordCube::coord_at: syllable {} out of range [0, {})",
-            syllable, R
+            syllable,
+            R
         );
         self.path.coords()[dim * R + syllable]
     }
