@@ -1304,6 +1304,76 @@ fn bench_coordcube_overhead(c: &mut Criterion) {
     group.finish();
 }
 
+// ===========================================================================
+// CoordCube: Tree+CoordPath vs Tree+CoordCube direct comparison
+// ===========================================================================
+
+// Spatial/cubevspath
+//   Direct comparison: sequential CoordSpaceN2 lookups vs CoordCube proximity
+//   on the same 10K-entry tree store (9 keys in r=1 neighborhood).
+//   Tree+Path: 9 sequential lookups = 196 ns (21.8 ns each)
+//   Tree+Cube: proximity r=1 = 285 ns (gen 15 ns + 9 lookups 196 ns + push 74 ns)
+//   Sparse store: Tree+Cube = 48 ns (vs 196 ns, 4.1x faster)
+fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordPath, CoordCube};
+    use tagma_geo::spatial::SpatialOps;
+    use tagma_kv::CoordKVKey;
+    use tagma_kv::coord_gen::CoordKey;
+    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_kv_n::CoordKVN;
+
+    let mut group = c.benchmark_group("Spatial/cubevspath");
+
+    // Dense tree store: 10K entries in a 100x100 region
+    let mut kv = CoordKVN::<2>::new();
+    let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
+    let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
+    for path in fill_box.bounding_box(&fill_ranges) {
+        let key = CoordKey::from_coord_path(&path);
+        kv.insert_by_coordkey(&key, b"v".to_vec());
+    }
+
+    // Pre-compute the 9 neighbor keys for sequential lookup
+    let neighbor_paths: Vec<_> = fill_box.proximity(1).collect();
+    let neighbor_keys: Vec<_> = neighbor_paths.iter()
+        .map(|p| CoordKey::from_coord_path(p))
+        .collect();
+
+    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+
+    // Tree+CoordPath: 9 sequential lookups
+    group.bench_function("tree_path_sequential_9", |b| {
+        b.iter(|| {
+            let mut count = 0usize;
+            for key in &neighbor_keys {
+                if kv.get_by_coordkey(key).is_some() {
+                    count += 1;
+                }
+            }
+            black_box(count);
+        })
+    });
+
+    // Tree+CoordCube: proximity r=1 (generates 9 paths, looks them up)
+    group.bench_function("tree_cube_proximity_r1", |b| {
+        b.iter(|| {
+            let r = kv.proximity::<2, 1>(&query_center, 1);
+            black_box(r.len());
+        })
+    });
+
+    // Tree+CoordCube: proximity r=2 (25 paths)
+    group.bench_function("tree_cube_proximity_r2", |b| {
+        b.iter(|| {
+            let r = kv.proximity::<2, 1>(&query_center, 2);
+            black_box(r.len());
+        })
+    });
+
+    group.finish();
+}
+
 // N_scaling/get  (single lookup, ARMv8.4-A Firestorm)
 //   N=1   CoordSpace      0.39 ns   space 10^4  (inline stack array, no alloc)
 //   N=2   CoordSpace2     0.39 ns   space 10^8  (dense heap, 2.4x faster)
@@ -1584,7 +1654,8 @@ criterion_group!(
               bench_coordcube_distance_metrics,
               bench_kv_spatial_proximity,
               bench_coordcube_box_n_scaling,
-              bench_coordcube_overhead
+              bench_coordcube_overhead,
+              bench_coordcube_path_vs_cube
 );
 
 // ===========================================================================
