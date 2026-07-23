@@ -3,6 +3,7 @@ pub mod coord_kv;
 pub mod coord_kv2;
 pub mod coord_kv_n;
 pub mod dyn_coord_kv;
+pub mod spatial;
 
 use tagma_core::Coord;
 

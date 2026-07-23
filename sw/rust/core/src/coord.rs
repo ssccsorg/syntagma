@@ -87,7 +87,7 @@ impl Coord {
     ///
     /// Caller must ensure `value < N_VALID` (0..11172).
     #[inline]
-    pub(crate) const unsafe fn new_unchecked(value: u16) -> Self {
+    pub const unsafe fn new_unchecked(value: u16) -> Self {
         Self(value)
     }
 

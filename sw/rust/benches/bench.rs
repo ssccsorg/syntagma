@@ -983,6 +983,58 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
     group.finish();
 }
 
+// ===========================================================================
+// CoordCube spatial query benchmarks (CoordCube + CoordKV proximity)
+// ===========================================================================
+
+// Spatial/cubeproximity/radius_N
+//   CoordCube proximity generation: all paths within L∞ radius of center
+//   Measures path generation throughput, NOT storage lookup
+fn bench_coordcube_proximity_radius(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordPath, CoordCube};
+    use tagma_geo::spatial::SpatialOps;
+
+    // D=2, R=1: 2-syllable path interpreted as 2D cube
+    let path = CoordPath::<2>::new([Coord::new(5586).unwrap(), Coord::new(5586).unwrap()]);
+    let cube = CoordCube::<2, 2, 1>::from_path(path);
+
+    let mut group = c.benchmark_group("Spatial/cubeproximity");
+
+    for radius in [0, 1, 2, 3, 5] {
+        let width = (2 * radius + 1) as usize;
+        let count = width * width;
+        group.throughput(criterion::Throughput::Elements(count as u64));
+        group.bench_function(format!("radius_{}", radius), |b| {
+            b.iter(|| {
+                let paths: Vec<_> = cube.proximity(radius).collect();
+                black_box(paths.len());
+            })
+        });
+    }
+    group.finish();
+}
+
+// Spatial/cubebox/generation
+//   CoordCube bounding box generation: enumerate all paths in a box
+fn bench_coordcube_bounding_box(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordPath, CoordCube};
+    use tagma_geo::spatial::SpatialOps;
+
+    let path = CoordPath::<2>::new([Coord::new(5586).unwrap(), Coord::new(5586).unwrap()]);
+    let cube = CoordCube::<2, 2, 1>::from_path(path);
+    let ranges = [(0u16, 100u16), (0u16, 100u16)];
+
+    let mut group = c.benchmark_group("Spatial/cubebox");
+    group.throughput(criterion::Throughput::Elements(101 * 101));
+    group.bench_function("generation_100x100", |b| {
+        b.iter(|| {
+            let paths: Vec<_> = cube.bounding_box(&ranges).collect();
+            black_box(paths.len());
+        })
+    });
+    group.finish();
+}
+
 // N_scaling/get  (single lookup, ARMv8.4-A Firestorm)
 //   N=1   CoordSpace      0.39 ns   space 10^4  (inline stack array, no alloc)
 //   N=2   CoordSpace2     0.39 ns   space 10^8  (dense heap, 2.4x faster)
@@ -1256,7 +1308,9 @@ criterion_group!(
     targets = bench_spatial_axis_filter,
               bench_spatial_axis_filter_range,
               bench_spatial_cs2_prefix_scan,
-              bench_coordset_spatial_query
+              bench_coordset_spatial_query,
+              bench_coordcube_proximity_radius,
+              bench_coordcube_bounding_box
 );
 
 // ===========================================================================

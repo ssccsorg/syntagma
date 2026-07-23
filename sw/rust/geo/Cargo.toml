@@ -1,0 +1,9 @@
+[package]
+name = "tagma-geo"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Spatial operations for Tagma: proximity, bounding box, distance metrics via CoordCube"
+
+[dependencies]
+tagma-core = { workspace = true }
