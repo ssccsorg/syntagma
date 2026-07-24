@@ -141,6 +141,8 @@ impl<const N: usize, const D: usize, const R: usize> CoordCube<N, D, R> {
             D
         );
         let start = dim * R;
+        // SAFETY: 0 < N_VALID (11172), always valid.
+        // Using new_unchecked avoids runtime branch in the hot axis path.
         let init = unsafe { Coord::new_unchecked(0) };
         let mut coords = [init; R];
         let mut i = 0;

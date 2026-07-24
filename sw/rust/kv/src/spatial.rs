@@ -170,8 +170,8 @@ impl<const N: usize> crate::coord_gen::CoordKey<N> {
 mod tests {
     use super::*;
     use crate::coord_gen::CoordKey;
-    use crate::CoordKVKey;
     use crate::CoordKV;
+    use crate::CoordKVKey;
     use tagma_core::{Coord, CoordPath};
 
     // ── CoordKV2 spatial tests ─────────────────────────────────────
@@ -293,10 +293,7 @@ mod tests {
         kv.insert("ac", b"nearby".to_vec());
         kv.insert("az", b"far".to_vec());
 
-        let center_path = CoordPath::<2>::new([
-            Coord::new(97).unwrap(),
-            Coord::new(98).unwrap(),
-        ]);
+        let center_path = CoordPath::<2>::new([Coord::new(97).unwrap(), Coord::new(98).unwrap()]);
         let results = kv.proximity::<2, 1>(&center_path, 1);
         assert_eq!(results.len(), 2);
     }

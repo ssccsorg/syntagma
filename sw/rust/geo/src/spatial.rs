@@ -27,12 +27,15 @@ impl<const N: usize> BoundingBoxIter<N> {
             assert!(
                 min <= max,
                 "BoundingBoxIter: range {} has min {} > max {}",
-                i, min, max
+                i,
+                min,
+                max
             );
             assert!(
                 max < 11172,
                 "BoundingBoxIter: range {} has max {} >= 11172",
-                i, max
+                i,
+                max
             );
         }
         let mut current = [0u16; N];
@@ -228,11 +231,7 @@ pub trait DistanceMetrics<const N: usize, const D: usize, const R: usize> {
 
     /// Axis-wise Hamming distance: writes per-dimension differences into `out`.
     /// `out` must have length at least `D`.
-    fn hamming_distance_axes(
-        &self,
-        other: &CoordCube<N, D, R>,
-        out: &mut [usize],
-    );
+    fn hamming_distance_axes(&self, other: &CoordCube<N, D, R>, out: &mut [usize]);
 
     /// Normalised Euclidean distance approximation.
     ///
@@ -429,8 +428,7 @@ mod tests {
 
     #[test]
     fn cube_bounding_box_basic() {
-        let path =
-            CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
+        let path = CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
         let cube = CoordCube::<2, 2, 1>::from_path(path);
         let ranges = [(3u16, 6u16), (4u16, 5u16)];
         let paths: Vec<_> = cube.bounding_box(&ranges).collect();
@@ -455,8 +453,7 @@ mod tests {
 
     #[test]
     fn cube_proximity_radius_zero() {
-        let path =
-            CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
+        let path = CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
         let cube = CoordCube::<2, 2, 1>::from_path(path);
         let paths: Vec<_> = cube.proximity(0).collect();
         assert_eq!(paths.len(), 1);
@@ -465,8 +462,7 @@ mod tests {
 
     #[test]
     fn cube_proximity_radius_one() {
-        let path =
-            CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
+        let path = CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
         let cube = CoordCube::<2, 2, 1>::from_path(path);
         let paths: Vec<_> = cube.proximity(1).collect();
         assert_eq!(paths.len(), 9);
@@ -547,8 +543,7 @@ mod tests {
 
     #[test]
     fn euclidean_identical() {
-        let path =
-            CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+        let path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
         let a = CoordCube::<2, 2, 1>::from_path(path);
         let b = CoordCube::<2, 2, 1>::from_path(path);
         assert!((a.euclidean_distance_approx(&b)).abs() < 1e-10);
@@ -587,8 +582,7 @@ mod tests {
 
     #[test]
     fn manhattan_identical() {
-        let path =
-            CoordPath::<2>::new([Coord::new(100).unwrap(), Coord::new(200).unwrap()]);
+        let path = CoordPath::<2>::new([Coord::new(100).unwrap(), Coord::new(200).unwrap()]);
         let a = CoordCube::<2, 2, 1>::from_path(path);
         let b = CoordCube::<2, 2, 1>::from_path(path);
         assert_eq!(a.manhattan_distance(&b), 0);
@@ -626,8 +620,7 @@ mod tests {
 
     #[test]
     fn proximity_hamming_radius_zero() {
-        let path =
-            CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
+        let path = CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
         let cube = CoordCube::<2, 2, 1>::from_path(path);
         let paths: Vec<_> = cube.proximity_hamming(0).collect();
         assert_eq!(paths.len(), 1);
@@ -635,8 +628,7 @@ mod tests {
 
     #[test]
     fn proximity_hamming_radius_one() {
-        let path =
-            CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
+        let path = CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
         let cube = CoordCube::<2, 2, 1>::from_path(path);
         let paths: Vec<_> = cube.proximity_hamming(1).collect();
         assert_eq!(paths.len(), 5);

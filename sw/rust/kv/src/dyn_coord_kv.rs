@@ -60,7 +60,10 @@ impl DynCoordKV {
     }
 
     /// Looks up a value by a fixed-length CoordPath (converts internally).
-    pub fn get_by_coord_path<const N: usize>(&self, path: &tagma_core::CoordPath<N>) -> Option<Vec<u8>> {
+    pub fn get_by_coord_path<const N: usize>(
+        &self,
+        path: &tagma_core::CoordPath<N>,
+    ) -> Option<Vec<u8>> {
         let coords: Vec<Coord> = path.coords().to_vec();
         self.space.at(&coords).map(|v| box_to_vec(v.as_ref()))
     }
