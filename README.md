@@ -9,12 +9,12 @@ Tagma is a primitive where the address is the coordinate — not a flat pointer,
 ```
 synTagma (system)
   └─ Coordination layer (protocol, topology, distributed resolver)
-  └─ tagma-kv (KV bridge: hashless string-key store, HashMap API)
+  └─ tagma-kv (hashless KV: native CoordSpace + HashMap-compatible API)
   └─ Tagma core primitive (Coord, CoordPath, CoordSet, CoordSpace)
 ```
 
 - Tagma — the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding. The atomic identity primitive.
-- tagma-kv — the bridge layer: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Zero extra cost for spatial indexing.
+- tagma-kv — native CoordSpace KV: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Zero extra cost for spatial indexing.
 - synTagma coordination layer — recursive coordinate space expansion, physical topology mapping, distributed routing, and consistency protocol. Defined in the [synTagma](https://docs.ssccs.org/projects/syntagma/tagma/syn.html).
 
 ## Tagma primitive: Feature levels
