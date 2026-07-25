@@ -4,8 +4,8 @@
 | Updated | Document |
 |----------|---------|
 | 2026-07-13 | [타그마(Tagma) Project](/index.html) <sup style="background:#2c8;color:#fff;font-size:.65em;padding:0 .4em;border-radius:3px;">N</sup> |
-| 2026-07-15 | Papers > Domains > [Tagma-ID](/papers/domains/id.html) |
-| 2026-07-15 | Papers > [Tagma](/papers/wp.html) |
+| 2026-07-15 | Papers > Domains > [Tagma-ID](/papers/domains/id) |
+| 2026-07-15 | Papers > [Tagma](/papers/wp) |
 
 
 :::

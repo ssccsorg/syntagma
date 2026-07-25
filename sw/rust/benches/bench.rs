@@ -1450,6 +1450,113 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     group.finish();
 }
 
+// Spatial/cubevspath/dynkv
+//   DynCoordKV + CoordCube: proximity query on variable-depth store
+//   Tests the DynCoordKV CoordCubeKV implementation.
+fn bench_coordcube_dynkv(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordPath};
+    use tagma_kv::dyn_coord_kv::DynCoordKV;
+    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::CoordKV;
+
+    let mut group = c.benchmark_group("Spatial/cubevspath");
+
+    // Fill DynCoordKV with short string keys (ByteWise → 2 Coords each)
+    let mut kv = DynCoordKV::new();
+    for b0 in 97u8..107u8 {
+        // 'a'..'j'
+        for b1 in 97u8..107u8 {
+            let key = format!("{}{}", b0 as char, b1 as char);
+            kv.insert(&key, b"v".to_vec());
+        }
+    }
+
+    let center_path = CoordPath::<2>::new([
+        Coord::new(97).unwrap(),
+        Coord::new(100).unwrap(), // "ad"
+    ]);
+
+    group.bench_function("dynkv_proximity_r1", |b| {
+        b.iter(|| {
+            let r = kv.proximity::<2, 1>(&center_path, 1);
+            black_box(r.len());
+        })
+    });
+
+    group.bench_function("dynkv_proximity_r2", |b| {
+        b.iter(|| {
+            let r = kv.proximity::<2, 1>(&center_path, 2);
+            black_box(r.len());
+        })
+    });
+
+    group.finish();
+}
+
+// Spatial/kvproximity/r5
+//   CoordCube proximity at radius 5 on CoordKVN tree store (121 paths).
+fn bench_kv_spatial_proximity_r5(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordCube, CoordPath};
+    use tagma_geo::spatial::SpatialOps;
+    use tagma_kv::coord_gen::CoordKey;
+    use tagma_kv::coord_kv_n::CoordKVN;
+    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::CoordKVKey;
+
+    let mut group = c.benchmark_group("Spatial/kvproximity");
+
+    // Dense store: fill 50x50 region around center
+    let mut kv = CoordKVN::<2>::new();
+    let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
+    let fill_ranges = [(4975u16, 5025u16), (4975u16, 5025u16)];
+    for path in fill_box.bounding_box(&fill_ranges) {
+        let key = CoordKey::from_coord_path(&path);
+        kv.insert_by_coordkey(&key, b"v".to_vec());
+    }
+
+    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+
+    group.throughput(criterion::Throughput::Elements(121)); // 11^2
+    group.bench_function("dense_r5_proximity", |b| {
+        b.iter(|| {
+            let r = kv.proximity::<2, 1>(&query_center, 5);
+            black_box(r.len());
+        })
+    });
+
+    group.finish();
+}
+
+// Spatial/cubelargen/n6_bbox
+//   CoordCube bounding box on N=6 (D=6, R=1).
+//   Box range 3^6 = 729 paths.
+fn bench_coordcube_large_n_bbox(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordCube, CoordPath};
+    use tagma_geo::spatial::SpatialOps;
+
+    let mid = 5000u16;
+    let path = CoordPath::<6>::new([
+        Coord::new(mid).unwrap(),
+        Coord::new(mid).unwrap(),
+        Coord::new(mid).unwrap(),
+        Coord::new(mid).unwrap(),
+        Coord::new(mid).unwrap(),
+        Coord::new(mid).unwrap(),
+    ]);
+    let cube = CoordCube::<6, 6, 1>::from_path(path);
+    let ranges = [(0u16, 2u16); 6];
+
+    let mut group = c.benchmark_group("Spatial/cubelargen");
+    group.throughput(criterion::Throughput::Elements(729));
+    group.bench_function("n6_bbox_3x3x3x3x3x3", |b| {
+        b.iter(|| {
+            let p: Vec<_> = cube.bounding_box(&ranges).collect();
+            black_box(p.len());
+        })
+    });
+    group.finish();
+}
 // ===========================================================================
 // CoordCube: large-N tree, hierarchical query, proximity_hamming
 // ===========================================================================
@@ -1928,6 +2035,9 @@ criterion_group!(
               bench_coordcube_box_n_scaling,
               bench_coordcube_overhead,
               bench_coordcube_path_vs_cube,
+              bench_coordcube_dynkv,
+              bench_kv_spatial_proximity_r5,
+              bench_coordcube_large_n_bbox,
               bench_coordcube_large_n,
               bench_coordcube_hierarchical,
               bench_coordcube_proximity_hamming
