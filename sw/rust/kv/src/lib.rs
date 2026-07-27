@@ -1,9 +1,9 @@
+pub mod coord_cube_kv;
 pub mod coord_gen;
 pub mod coord_kv;
 pub mod coord_kv2;
 pub mod coord_kv_n;
 pub mod dyn_coord_kv;
-pub mod coord_cube_kv;
 
 use tagma_core::Coord;
 

@@ -271,12 +271,17 @@ fn bench_std_remove_all(c: &mut Criterion) {
 // CoordSpace2/insert/all_11172       16.4 ms   (119 MB pre-zero + 11,172 writes)
 // HashMap/insert/all_11172           385  µs
 fn bench_cs2_insert_all(c: &mut Criterion) {
-    let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
+    let coords = (0..11172u16)
+        .map(|i| tagma_core::Coord::new(i).unwrap())
+        .collect::<Vec<_>>();
     c.bench_function("CoordSpace2/insert/all_11172", |b| {
         b.iter(|| {
             let mut space = tagma_core::CoordSpace2::<u32>::new();
             for &coord in &coords {
-                black_box(space.place_path(&tagma_core::CoordPath::new([coord, coord]), coord.index() as u32));
+                black_box(space.place_path(
+                    &tagma_core::CoordPath::new([coord, coord]),
+                    coord.index() as u32,
+                ));
             }
             black_box(space);
         })
@@ -286,10 +291,15 @@ fn bench_cs2_insert_all(c: &mut Criterion) {
 // CoordSpace2/get/all_11172         35.0 µs   (dense, 2-coord key)
 // HashMap/get/all_11172             102  µs
 fn bench_cs2_get_all(c: &mut Criterion) {
-    let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
+    let coords = (0..11172u16)
+        .map(|i| tagma_core::Coord::new(i).unwrap())
+        .collect::<Vec<_>>();
     let mut space = tagma_core::CoordSpace2::<u32>::new();
     for &coord in &coords {
-        space.place_path(&tagma_core::CoordPath::new([coord, coord]), coord.index() as u32);
+        space.place_path(
+            &tagma_core::CoordPath::new([coord, coord]),
+            coord.index() as u32,
+        );
     }
     c.bench_function("CoordSpace2/get/all_11172", |b| {
         b.iter(|| {
@@ -302,12 +312,17 @@ fn bench_cs2_get_all(c: &mut Criterion) {
 
 // CoordSpaceN2/insert/all_11172    180  ms    (tree, 11,172 inserts)
 fn bench_csn2_insert_all(c: &mut Criterion) {
-    let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
+    let coords = (0..11172u16)
+        .map(|i| tagma_core::Coord::new(i).unwrap())
+        .collect::<Vec<_>>();
     c.bench_function("CoordSpaceN2/insert/all_11172", |b| {
         b.iter(|| {
             let mut space = tagma_core::CoordSpaceN2::<u32>::new();
             for &coord in &coords {
-                black_box(space.place_path(&tagma_core::CoordPath::new([coord, coord]), coord.index() as u32));
+                black_box(space.place_path(
+                    &tagma_core::CoordPath::new([coord, coord]),
+                    coord.index() as u32,
+                ));
             }
             black_box(space);
         })
@@ -316,10 +331,15 @@ fn bench_csn2_insert_all(c: &mut Criterion) {
 
 // CoordSpaceN2/get/all_11172       53.3 µs   (tree, 11,172 lookups)
 fn bench_csn2_get_all(c: &mut Criterion) {
-    let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
+    let coords = (0..11172u16)
+        .map(|i| tagma_core::Coord::new(i).unwrap())
+        .collect::<Vec<_>>();
     let mut space = tagma_core::CoordSpaceN2::<u32>::new();
     for &coord in &coords {
-        space.place_path(&tagma_core::CoordPath::new([coord, coord]), coord.index() as u32);
+        space.place_path(
+            &tagma_core::CoordPath::new([coord, coord]),
+            coord.index() as u32,
+        );
     }
     c.bench_function("CoordSpaceN2/get/all_11172", |b| {
         b.iter(|| {
@@ -1349,16 +1369,34 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
     // Allocate a buffer of random coord indices once, then use them inside iter()
     // to prevent the compiler from hoisting the entire computation out of the loop.
     let mut rng = rand::thread_rng();
-    let pairs: Vec<[u16; 6]> = (0..128).map(|_| {
-        [rng.gen_range(0..10000), rng.gen_range(0..10000), rng.gen_range(0..10000),
-         rng.gen_range(0..10000), rng.gen_range(0..10000), rng.gen_range(0..10000)]
-    }).collect();
+    let pairs: Vec<[u16; 6]> = (0..128)
+        .map(|_| {
+            [
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+            ]
+        })
+        .collect();
 
     // For R=2 variants: 8 indices per pair
-    let pairs_r2: Vec<[u16; 8]> = (0..128).map(|_| {
-        [rng.gen_range(0..10000), rng.gen_range(0..10000), rng.gen_range(0..10000), rng.gen_range(0..10000),
-         rng.gen_range(0..10000), rng.gen_range(0..10000), rng.gen_range(0..10000), rng.gen_range(0..10000)]
-    }).collect();
+    let pairs_r2: Vec<[u16; 8]> = (0..128)
+        .map(|_| {
+            [
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+                rng.gen_range(0..10000),
+            ]
+        })
+        .collect();
 
     let mut group = c.benchmark_group("Spatial/cubedist");
 
@@ -1368,10 +1406,14 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
             let p = &pairs[idx.get() % pairs.len()];
             idx.set(idx.get() + 1);
             let a = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
-                Coord::new(p[0]).unwrap(), Coord::new(p[1]).unwrap(), Coord::new(p[2]).unwrap(),
+                Coord::new(p[0]).unwrap(),
+                Coord::new(p[1]).unwrap(),
+                Coord::new(p[2]).unwrap(),
             ]));
             let b = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
-                Coord::new(p[3]).unwrap(), Coord::new(p[4]).unwrap(), Coord::new(p[5]).unwrap(),
+                Coord::new(p[3]).unwrap(),
+                Coord::new(p[4]).unwrap(),
+                Coord::new(p[5]).unwrap(),
             ]));
             black_box(a.hamming_distance(&b));
         })
@@ -1383,10 +1425,14 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
             let p = &pairs[idx.get() % pairs.len()];
             idx.set(idx.get() + 1);
             let a = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
-                Coord::new(p[0]).unwrap(), Coord::new(p[1]).unwrap(), Coord::new(p[2]).unwrap(),
+                Coord::new(p[0]).unwrap(),
+                Coord::new(p[1]).unwrap(),
+                Coord::new(p[2]).unwrap(),
             ]));
             let b = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
-                Coord::new(p[3]).unwrap(), Coord::new(p[4]).unwrap(), Coord::new(p[5]).unwrap(),
+                Coord::new(p[3]).unwrap(),
+                Coord::new(p[4]).unwrap(),
+                Coord::new(p[5]).unwrap(),
             ]));
             black_box(a.euclidean_distance_approx(&b));
         })
@@ -1398,16 +1444,18 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
             let p = &pairs[idx.get() % pairs.len()];
             idx.set(idx.get() + 1);
             let a = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
-                Coord::new(p[0]).unwrap(), Coord::new(p[1]).unwrap(), Coord::new(p[2]).unwrap(),
+                Coord::new(p[0]).unwrap(),
+                Coord::new(p[1]).unwrap(),
+                Coord::new(p[2]).unwrap(),
             ]));
             let b = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
-                Coord::new(p[3]).unwrap(), Coord::new(p[4]).unwrap(), Coord::new(p[5]).unwrap(),
+                Coord::new(p[3]).unwrap(),
+                Coord::new(p[4]).unwrap(),
+                Coord::new(p[5]).unwrap(),
             ]));
             black_box(a.manhattan_distance(&b));
         })
     });
-
-
 
     group.bench_function("hamming_r2", |bench| {
         let idx = std::cell::Cell::new(0usize);
@@ -1415,12 +1463,16 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
             let p = &pairs_r2[idx.get() % pairs_r2.len()];
             idx.set(idx.get() + 1);
             let a = CoordCube::<4, 2, 2>::from_path(CoordPath::new([
-                Coord::new(p[0]).unwrap(), Coord::new(p[1]).unwrap(),
-                Coord::new(p[2]).unwrap(), Coord::new(p[3]).unwrap(),
+                Coord::new(p[0]).unwrap(),
+                Coord::new(p[1]).unwrap(),
+                Coord::new(p[2]).unwrap(),
+                Coord::new(p[3]).unwrap(),
             ]));
             let b = CoordCube::<4, 2, 2>::from_path(CoordPath::new([
-                Coord::new(p[4]).unwrap(), Coord::new(p[5]).unwrap(),
-                Coord::new(p[6]).unwrap(), Coord::new(p[7]).unwrap(),
+                Coord::new(p[4]).unwrap(),
+                Coord::new(p[5]).unwrap(),
+                Coord::new(p[6]).unwrap(),
+                Coord::new(p[7]).unwrap(),
             ]));
             black_box(a.hamming_distance(&b));
         })
@@ -1431,12 +1483,16 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
             let p = &pairs_r2[idx.get() % pairs_r2.len()];
             idx.set(idx.get() + 1);
             let a = CoordCube::<4, 2, 2>::from_path(CoordPath::new([
-                Coord::new(p[0]).unwrap(), Coord::new(p[1]).unwrap(),
-                Coord::new(p[2]).unwrap(), Coord::new(p[3]).unwrap(),
+                Coord::new(p[0]).unwrap(),
+                Coord::new(p[1]).unwrap(),
+                Coord::new(p[2]).unwrap(),
+                Coord::new(p[3]).unwrap(),
             ]));
             let b = CoordCube::<4, 2, 2>::from_path(CoordPath::new([
-                Coord::new(p[4]).unwrap(), Coord::new(p[5]).unwrap(),
-                Coord::new(p[6]).unwrap(), Coord::new(p[7]).unwrap(),
+                Coord::new(p[4]).unwrap(),
+                Coord::new(p[5]).unwrap(),
+                Coord::new(p[6]).unwrap(),
+                Coord::new(p[7]).unwrap(),
             ]));
             black_box(a.euclidean_distance_approx(&b));
         })
@@ -1447,12 +1503,16 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
             let p = &pairs_r2[idx.get() % pairs_r2.len()];
             idx.set(idx.get() + 1);
             let a = CoordCube::<4, 2, 2>::from_path(CoordPath::new([
-                Coord::new(p[0]).unwrap(), Coord::new(p[1]).unwrap(),
-                Coord::new(p[2]).unwrap(), Coord::new(p[3]).unwrap(),
+                Coord::new(p[0]).unwrap(),
+                Coord::new(p[1]).unwrap(),
+                Coord::new(p[2]).unwrap(),
+                Coord::new(p[3]).unwrap(),
             ]));
             let b = CoordCube::<4, 2, 2>::from_path(CoordPath::new([
-                Coord::new(p[4]).unwrap(), Coord::new(p[5]).unwrap(),
-                Coord::new(p[6]).unwrap(), Coord::new(p[7]).unwrap(),
+                Coord::new(p[4]).unwrap(),
+                Coord::new(p[5]).unwrap(),
+                Coord::new(p[6]).unwrap(),
+                Coord::new(p[7]).unwrap(),
             ]));
             black_box(a.manhattan_distance(&b));
         })
@@ -1466,9 +1526,9 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
 fn bench_kv_spatial_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/kvproximity");
@@ -1650,9 +1710,9 @@ fn bench_coordcube_overhead(c: &mut Criterion) {
 fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
@@ -1713,8 +1773,8 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
 //   Tests the DynCoordKV CoordCubeKV implementation.
 fn bench_coordcube_dynkv(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
-    use tagma_kv::dyn_coord_kv::DynCoordKV;
     use tagma_kv::coord_cube_kv::CoordCubeKV;
+    use tagma_kv::dyn_coord_kv::DynCoordKV;
     use tagma_kv::CoordKV;
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
@@ -1798,14 +1858,15 @@ fn bench_coordcube_path_baseline(c: &mut Criterion) {
 fn bench_coordcube_kv2_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
-    use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_cube_kv::CoordCubeKV;
+    use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::{CoordKV2, CoordKVKey};
 
     let mid = 5000u16;
     let mut kv = CoordKV2::new();
     let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
-        Coord::new(mid).unwrap(), Coord::new(mid).unwrap(),
+        Coord::new(mid).unwrap(),
+        Coord::new(mid).unwrap(),
     ]));
     for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
         let key = CoordKey::from_coord_path(&path);
@@ -1913,18 +1974,23 @@ fn bench_coordcube_dynkv_baseline(c: &mut Criterion) {
 
     // Pre-compute the 9 neighbor keys for sequential lookup
     let neighbor_paths: Vec<CoordPath<2>> = (0i16..=2)
-        .flat_map(|d0| (0i16..=2).map(move |d1| {
-            CoordPath::<2>::new([
-                Coord::new((97 + d0 - 1) as u16).unwrap(),
-                Coord::new((100 + d1 - 1) as u16).unwrap(),
-            ])
-        }))
+        .flat_map(|d0| {
+            (0i16..=2).map(move |d1| {
+                CoordPath::<2>::new([
+                    Coord::new((97 + d0 - 1) as u16).unwrap(),
+                    Coord::new((100 + d1 - 1) as u16).unwrap(),
+                ])
+            })
+        })
         .collect();
-    let neighbor_keys: Vec<String> = neighbor_paths.iter().map(|p| {
-        let c0 = p.coords()[0].index() as u8 as char;
-        let c1 = p.coords()[1].index() as u8 as char;
-        format!("{}{}", c0, c1)
-    }).collect();
+    let neighbor_keys: Vec<String> = neighbor_paths
+        .iter()
+        .map(|p| {
+            let c0 = p.coords()[0].index() as u8 as char;
+            let c1 = p.coords()[1].index() as u8 as char;
+            format!("{}{}", c0, c1)
+        })
+        .collect();
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
 
@@ -1948,9 +2014,9 @@ fn bench_coordcube_dynkv_baseline(c: &mut Criterion) {
 fn bench_kv_spatial_proximity_r5(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/kvproximity");
@@ -2020,9 +2086,9 @@ fn bench_coordcube_large_n_bbox(c: &mut Criterion) {
 fn bench_coordcube_large_n(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/cubelargen");
@@ -2127,9 +2193,9 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 fn bench_coordcube_hierarchical(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/hierarchical");
