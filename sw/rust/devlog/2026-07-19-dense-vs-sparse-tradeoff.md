@@ -1,7 +1,7 @@
 # Dense vs Sparse: when Tagma cannot fit in one memory
 
 Tagma promises collision-free O(1) direct addressing. The promise holds for any N: a
-CoordPath of N syllables addresses exactly one slot in the $11{,}172^N$ space, no hashing,
+CoordPath of N characters addresses exactly one slot in the $11{,}172^N$ space, no hashing,
 no collisions. But the promise has a material prerequisite: the address space must
 actually exist in memory.
 

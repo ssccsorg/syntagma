@@ -6,7 +6,7 @@ Verilog — must satisfy these definitions to be Tagma-compatible.
 
 ## 1. The Composition Formula
 
-Every valid Tagma coordinate corresponds to a Unicode Hangul syllable code point
+Every valid Tagma coordinate corresponds to a Unicode compositional character code point
 via the closed-form composition formula defined in ISO/IEC 10646:
 
 $$C(i, m, f) = \text{U+AC00} + 588i + 28m + f$$
@@ -78,10 +78,9 @@ Bit:  15  14  13  12  11  10   9   8   7   6   5   4   3   2   1   0
 ### 2.2 The Coord Type
 
 `Coord` is the atomic coordinate value: a 16-bit unsigned integer in the range
-0..11172, guaranteed to be structurally valid. It represents exactly one Hangul
-syllable (one triplet of initial, medial, final axes).
+0..11172, guaranteed to be structurally valid. It represents exactly one compositional unicode character (one triplet of initial, medial, final axes).
 
-## 3. N-Syllable Composition
+## 3. N-Character Composition
 
 A single Coord provides 11,172 unique identifiers. For address spaces larger
 than 11,172, multiple Coord values compose into a CoordPath:
@@ -186,11 +185,10 @@ value is a consumer policy, not a Coord concern:
 A Tagma coordinate may be serialized to a printable, self-validating string
 using the Base11172 encoding:
 
-- Each coordinate index $0 \leq \text{idx} < 11,172$ maps to exactly one Hangul
-  syllable: $\text{char} = \text{U+AC00} + \text{idx}$.
-- A pair of syllables encodes a 16-bit value (2 bytes):
+- Each coordinate index $0 \leq \text{idx} < 11,172$ maps to exactly one compositional unicode character: $\text{char} = \text{U+AC00} + \text{idx}$.
+- A pair of characters encodes a 16-bit value (2 bytes):
   $\text{value} = \text{hi} \times 11172 + \text{lo}$.
-- A CoordPath of N Coords serializes to N consecutive Hangul syllables.
+- A CoordPath of N Coords serializes to N consecutive compositional characters.
 
 The encoding is self-validating: any character outside U+AC00..U+D7AF is
 immediately detectable as invalid.
@@ -252,7 +250,7 @@ This must hold across all languages, platforms, and hardware configurations.
 
 ### 6.6 Coord Atomicity
 
-Coord is a single-syllable atomic value. An implementation must not:
+Coord is a single-character atomic value. An implementation must not:
 
 - Impose application-level semantics on Coord's three axis fields.
 - Require Coord to validate or reject axis slot assignments (Section 4).

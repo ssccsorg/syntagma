@@ -12,3 +12,7 @@ mmap = ["tagma-core/mmap"]
 
 [dependencies]
 tagma-core = { workspace = true, features = ["alloc"] }
+tagma-geo = { workspace = true }
+
+[dev-dependencies]
+tagma-geo = { workspace = true }

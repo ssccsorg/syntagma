@@ -1,0 +1,112 @@
+---
+title: "CoordCube insertions for brief.qmd"
+---
+
+## Insertion 1: After "spatial computation" paragraph
+
+**Location:** After the paragraph ending "The figures above measure the consequence: HashMap degrades with data volume; the coordinate space does not."
+
+**Insert:**
+
+```markdown
+### The second channel: CoordCube spatial queries
+
+CoordPath treats N characters as a linear key. The same bytes can be
+reinterpreted as a D-dimensional grid (CoordCube) where each dimension
+has R characters of resolution (N = D × R). Conversion between the two
+views costs 960 ps — a single assertion check — and changes no state.
+
+This dual view enables two complementary access channels:
+
+| Channel | Abstraction | Operation | Throughput |
+|---------|------------|-----------|------------|
+| 1 | CoordPath | O(1) direct array lookup | 0.39 ns |
+| 1 | CoordPath | CoordSet axis AND filter | 338 Melem/s |
+| 2 | CoordCube | Proximity generation (r=1) | 96 Melem/s |
+| 2 | CoordCube | Proximity generation (r=5) | 353 Melem/s |
+| 2 | CoordCube | Bounding box enumeration | 289-699 Melem/s |
+| 2 | CoordCube | Distance metrics (hamming, euclidean, manhattan) | ~320 ps |
+| 1+2 | CoordCubeKV | Storage-backed proximity query | 31-584 Melem/s |
+
+{{< include ../_include/bench/fig-bench-2ch.qmd >}}
+
+**Distance metrics cost ~320 ps** — below a single CoordSpace array lookup
+(390 ps). Hamming, Euclidean approximation (Newton-Raphson sqrt, 12
+iterations), and Manhattan all operate entirely on registers with no
+memory access. The compiler inlines and unrolls all three to the point
+where the measurement is dominated by timing infrastructure noise.
+
+{{< include ../_include/bench/fig-bench-cubedist.qmd >}}
+
+**Proximity throughput increases with radius.** Generating a 121-path
+neighborhood (radius 5) achieves 353 Melem/s — 6.4x higher than a
+single-path generation (55 Melem/s at radius 0). The fixed setup cost
+(~8.6 ns for range computation) is amortized over more output paths.
+The mixed-radix counter yields paths at ~1.7-9.4 ns each, with cost
+decreasing as the number of paths grows.
+
+{{< include ../_include/bench/fig-bench-cubeproximity.qmd >}}
+
+**Dimensional scaling follows output count, not N.** Proximity time
+grows with the number of generated paths (2r+1)^D, not with N directly.
+Per-path cost decreases from 7.4 ns/path at D=1 to 3.3 ns/path at D=4
+as setup overhead amortizes. This contrasts with CoordSpaceN tree
+lookups, where cost is O(N) for a single element regardless of output
+count — because the operations serve different purposes: single-element
+locate vs region enumeration.
+
+{{< include ../_include/bench/fig-bench-cubescaling.qmd >}}
+
+**KV proximity queries separate generation from lookup.** The
+`CoordCubeKV` trait generates paths via CoordCube then looks up each
+path in the CoordSpace tree. Path generation accounts for only 5% of
+total time (15 ns); the remaining 95% is tree traversal (196 ns for
+9 lookups at 21.8 ns each) and Vec push (74 ns). For sparse stores
+where the tree fits in L1 cache, total time drops to 47.8 ns (188
+Melem/s). Empty stores measure 15.4 ns — pure generation cost.
+
+{{< include ../_include/bench/fig-bench-kvproximity.qmd >}}
+
+The architectural consequence: no hash-based system can replicate this
+dual channel. A HashMap key cannot be reinterpreted as a spatial
+coordinate. CoordPath and CoordCube share the same bytes; the choice
+between linear precision and spatial power is an interpretation shift,
+not a data structure change.
+```
+
+---
+
+## Insertion 2: Update spatial query paragraph
+
+**Location:** The line "Spatial query: CoordSet bitwise AND resolves compound axis filters at 329 Melem/s — 137x faster than HashMap scan."
+
+**Replace with:**
+
+```markdown
+**Spatial query — two tiers:**
+
+- Set membership: CoordSet bitwise AND resolves compound axis filters
+  at 338 Melem/s — 150x faster than HashMap scan.
+- Region generation: CoordCube proximity enumerates L∞ neighborhoods
+  at 96-353 Melem/s; bounding boxes at 289-699 Melem/s. HashMap has
+  no equivalent operation.
+```
+
+---
+
+## Insertion 3: Application domains — spatial reasoning
+
+**Location:** The "Graph and multi-dimensional query" paragraph.
+
+**Replace with:**
+
+```markdown
+**Graph and multi-dimensional query.** Each node maps to a coordinate,
+each edge type to a bit array. Adjacency reduces to a bitwise AND over
+175 machine words — no index intersection. Beyond bitwise queries,
+CoordCube adds spatial region generation over the same coordinate
+space: proximity search (find nodes near a center), bounding box
+enumeration (nodes within a hyper-rectangle), and distance metrics
+(hamming, euclidean, manhattan). These are arithmetic operations on
+the existing byte array, not index scans.
+```

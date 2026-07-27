@@ -1,4 +1,4 @@
-# The bridge is built: what the benchmarks told us
+# CoordKV2 at scale: what the benchmarks told us
 
 After the benchmark corrections and the conversion cost analysis, the tagma-kv picture is finally consistent across all three scales. The results confirm the strategy but also reveal where the real engineering challenges lie.
 
@@ -18,7 +18,7 @@ The most important analytical contribution is the three-layer decomposition of C
 | Box-to-Vec clone | 16.67 ns | API artifact, eliminable |
 | Slot load | 0.39 ns | physical limit |
 
-The 5 ns conversion is the only cost that belongs to the bridge. It is paid once at the entry boundary and skipped by `by_coordkey` API. The 16.67 ns Vec clone is an artifact of the current API returning owned values to match HashMap's `insert`/`remove` contract. A reference-returning variant would eliminate it, dropping CoordKV2 get from 22 ns to 5 ns (conversion only). The slot load at 0.39 ns is the pure Tagma promise — array index at gate delay.
+The 5 ns conversion is the only cost that belongs to CoordKV2. It is paid once at the entry boundary and skipped by `by_coordkey` API. The 16.67 ns Vec clone is an artifact of the current API returning owned values to match HashMap's `insert`/`remove` contract. A reference-returning variant would eliminate it, dropping CoordKV2 get from 22 ns to 5 ns (conversion only). The slot load at 0.39 ns is the pure Tagma promise — array index at gate delay.
 
 HashMap has no equivalent decomposition. SipHash, bucket probe, and collision resolution are inseparable — every get pays the full 23.79 ns.
 

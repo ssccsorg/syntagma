@@ -1,4 +1,4 @@
-# tagma-kv: the bridge
+# tagma-kv: native KV with a HashMap-compatible entry
 
 Tagma KV is the first practical bridge between the standard key-value paradigm and
 Tagma's coordinate space. It answers a single make-or-break question.
@@ -76,11 +76,11 @@ CoordKV2 beats HashMap on both speed and collision guarantees.
 ## The bridge
 
 This result is strategically important not because Tagma KV replaces HashMap in every
-workload, but because it proves the bridge exists at all. Before this measurement,
+workload, but because it proves tagma-kv exists at all. Before this measurement,
 there was no evidence that a hashless string-to-address mapping could be competitive.
 The gap could have been 10x or 100x. It is 0.94x (slightly faster).
 
-With the bridge established:
+With tagma-kv established:
 
 | Before (no bridge) | After (bridge exists) |
 |---|---|
@@ -88,7 +88,7 @@ With the bridge established:
 | Existing KV workloads must be redesigned | Existing KV workloads migrate transparently |
 | Tagma spatial indexing requires dedicated data pipeline | Spatial indexing is a property of the same KV store, zero extra cost |
 
-## What the bridge enables
+## What tagma-kv enables
 
 Every entry stored via Tagma KV is stored in Tagma coordinate space. This means
 the same store supports:

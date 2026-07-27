@@ -344,7 +344,7 @@ fn space19_deep_path_resolution() {
 #[test]
 fn space19_sparse_19_paths() {
     // Insert 19 independent paths into the SHA-256-scale space.
-    // Each path differs at every syllable position.
+    // Each path differs at every character position.
     let mut space = CoordSpaceN19::new();
     for seed in 0..19u16 {
         let coords: [Coord; 19] = core::array::from_fn(|i| {

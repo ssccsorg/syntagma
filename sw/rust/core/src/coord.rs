@@ -1,9 +1,9 @@
-/// A 16-bit value guaranteed to be a valid Hangul syllable coordinate.
+/// A 16-bit value guaranteed to be a valid compositional character coordinate.
 ///
 /// `Coord` wraps a `u16` in the range `0..11172`, corresponding to
 /// Unicode code points U+AC00..U+D7AF.  Every valid value is simultaneously
 /// a Unicode address, a 3-axis coordinate (initial, medial, final), and
-/// a Hangul syllable.
+/// a compositional character.
 ///
 /// # Layout
 ///
@@ -30,7 +30,7 @@ pub struct Coord(u16);
 // ---------------------------------------------------------------------------
 
 impl Coord {
-    /// Number of valid syllable blocks (19 × 21 × 28).
+    /// Number of valid character blocks (19 × 21 × 28).
     pub const N_VALID: usize = 11_172;
 
     /// Number of representable 16-bit states.
@@ -42,8 +42,8 @@ impl Coord {
     /// Base code point (U+AC00).
     pub const BASE: u16 = 0xAC00;
 
-    /// Last code point of the Unicode Hangul Syllables block (U+D7AF).
-    /// Note: U+D7A4..U+D7AF are filler positions; the last valid syllable
+    /// Last code point of the Unicode compositional characters block (U+D7AF).
+    /// Note: U+D7A4..U+D7AF are filler positions; the last valid character
     /// is at U+D7A3 (offset 11171).
     pub const LAST: u16 = 0xD7AF;
 
@@ -87,7 +87,7 @@ impl Coord {
     ///
     /// Caller must ensure `value < N_VALID` (0..11172).
     #[inline]
-    pub(crate) const unsafe fn new_unchecked(value: u16) -> Self {
+    pub const unsafe fn new_unchecked(value: u16) -> Self {
         Self(value)
     }
 
@@ -121,7 +121,7 @@ impl Coord {
 
     /// Creates a `Coord` from a Unicode code point.
     ///
-    /// Returns `None` if the code point is outside the Hangul syllable block
+    /// Returns `None` if the code point is outside the composition block
     /// (U+AC00..U+D7AF) or falls on a filler position within it
     /// (U+D7A4..U+D7AF, 12 reserved code points that lack structural
     /// validity).
@@ -154,7 +154,7 @@ impl Coord {
 
     /// Creates a `Coord` from a `char`.
     ///
-    /// Returns `None` if the character is not a valid Hangul syllable.
+    /// Returns `None` if the character is not a valid compositional character.
     ///
     /// ```
     /// use tagma_core::Coord;
@@ -239,7 +239,7 @@ impl Coord {
         (initial, medial, final_)
     }
 
-    /// Returns the Hangul syllable as a UTF-8 string.
+    /// Returns the compositional character as a UTF-8 string.
     ///
     /// ```
     /// use tagma_core::Coord;
@@ -304,7 +304,7 @@ impl Coord {
     /// use tagma_core::Coord;
     ///
     /// let c = Coord::new(0x2BA3).unwrap();
-    /// // 0x2BA3 = 11171 = last syllable 힣
+    /// // 0x2BA3 = 11171 = last character 힣
     /// assert_eq!(c.to_le_bytes(), [0xA3, 0x2B]);
     /// ```
     #[inline]
@@ -318,7 +318,7 @@ impl Coord {
     /// use tagma_core::Coord;
     ///
     /// let c = Coord::new(0x2BA3).unwrap();
-    /// // 0x2BA3 = 11171 = last syllable 힣
+    /// // 0x2BA3 = 11171 = last character 힣
     /// assert_eq!(c.to_be_bytes(), [0x2B, 0xA3]);
     /// ```
     #[inline]

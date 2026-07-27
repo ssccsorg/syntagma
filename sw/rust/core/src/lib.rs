@@ -4,11 +4,12 @@
 extern crate alloc;
 
 pub mod coord;
+pub mod coord_cube;
 pub mod coord_path;
 pub mod coord_set;
 pub mod coord_space;
 
-// CoordSpaceN: multi-syllable, heap-backed tree (N>1).
+// CoordSpaceN: multi-character, heap-backed tree (N>1).
 // Requires alloc feature (default: on).
 #[cfg(feature = "alloc")]
 pub mod coord_space_n;
@@ -30,12 +31,13 @@ pub mod coord_space_dense;
 pub mod coord_space_m;
 
 pub use coord::Coord;
+pub use coord_cube::CoordCube;
 pub use coord_path::CoordPath;
 pub use coord_set::CoordSet;
 
 // ── CoordSpace series — unified naming ──
 
-/// 1-syllable: 11,172 identifiers. No allocator required.
+/// 1-character: 11,172 identifiers. No allocator required.
 pub use coord_space::CoordSpace;
 
 #[cfg(feature = "alloc")]

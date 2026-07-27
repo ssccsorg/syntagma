@@ -1,6 +1,6 @@
 use tagma_core::{Coord, CoordPath, CoordSet, CoordSpace};
 
-// ── CoordSpace — no_alloc single-syllable ──
+// ── CoordSpace — no_alloc single-character ──
 
 #[test]
 fn cm_insert_11172_values() {

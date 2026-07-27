@@ -523,6 +523,7 @@ dependencies = [
  "criterion",
  "rand",
  "tagma-core",
+ "tagma-geo",
  "tagma-kv",
 ]
 
@@ -534,10 +535,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tagma-geo"
+version = "0.1.0"
+dependencies = [
+ "tagma-core",
+]
+
+[[package]]
 name = "tagma-kv"
 version = "0.1.0"
 dependencies = [
  "tagma-core",
+ "tagma-geo",
 ]
 
 [[package]]

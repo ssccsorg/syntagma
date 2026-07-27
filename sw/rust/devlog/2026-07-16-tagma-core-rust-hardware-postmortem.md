@@ -1,6 +1,6 @@
 # Tagma Core: Rust implementation postmortem
 
-Concepts, language constraints, hardware limits, and the full issue registry after the 4-n-syllable-coordmap refactor (PR #5).
+Concepts, language constraints, hardware limits, and the full issue registry after the 4-n-character-coordmap refactor (PR #5).
 
 ---
 
@@ -8,7 +8,7 @@ Concepts, language constraints, hardware limits, and the full issue registry aft
 
 ### 1.1 Const generic N has no type-level bounds
 
-Tagma's multi-syllable addressing requires a compile-time depth parameter N. Rust provides `const N: usize` generics but no way to express bounds like `N > 0` or `N <= 19` at the type level.
+Tagma's multi-character addressing requires a compile-time depth parameter N. Rust provides `const N: usize` generics but no way to express bounds like `N > 0` or `N <= 19` at the type level.
 
 ```
 CoordSpaceN<0, V>    → compiles, panics at runtime (assert! in new())
@@ -67,7 +67,7 @@ Impact: Minor. The arithmetic is fast enough at runtime (single-digit nanosecond
 | Access | Single deref | Single deref (box) |
 | Move cost | 22 KB memcpy | 8 byte pointer copy |
 
-CoordSpaceN<1> exists only because the const generic `CoordSpaceN<N>` must handle N=1 as a valid instantiation. Users should use `CoordSpace` (= `CoordFlatMap`) for the zero-alloc single-syllable case.
+CoordSpaceN<1> exists only because the const generic `CoordSpaceN<N>` must handle N=1 as a valid instantiation. Users should use `CoordSpace` (= `CoordFlatMap`) for the zero-alloc single-character case.
 
 ---
 

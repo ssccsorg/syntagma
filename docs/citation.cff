@@ -21,12 +21,12 @@ repository-code: 'https://github.com/ssccsorg/syntagma'
 url: 'https://ssccs.org'
 abstract: >-
   Tagma is a structural identity primitive: a 16-bit coordinate space
-  embedded in the Unicode Hangul syllable block that replaces hash-based
+  embedded in the Unicode closed-form composition block that replaces hash-based
   identity generation with a combinational decoder — collision-free,
   zero hash, single-cycle decode.
 keywords:
   - content-addressable
-  - Hangul coordinate space
+  - three-axis composition space
   - structural identity
   - hash-less addressing
   - combinational decoder

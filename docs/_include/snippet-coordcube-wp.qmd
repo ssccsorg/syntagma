@@ -1,0 +1,28 @@
+## CoordCube: D-dimensional spatial interpretation
+
+CoordPath chains multiple Coords into higher-dimensional paths (N characters = 3N axes). This structure admits a second interpretation: the same N characters can be viewed as a D-dimensional grid where each dimension carries R characters of resolution, with N = D × R.
+
+Every CoordPath<N> can be interpreted as a CoordCube<N, D, R> via zero-cost conversion — the byte array is unchanged, only the interpretation differs. This dual-view design enables two complementary access channels:
+
+| Channel | Abstraction | Primitive | Cost |
+|---------|------------|-----------|------|
+| 1 | CoordPath (1D) | Direct array lookup | 0.39 ns (dense), O(N) (tree) |
+| 2 | CoordCube (D-dim) | Spatial region generation | 55-700 Melem/s |
+
+The conversion between channels costs 960 ps — a single assertion check and struct wrapping — and changes no state. The same bytes that serve as a hash-free address in channel 1 become a spatial coordinate in channel 2.
+
+### Spatial operations
+
+CoordCube provides three families of spatial operations, all implemented as pure arithmetic over the existing byte array:
+
+**Region generation.** `proximity(center, radius)` enumerates all CoordPaths within an L∞ (Chebyshev) neighborhood. `bounding_box(ranges)` enumerates all paths within a hyper-rectangle. Both use a mixed-radix counter that yields CoordPaths at 55-700 Melem/s throughput, depending on output density. Counterintuitively, larger radii yield higher throughput because the fixed setup cost is amortized over more paths.
+
+**Distance metrics.** Hamming distance counts differing character positions; Manhattan distance sums per-dimension linear values; Euclidean distance (normalised) computes the geometric distance in D-dimensional space. All three metrics cost ~320 ps per call — below a single array lookup (390 ps) — because they operate entirely on registers with no memory access.
+
+**Storage-backed queries.** The `CoordCubeKV` extension combines CoordCube region generation with CoordSpace tree lookups: generate all paths in a spatial region, then look up each path in the KV store. End-to-end throughput ranges from 31 Melem/s (dense store, 10K entries) to 584 Melem/s (empty store, no matches).
+
+### Relationship to CoordPath
+
+CoordCube does not replace or modify CoordPath. It is an optional interpretation layer that coexists with the existing O(1) addressing model. A CoordCube can always be converted to a CoordPath and back; the two views share the same underlying bytes. Existing CoordPath code continues to work without modification.
+
+This dual-channel design is unique to Tagma. No hash-based system provides both O(1) addressing and spatial region generation on the same identifier space. A HashMap key cannot be reinterpreted as a spatial coordinate; a CoordPath can.

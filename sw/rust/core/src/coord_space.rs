@@ -2,10 +2,10 @@ use crate::coord::Coord;
 use crate::coord_path::CoordPath;
 
 // ---------------------------------------------------------------------------
-// CoordSpace: no_alloc, single-syllable direct-address table
+// CoordSpace: no_alloc, single-character direct-address table
 // ---------------------------------------------------------------------------
 
-/// A hash-less, collision-free, single-syllable address table with zero
+/// A hash-less, collision-free, single-character address table with zero
 /// heap allocation.
 ///
 /// Backed by an inline `[Option<V>; 11172]` array (22 KB for `Option<()>`,
@@ -92,7 +92,7 @@ impl<V> CoordSpace<V> {
         self.slot(coord).is_some()
     }
 
-    /// Returns a reference to the value at `path` (single-syllable path API).
+    /// Returns a reference to the value at `path` (single-character path API).
     #[inline]
     pub fn at_path(&self, path: &CoordPath<1>) -> Option<&V> {
         self.at(&path.coords()[0])
@@ -112,7 +112,7 @@ impl<V> CoordSpace<V> {
         old
     }
 
-    /// Inserts a value at `path` (single-syllable path API).
+    /// Inserts a value at `path` (single-character path API).
     #[inline]
     pub fn place_path(&mut self, path: &CoordPath<1>, value: V) -> Option<V> {
         self.place(path.coords()[0], value)
@@ -129,7 +129,7 @@ impl<V> CoordSpace<V> {
         old
     }
 
-    /// Removes the value at `path` (single-syllable path API).
+    /// Removes the value at `path` (single-character path API).
     #[inline]
     pub fn vacate_path(&mut self, path: &CoordPath<1>) -> Option<V> {
         self.vacate(&path.coords()[0])

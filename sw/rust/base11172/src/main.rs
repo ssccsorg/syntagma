@@ -6,8 +6,8 @@ fn print_usage() {
     eprintln!("Usage: base11172 <command> [args]");
     eprintln!();
     eprintln!("Commands:");
-    eprintln!("  encode <text>     Encode text to Hangul Base11172");
-    eprintln!("  decode <string>   Decode Hangul Base11172 back to text");
+    eprintln!("  encode <text>     Encode text to Base11172");
+    eprintln!("  decode <string>   Decode Base11172 back to text");
     eprintln!("  bench             Compare density vs Base64");
 }
 
@@ -26,7 +26,7 @@ fn main() {
         }
         "decode" => {
             if args.len() < 3 {
-                eprintln!("error: provide a Hangul string to decode");
+                eprintln!("error: provide a composition string to decode");
                 std::process::exit(1);
             }
             let bytes = decode_bytes(&args[2]).unwrap_or_default();
@@ -51,7 +51,7 @@ fn main() {
             println!("  Encode:  {enc_dur:?}");
             println!("  Decode:  {dec_dur:?}");
             println!("  Base64 output size:  {base64_encoded} chars");
-            println!("  Hangul output size:  {tagma_len} chars");
+            println!("  Compositional char output size:  {tagma_len} chars");
             println!(
                 "  Density ratio:       {:.2}x",
                 base64_encoded as f64 / tagma_len as f64

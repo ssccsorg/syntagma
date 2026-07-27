@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 /// A hash-less, collision-free, N-level address table indexed by [`CoordPath`]
 /// for N > 1. Requires a heap allocator.
 ///
-/// For single-syllable addressing without heap allocation, use [`CoordSpace`].
+/// For single-character addressing without heap allocation, use [`CoordSpace`].
 ///
 /// # Depth
 ///
@@ -689,7 +689,7 @@ impl<const N: usize, V> CoordSpaceN<N, V> {
 }
 
 // ---------------------------------------------------------------------------
-// Existing 1-syllable iteration
+// Existing 1-character iteration
 // ---------------------------------------------------------------------------
 
 impl<V> CoordSpaceN<1, V> {
@@ -848,21 +848,21 @@ impl<V> core::ops::IndexMut<Coord> for CoordSpaceN<1, V> {
 // Type aliases for standard spaces
 // ---------------------------------------------------------------------------
 
-/// 1-syllable:  11,172 identifiers (heap-allocated flat array).
+/// 1-character:  11,172 identifiers (heap-allocated flat array).
 /// For no_alloc (dense zeroed array), use `CoordSpace`.
 pub type CoordSpaceN1<V> = CoordSpaceN<1, V>;
 
-/// 2-syllable:  1.25 × 10⁸ identifiers — small KV.
+/// 2-character:  1.25 × 10⁸ identifiers — small KV.
 pub type CoordSpaceN2<V> = CoordSpaceN<2, V>;
 
-/// 3-syllable:  1.39 × 10¹² identifiers — medium KV.
+/// 3-character:  1.39 × 10¹² identifiers — medium KV.
 pub type CoordSpaceN3<V> = CoordSpaceN<3, V>;
 
-/// 6-syllable:  1.94 × 10²⁴ identifiers — UUID-scale.
+/// 6-character:  1.94 × 10²⁴ identifiers — UUID-scale.
 pub type CoordSpaceN6<V> = CoordSpaceN<6, V>;
 
-/// 12-syllable: 2.41 × 10⁶⁷ identifiers — between UUID and SHA-256.
+/// 12-character: 2.41 × 10⁶⁷ identifiers — between UUID and SHA-256.
 pub type CoordSpaceN12<V> = CoordSpaceN<12, V>;
 
-/// 19-syllable: 1.94 × 10⁷⁷ identifiers — SHA-256-scale (2²⁵⁶).
+/// 19-character: 1.94 × 10⁷⁷ identifiers — SHA-256-scale (2²⁵⁶).
 pub type CoordSpaceN19<V> = CoordSpaceN<19, V>;

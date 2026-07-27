@@ -44,7 +44,7 @@ macro_rules! define_dense_coord_space {
 
         #[doc = concat!(
             "Dense, zeroed, heap-allocated CoordSpace for N=", stringify!($n), ".\n\n",
-            "All ", stringify!($n), " syllable(s): ", stringify!(SLOT_COUNT), " slots.\n",
+            "All ", stringify!($n), " character(s): ", stringify!(SLOT_COUNT), " slots.\n",
             "Backed by a single `alloc_zeroed` call \u{2014} true Tagma, no hashing, no tree.\n\n",
             "# Panics\n\n",
             "Panics if `SLOT_COUNT * size_of::<Option<V>>()` overflows `usize`."

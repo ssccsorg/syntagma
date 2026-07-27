@@ -259,7 +259,7 @@ impl<const N: usize, V> Default for CoordSpaceM<N, V> {
 // Type alias
 // ---------------------------------------------------------------------------
 
-/// 3-syllable: mmap-backed dense, true Tagma at N=3 scale.
+/// 3-character: mmap-backed dense, true Tagma at N=3 scale.
 ///
 /// This is the only supported depth for `CoordSpaceM`. At N>=6 the slot
 /// count $11172^N$ exceeds `usize` on 64-bit platforms, making dense

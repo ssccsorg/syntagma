@@ -1,21 +1,23 @@
 # synTagma
 
-synTagma is a spatial coordinate space computing system built on Tagma, a 16-bit coordinate primitive embedded in the Unicode Hangul syllable block (U+AC00--U+D7AF). Every valid 16-bit value decomposes into three independent axes (initial, medial, final), serving simultaneously as a 1-D address and a 3-D coordinate. The reference implementation is a `#![no_std]` Rust library.
+synTagma is a spatial coordinate space computing system built on Tagma, a 16-bit coordinate primitive embedded in the Unicode closed-form composition block (U+AC00--U+D7AF). Every valid 16-bit value decomposes into three independent axes, serving simultaneously as a 1-D address and a 3-D coordinate. The reference implementation is a `#![no_std]` Rust library.
 
-Tagma is a primitive where the address is the coordinate — not a flat pointer, but a point in an N-dimensional geometric space. This is made possible by a 16-bit Unicode block allocated to a 3-axis writing system, which provides a collision-free, hash-less, structurally addressable coordinate space.
+Tagma is a primitive where the address is the coordinate -- not a flat pointer, but a point in an N-dimensional geometric space. This is made possible by a 16-bit Unicode block allocated to a 3-axis writing system, which provides a collision-free, hash-less, structurally addressable coordinate space.
 
 ## Layers
 
 ```
 synTagma (system)
   └─ Coordination layer (protocol, topology, distributed resolver)
-  └─ tagma-kv (KV bridge: hashless string-key store, HashMap API)
-  └─ Tagma core primitive (Coord, CoordPath, CoordSet, CoordSpace)
+  └─ tagma-kv (hashless KV + CoordCubeKV spatial queries)
+  └─ tagma-geo (CoordCube interpretation layer, spatial ops, distance metrics)
+  └─ Tagma core primitive (Coord, CoordPath, CoordSet, CoordSetN, CoordCube, CoordSpace)
 ```
 
-- Tagma — the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding. The atomic identity primitive.
-- tagma-kv — the bridge layer: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Zero extra cost for spatial indexing.
-- synTagma coordination layer — recursive coordinate space expansion, physical topology mapping, distributed routing, and consistency protocol. Defined in the [synTagma](https://docs.ssccs.org/projects/syntagma/tagma/syn.html).
+- Tagma -- the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding. The atomic identity primitive.
+- tagma-geo -- spatial operations built on CoordCube: proximity (L∞ Chebyshev radius), bounding box enumeration, Hamming distance, Euclidean distance (approximate), Manhattan distance. Depends only on tagma-core.
+- tagma-kv -- native CoordSpace KV: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Integrates `tagma-geo` via `CoordCubeKV` for zero-cost spatial queries on KV data. Zero extra cost for spatial indexing.
+- synTagma coordination layer -- recursive coordinate space expansion, physical topology mapping, distributed routing, and consistency protocol. Defined in the [synTagma](https://docs.ssccs.org/projects/syntagma).
 
 ## Tagma primitive: Feature levels
 
@@ -23,8 +25,9 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 
 | Level | Feature flags | Heap | Available types |
 |-------|---------------|------|-----------------|
-| no_alloc | (none) | Never | Coord, CoordPath, CoordSet, CoordSpace |
-| alloc | `alloc` (default) | Optional | + CoordSpaceN\<N\>, DynCoordSpace |
+| no_alloc | (none) | Never | Coord, CoordPath, CoordSet, CoordCube, CoordSpace |
+| alloc | `alloc` (default) | Optional | + CoordSetN, CoordSpaceN\<N\>, CoordSpace2, DynCoordSpace |
+| mmap | `mmap` | Optional | + CoordSpaceM\<N\> |
 
 ## Tagma type reference
 
@@ -32,27 +35,39 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 
 | Type | Description | File |
 |------|-------------|------|
-| Coord | 16-bit atomic coordinate (0..11172), 3-axis composition/decomposition, Hamming distance, Hangul display | `core/src/coord.rs` |
+| Coord | 16-bit atomic coordinate (0..11172), 3-axis composition/decomposition, Hamming distance, U+AC00--U+D7AF block display | `core/src/coord.rs` |
 | CoordPath\<N\> | Index path (not a hash key), compile-time N-element Coord array | `core/src/coord_path.rs` |
 | CoordSet | Bit array over 11,172 slots (1.4 KB). Union, intersection, difference, subset tests, `Copy` | `core/src/coord_set.rs` |
-| CoordSpace\<V\> | Single-syllable direct-address table. Inline `[Option<V>; 11172]` — zero heap. O(1), no hashing, no collisions | `core/src/coord_space.rs` |
-| base11172 | Self-validating serialization: arbitrary bytes to Hangul syllable strings | `base11172/src/lib.rs` |
+| CoordCube\<N, D, R\> | Interpretation layer over CoordPath: N chars as D-dimensional grid with R chars/dimension. L∞ proximity, bounding box, axis decomposition. `N == D * R` enforced at runtime. Zero-cost conversion to/from CoordPath. No heap. | `core/src/coord_cube.rs` |
+| CoordSpace\<V\> | Single-character direct-address table. Inline `[Option<V>; 11172]` -- zero heap. O(1), no hashing, no collisions | `core/src/coord_space.rs` |
+| base11172 | Self-validating serialization: arbitrary bytes to composition-block strings | `base11172/src/lib.rs` |
 
-Test coverage: 170 unit/integration tests + 15 doc-tests, all passing. Zero clippy warnings. CI runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification).
+Test coverage: 190+ unit/integration tests + 22+ doc-tests, all passing. Zero clippy warnings. CI runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification).
 
 ### Requires alloc (default feature)
 
 | Type | Description | File |
 |------|-------------|------|
 | CoordSpaceN\<N, V\> | N-level direct-address tree. Lazy heap allocation per node. `N` dereferences per lookup | `core/src/coord_space_n.rs` |
-| CoordSpaceN2\<V\> | 2-syllable ($1.25 \times 10^8$ space). Type alias for `CoordSpaceN<2, V>` | `core/src/coord_space_n.rs` |
-| CoordSpaceN6\<V\> | 6-syllable UUID-scale ($1.94 \times 10^{24}$). Type alias for `CoordSpaceN<6, V>` | `core/src/coord_space_n.rs` |
-| CoordSpaceN12\<V\> | 12-syllable ($2.41 \times 10^{67}$). Type alias for `CoordSpaceN<12, V>` | `core/src/coord_space_n.rs` |
-| CoordSpaceN19\<V\> | 19-syllable ($\approx 2^{256}$, SHA-256-scale). Type alias for `CoordSpaceN<19, V>` | `core/src/coord_space_n.rs` |
+| CoordSpaceN2\<V\> | 2-character ($1.25 \times 10^8$ space). Type alias for `CoordSpaceN<2, V>` | `core/src/coord_space_n.rs` |
+| CoordSpaceN3\<V\> | 3-character ($1.39 \times 10^{12}$ space). Type alias for `CoordSpaceN<3, V>` | `core/src/coord_space_n.rs` |
+| CoordSpaceN6\<V\> | 6-character UUID-scale ($1.94 \times 10^{24}$). Type alias for `CoordSpaceN<6, V>` | `core/src/coord_space_n.rs` |
+| CoordSpaceN12\<V\> | 12-character ($2.41 \times 10^{67}$). Type alias for `CoordSpaceN<12, V>` | `core/src/coord_space_n.rs` |
+| CoordSpaceN19\<V\> | 19-character ($\approx 2^{256}$, SHA-256-scale). Type alias for `CoordSpaceN<19, V>` | `core/src/coord_space_n.rs` |
 | CoordSpace2\<V\> | N=2 dense heap, 124M slots, single `alloc_zeroed`, true Tagma identity | `core/src/coord_space_dense.rs` |
 | CoordSpaceM\<N, V\> | N≥3 mmap-backed dense (feature: `mmap`). Virtual address reservation with `MAP_NORESERVE` | `core/src/coord_space_m.rs` |
 | CoordSpaceM3\<V\> | N=3 mmap dense. Type alias for `CoordSpaceM<3, V>` | `core/src/coord_space_m.rs` |
+| CoordSetN\<N\> | Sparse N-dimensional set over CoordPath\<N\>. Union, intersection, difference, subset, disjoint. Heap-backed bit tree. | `core/src/coord_set_n.rs` |
 | DynCoordSpace\<V\> | Variable-depth trie, `&[Coord]` runtime path. Mixed-depth slot (Both) preserves shallow values | `core/src/dyn_coord_space.rs` |
+
+### tagma-geo: Spatial operations (requires alloc)
+
+| Type | Description | File |
+|------|-------------|------|
+| SpatialOps trait | `bounding_box(ranges)`, `proximity(radius)`, `proximity_hamming(max_dist)` -- implemented for all CoordCube\<N, D, R\> | `geo/src/spatial.rs` |
+| DistanceMetrics trait | `hamming_distance`, `euclidean_distance_approx`, `manhattan_distance` -- implemented for all CoordCube\<N, D, R\> | `geo/src/spatial.rs` |
+| BoundingBoxIter\<N\> | Iterator over all CoordPath\<N\> in a hyper-rectangle. Mixed-radix enumeration. `count_paths()` for O(1) cardinality | `geo/src/spatial.rs` |
+| HammingFilter\<N\> | Iterator adapter over CoordPath\<N\>; yields only paths within a Hamming distance of a center | `geo/src/spatial.rs` |
 
 ### tagma-kv: hashless string-key store (requires alloc)
 
@@ -64,13 +79,14 @@ Test coverage: 170 unit/integration tests + 15 doc-tests, all passing. Zero clip
 | CoordKVN\<N\> | Fixed N-byte tree KV, CoordSpaceN, sparse | `kvsrc/coord_kv_n.rs` |
 | CoordKV trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `kvsrc/coord_kv.rs` |
 | CoordKVKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `kvsrc/coord_kv.rs` |
+| CoordCubeKV\<N\> trait | Spatial queries on KV stores: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordKV2, CoordKVN\<N\>, DynCoordKV | `kvsrc/spatial.rs` |
 
 ## Quick start
 
 ```sh
 git clone https://github.com/ssccsorg/syntagma
 cd syntagma
-./run.sh                # fmt → clippy → build → test → no_alloc check
+./run.sh                # fmt -> clippy -> build -> test -> no_alloc check
 ```
 
 Or directly:
@@ -78,6 +94,7 @@ Or directly:
 ```sh
 cd sw/rust
 cargo test --release       # All tests
+cargo bench -- spatial     # 18 CoordCube and spatial query benchmarks
 cargo bench -- stress      # 500k mixed-operation stress benchmark
 cargo build --no-default-features  # Verify no_alloc build
 ```
@@ -85,14 +102,14 @@ cargo build --no-default-features  # Verify no_alloc build
 ## Usage
 
 ```rust
-use tagma_core::{Coord, CoordSpace, CoordSet};
+use tagma_core::{Coord, CoordCube, CoordPath, CoordSet, CoordSpace};
 
 // Compose a coordinate from three axes
 let c = Coord::from_axes(5, 10, 15).unwrap();
 assert_eq!(c.to_axes(), (5, 10, 15));
-assert_eq!(c.to_char(), '걐');  // Hangul syllable display
+assert_eq!(c.to_char(), '걐');  // compositional character display
 
-// Single-syllable direct-address space (no allocator)
+// Single-character direct-address space (no allocator)
 let mut space = CoordSpace::new();
 space.place(c, "tagma");
 assert_eq!(space.at(&c), Some(&"tagma"));
@@ -102,6 +119,46 @@ assert_eq!(space.at(&c), Some(&"tagma"));
 let mut set = CoordSet::new();
 set.insert(c);
 assert!(set.contains(c));
+
+// CoordCube: interpret 6 characters as 3D space (2 chars per dimension)
+let path = CoordPath::<6>::new([
+    Coord::new(0).unwrap(), Coord::new(1).unwrap(),  // dim 0
+    Coord::new(2).unwrap(), Coord::new(3).unwrap(),  // dim 1
+    Coord::new(4).unwrap(), Coord::new(5).unwrap(),  // dim 2
+]);
+let cube = CoordCube::<6, 3, 2>::from_path(path);
+let axis0 = cube.axis(0);  // CoordPath<2> for dimension 0
+assert_eq!(axis0.coords()[0].index(), 0);
+```
+
+### tagma-geo usage
+
+```rust
+use tagma_core::{Coord, CoordCube, CoordPath};
+use tagma_geo::{DistanceMetrics, SpatialOps};
+
+// Distance metrics on a 3D cube
+let a = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
+    Coord::new(1000).unwrap(), Coord::new(2000).unwrap(), Coord::new(3000).unwrap(),
+]));
+let b = CoordCube::<3, 3, 1>::from_path(CoordPath::new([
+    Coord::new(1500).unwrap(), Coord::new(2500).unwrap(), Coord::new(3500).unwrap(),
+]));
+assert_eq!(a.hamming_distance(&b), 3);
+assert!(a.euclidean_distance_approx(&b) > 0.0);
+assert_eq!(a.manhattan_distance(&b), 1500);
+
+// Proximity: all paths within L∞ radius 1 of center (9 paths in 2D)
+let center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
+    Coord::new(5000).unwrap(), Coord::new(5000).unwrap(),
+]));
+let nearby: Vec<_> = center.proximity(1).collect();
+assert_eq!(nearby.len(), 9);
+
+// Bounding box: enumerate a rectangular region
+let ranges = [(0u16, 99u16), (0u16, 99u16)];
+let box_paths: Vec<_> = center.bounding_box(&ranges).collect();
+assert_eq!(box_paths.len(), 10000);
 ```
 
 ### tagma-kv usage
@@ -132,6 +189,31 @@ assert!(kv.contains_key("hi"));
 kv.remove("hi");
 ```
 
+### CoordCubeKV: spatial queries on KV stores
+
+```rust
+use tagma_kv::{CoordKV, CoordKVN, CoordKVKey};
+use tagma_kv::coord_gen::CoordKey;
+use tagma_kv::spatial::CoordCubeKV;
+use tagma_core::{Coord, CoordCube, CoordPath};
+use tagma_geo::SpatialOps;
+
+// Fill a store with 10,000 entries in a 100x100 region
+let mut kv = CoordKVN::<2>::new();
+let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
+    Coord::new(5000).unwrap(), Coord::new(5000).unwrap(),
+]));
+for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
+    kv.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
+}
+
+// Spatial proximity query: find all entries within L∞ radius 1 of center
+let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+let nearby: Vec<_> = kv.proximity::<2, 1>(&center, 1);
+// Returns 9 entries (3x3 grid)
+assert_eq!(nearby.len(), 9);
+```
+
 ## Feature matrix
 
 | Feature | `no_alloc` | `alloc` (default) | `mmap` |
@@ -139,16 +221,19 @@ kv.remove("hi");
 | Coord | ✅ | ✅ | ✅ |
 | CoordPath\<N\> | ✅ | ✅ | ✅ |
 | CoordSet | ✅ | ✅ | ✅ |
+| CoordCube\<N, D, R\> | ✅ | ✅ | ✅ |
 | CoordSpace (inline array) | ✅ | ✅ | ✅ |
+| CoordSetN\<N\> (sparse N-d set) | ❌ | ✅ | ❌ |
 | CoordSpaceN (heap tree, N>1) | ❌ | ✅ | ❌ |
 | CoordSpace2 (dense heap, N=2) | ❌ | ✅ | ❌ |
 | CoordSpaceM (mmap dense, N≥3) | ❌ | ❌ | ✅ |
 | DynCoordSpace (runtime trie) | ❌ | ✅ | ❌ |
+| tagma-geo (spatial ops, metrics) | ❌ | ✅ | ❌ |
 | tagma-kv (string-key KV, HashMap API) | ❌ | ✅ | ❌ |
 
 ## How Tagma works
 
-A Tagma coordinate is computed from three structural axes via the Hangul composition formula defined in ISO/IEC 10646:
+A Tagma coordinate is computed from three structural axes via the Unicode U+AC00--U+D7AF composition formula defined in ISO/IEC 10646:
 
 $$C(i,m,f) = \text{U+AC00} + 588i + 28m + f, \quad 0 \leq i < 19,\; 0 \leq m < 21,\; 0 \leq f < 28$$
 
@@ -156,9 +241,9 @@ Of 65,536 representable 16-bit states, only 11,172 satisfy this formula. The rem
 
 - A 1-D address (Unicode code point) for flat array indexing.
 - A 3-D coordinate (initial, medial, final) for structural queries.
-- A Hangul syllable for human-readable display.
+- A compositional character for human-readable display.
 
-N-syllable sequences (CoordPath) extend the address space to $11172^N$ identifiers via direct-index tree traversal. A 6-syllable identifier covers UUID-scale space; 19 syllables match SHA-256's $2^{256}$ identifier space.
+N-character sequences (CoordPath) extend the address space to $11172^N$ identifiers via direct-index tree traversal. A 6-character identifier covers UUID-scale space; 19 characters match SHA-256's $2^{256}$ identifier space. CoordCube reinterprets these N characters as a D-dimensional grid with R characters per dimension (N = D * R), providing distance metrics and region queries without changing the underlying storage key.
 
 The three-axis composition formula admits unbounded recursive embedding: each axis of a synTagma coordinate can itself be a full CoordPath, enabling physical topology mapping across distributed nodes without modifying the core arithmetic.
 
@@ -170,11 +255,11 @@ The three-axis composition formula admits unbounded recursive embedding: each ax
 | Speedup | baseline | 597x | 41x | 4.1x |
 | Address space | 2^256 | 1.1e4 | 1.9e24 | 2^256 |
 
-CoordSpace2 (N=2 dense heap, 119 MB, `alloc_zeroed`) covers the full 124M 2-syllable space in a single pre-zeroed allocation — single load at 0.39 ns, no lazy branching.
+CoordSpace2 (N=2 dense heap, 119 MB, `alloc_zeroed`) covers the full 124M 2-character space in a single pre-zeroed allocation -- single load at 0.39 ns, no lazy branching.
 
 ## Benchmark: Spatial query vs HashMap (ARMv8.4-A Firestorm)
 
-Same algorithm (iterate + decompose + filter on axis), different memory layout. CoordSpace stores values in contiguous `[Option<V>; 11172]` — no hash, no collision, no fragmentation. HashMap scatters across buckets.
+Same algorithm (iterate + decompose + filter on axis), different memory layout. CoordSpace stores values in contiguous `[Option<V>; 11172]` -- no hash, no collision, no fragmentation. HashMap scatters across buckets.
 
 | Category | Operation | CoordSpace | HashMap | Ratio |
 |----------|-----------|-----------|---------|-------|
@@ -188,6 +273,101 @@ Same algorithm (iterate + decompose + filter on axis), different memory layout. 
 | Edge (CS2) | Nonexistent prefix (iter scan) | 1.65 ns | 23.05 ms | 14.0Mx |
 
 *Nonexistent prefix (structural vs iter scan): HashMap has no prefix index and must scan all 10M entries to determine that no entry has first coord == 11111. CoordSpace navigates to the branch at that prefix and returns None immediately. The gap (14.0Mx) reflects the difference between structural addressing and content scanning, not between two equivalent hash lookups.*
+
+## Benchmark: CoordCube spatial queries (ARMv8.4-A Firestorm)
+
+CoordCube provides proximity (L∞ Chebyshev radius) and bounding box enumeration by interpreting CoordPath bytes as multi-dimensional coordinates. All values are measured -- previous estimates replaced with real data.
+
+### Overhead vs CoordPath
+
+CoordCube is a zero-cost interpretation layer. Creating a CoordCube from CoordPath costs 0.96 ns once; axis extraction is identical to raw CoordPath access (319 ps vs 319 ps).
+
+### Proximity generation (D=2, R=1, N=2)
+
+| Radius | Paths | Time | Throughput |
+|--------|-------|------|------------|
+| 0 | 1 | 16.5 ns | 60.6 Melem/s |
+| 1 | 9 | 86.6 ns | 103.9 Melem/s |
+| 2 | 25 | 126.4 ns | 197.8 Melem/s |
+| 3 | 49 | 184.6 ns | 265.5 Melem/s |
+| 5 | 121 | 331.4 ns | 365.1 Melem/s |
+
+Baseline (manual loop without CoordCube): 2.51 ns for 9 CoordPath constructions. CoordCube API adds 7.8 ns for iterator infrastructure.
+
+### Bounding box
+
+| Configuration | Paths | Time | Throughput |
+|---------------|-------|------|------------|
+| N=2, D=2, 100x100 | 10,201 | 14.28 µs | 714 Melem/s |
+| N=6, D=6, 3^6 | 729 | 1.70 µs | 427 Melem/s |
+
+### Dimensional scaling (proximity r=2, R=1)
+
+| D | N | Paths | Time | Throughput |
+|---|---|-------|------|------------|
+| 1 | 1 | 5 | 33.8 ns | 148 Melem/s |
+| 2 | 2 | 25 | 126.5 ns | 198 Melem/s |
+| 3 | 3 | 125 | 441.9 ns | 283 Melem/s |
+| 4 | 4 | 625 | 1.887 µs | 331 Melem/s |
+
+N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2 both show ~127 ns).
+
+### Distance metrics (D=3, single pair, runtime-generated coordinates)
+
+| Metric | Latency |
+|--------|---------|
+| Hamming distance | 1.75 ns |
+| Manhattan distance | 2.63 ns |
+| Euclidean distance (approx) | 13.5 ns |
+
+Values are from runtime-generated coordinates (PRNG) to prevent compile-time constant folding. The 3.2 ps shown in earlier runs was an artifact of pre-computation.
+
+## Benchmark: CoordCube + CoordKV proximity (ARMv8.4-A Firestorm)
+
+End-to-end spatial queries combining CoordCube path generation with KV store lookup:
+
+| Scenario | Store type | Query | Latency | Found |
+|----------|-----------|-------|---------|-------|
+| Sequential (9 manual lookups) | CoordKVN\<2\> | Tree+Path | 158 ns | 9 |
+| CoordCube proximity r=1 | CoordKVN\<2\> | Tree+Cube | 285 ns | 9 |
+| CoordCube proximity r=2 | CoordKVN\<2\> | Tree+Cube | 626 ns | 25 |
+| CoordCube proximity r=5 | CoordKVN\<2\> | Tree+Cube | 2.55 µs | 121 |
+| CoordCube proximity r=1 | CoordKV2 (dense) | Dense+Cube | 282 ns | 9 |
+| CoordCube proximity r=1 | DynCoordKV | Cube | 161 ns | 9 |
+| CoordCube proximity r=2 | DynCoordKV | Cube | 290 ns | 25 |
+| CoordCube proximity r=1 | CoordKVN\<2\> sparse | Cube | 48.5 ns | 9 |
+| CoordCube proximity r=1 | CoordKVN\<2\> empty | Cube | 15.7 ns | 0 |
+| Sequential (9 lookups) | DynCoordKV | Baseline | 259 ns | 9 |
+
+Breakdown of the 127 ns overhead (Tree+Path 158 ns -> Tree+Cube 285 ns):
+- Vec allocation: 37 ns
+- Vec::push x9: 74 ns
+- Path generation: 16 ns
+
+Key insight: On tree stores, the extra overhead is dominated by Vec allocation and push, not coordinate arithmetic. Dense vs tree backend makes almost no difference (282 ns vs 285 ns) because Vec push dominates. On sparse stores, CoordCube is up to 3.3x faster than sequential lookups because it avoids tree lookups for nonexistent paths. On DynCoordKV, proximity is 1.6x faster than sequential (161 vs 259 ns) due to higher per-lookup cost.
+
+## Benchmark: Compound axis query via CoordSet (N=1 bit array, pre-computed)
+
+Pre-computed per-axis bit sets (19 initial + 21 medial, each 1.4 KB) answer compound axis queries with a single bitwise AND.
+
+| Implementation | Time | Throughput | vs HashMap |
+|---------------|------|------------|------------|
+| CoordSet bitwise AND | 85.7 ns | 327 Melem/s | **144x** |
+| HashMap iterate+filter | 12.3 µs | 2.28 Melem/s | baseline |
+
+## Benchmark: CoordSetN set operations (N=2, sparse tree)
+
+Set operations on 500-element sets with 250-element overlap. CoordSetN\<2\> uses a heap-allocated bit tree (per-node bit array), not a single flat bit array -- unlike CoordSet (N=1, 1.4 KB inline).
+
+| Operation | CoordSetN\<2\> | HashSet |
+|-----------|---------------|---------|
+| Union 500 + 500 | 4.57 ms | 29.9 µs |
+| Intersection 500 + 500 | 1.91 ms | -- |
+| Difference 500 + 500 | 1.91 ms | -- |
+| Is subset 500 + 500 | 49.0 ns | -- |
+| Is disjoint 500 + 500 | 910 µs | 11.8 ns |
+
+CoordSetN union/intersection/difference are tree traversal operations (not bitwise AND), which makes them slower than HashSet at N=2. The advantage of CoordSetN appears at higher dimensions where HashSet keys grow linearly with N while the tree structure stays compact.
 
 ## Benchmark: tagma-kv vs HashMap (ARMv8.4-A Firestorm)
 
@@ -220,24 +400,25 @@ CoordKV2 latency is scale-invariant: 22.0 ns at 10k, 21.5 ns at 10M. HashMap per
 | Variant | 10k ops | 1M ops | 10M ops |
 |---------|---------|--------|---------|
 | CoordKV2 | 22.3 ns | 21.6 ns | 21.6 ns |
-| CoordKVN\<2\> | 23.2 ns | — | — |
-| DynCoordKV | 54.7 ns | — | — |
+| CoordKVN\<2\> | 23.2 ns | -- | -- |
+| DynCoordKV | 54.7 ns | -- | -- |
 | HashMap | 13.2 ns | 19.9 ns | 19.9 ns |
 
 HashMap's bool-return advantage is erased by cache pressure at scale.
 
-Once data is in Tagma coordinate space, spatial capabilities (prefix scan, axis filter, range query) are available at zero additional conversion cost.
+Once data is in Tagma coordinate space, spatial capabilities (prefix scan, axis filter, proximity, bounding box, distance metrics) are available at zero additional conversion cost.
 
 ## Documentation
 
-- [synTagma project page](https://docs.ssccs.org/projects/syntagma/) — Project overview, paradigm shift, papers
-- [White Paper](https://docs.ssccs.org/projects/syntagma/tagma/wp.html) — Tagma coordinate space, decoder, hardware implementation, benchmarks
-- [synTagma coordination layer](https://docs.ssccs.org/projects/syntagma/tagma/syn.html) — Recursive topology mapping, transport, distributed resolver, consistency
-- [Tagma-ID](https://docs.ssccs.org/projects/syntagma/tagma/id.html) — Content-addressable identity without hash functions
-- [Specification](spec/coord-space.md) — Language-independent Tagma coordinate space definition
-- [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) — Coord, CoordPath, CoordSpace, CoordSpaceN, DynCoordSpace
-- [Rustdoc (tagma-kv)](https://docs.ssccs.org/projects/syntagma/tagma/kv/) — CoordKV, CoordKV2, DynCoordKV, CoordKey
+- [synTagma project page](https://docs.ssccs.org/projects/syntagma/) -- Project overview, paradigm shift, papers
+- [White Paper](https://docs.ssccs.org/projects/syntagma/tagma/wp) -- Tagma coordinate space, decoder, hardware implementation, benchmarks
+- [synTagma coordination layer](https://docs.ssccs.org/projects/syntagma/) -- Recursive topology mapping, transport, distributed resolver, consistency
+- [Tagma-ID](https://docs.ssccs.org/projects/syntagma/tagma/id) -- Content-addressable identity without hash functions
+- [Specification](spec/coord-space.md) -- Language-independent Tagma coordinate space definition
+- [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
+- [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
+- [Rustdoc (tagma-kv)](https://docs.ssccs.org/projects/syntagma/tagma/kv/) -- CoordKV, CoordKV2, CoordKVN, DynCoordKV, CoordCubeKV, CoordKey
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 -- see [LICENSE](LICENSE).
