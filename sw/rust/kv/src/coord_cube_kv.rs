@@ -48,7 +48,10 @@ impl CoordCubeKV<2> for CoordKV2 {
         radius: usize,
     ) -> Vec<(CoordPath<2>, Vec<u8>)> {
         let cube = CoordCube::<2, D, R>::from_path(*center);
-        let mut results = Vec::new();
+        // Pre-size Vec with exact path count to avoid reallocation.
+        // proximity() generates at most (2*radius+1)^N paths.
+        let capacity = (2 * radius + 1).pow(2);
+        let mut results = Vec::with_capacity(capacity);
         for path in cube.proximity(radius) {
             if let Some(val) = self.get_by_coordpath(&path) {
                 results.push((path, val));
@@ -58,8 +61,10 @@ impl CoordCubeKV<2> for CoordKV2 {
     }
 
     fn bounding_box_range(&self, ranges: &[(u16, u16); 2]) -> Vec<(CoordPath<2>, Vec<u8>)> {
-        let mut results = Vec::new();
-        for path in BoundingBoxIter::<2>::new(*ranges) {
+        let iter = BoundingBoxIter::<2>::new(*ranges);
+        let capacity = iter.count_paths();
+        let mut results = Vec::with_capacity(capacity);
+        for path in iter {
             if let Some(val) = self.get_by_coordpath(&path) {
                 results.push((path, val));
             }
@@ -75,7 +80,8 @@ impl<const N: usize> CoordCubeKV<N> for CoordKVN<N> {
         radius: usize,
     ) -> Vec<(CoordPath<N>, Vec<u8>)> {
         let cube = CoordCube::<N, D, R>::from_path(*center);
-        let mut results = Vec::new();
+        let capacity = (2 * radius + 1).pow(N as u32);
+        let mut results = Vec::with_capacity(capacity);
         for path in cube.proximity(radius) {
             if let Some(val) = self.get_by_coordpath(&path) {
                 results.push((path, val));
@@ -85,8 +91,10 @@ impl<const N: usize> CoordCubeKV<N> for CoordKVN<N> {
     }
 
     fn bounding_box_range(&self, ranges: &[(u16, u16); N]) -> Vec<(CoordPath<N>, Vec<u8>)> {
-        let mut results = Vec::new();
-        for path in BoundingBoxIter::<N>::new(*ranges) {
+        let iter = BoundingBoxIter::<N>::new(*ranges);
+        let capacity = iter.count_paths();
+        let mut results = Vec::with_capacity(capacity);
+        for path in iter {
             if let Some(val) = self.get_by_coordpath(&path) {
                 results.push((path, val));
             }
@@ -102,7 +110,8 @@ impl<const N: usize> CoordCubeKV<N> for DynCoordKV {
         radius: usize,
     ) -> Vec<(CoordPath<N>, Vec<u8>)> {
         let cube = CoordCube::<N, D, R>::from_path(*center);
-        let mut results = Vec::new();
+        let capacity = (2 * radius + 1).pow(N as u32);
+        let mut results = Vec::with_capacity(capacity);
         for path in cube.proximity(radius) {
             if let Some(val) = self.get_by_coord_path(&path) {
                 results.push((path, val));
@@ -112,8 +121,10 @@ impl<const N: usize> CoordCubeKV<N> for DynCoordKV {
     }
 
     fn bounding_box_range(&self, ranges: &[(u16, u16); N]) -> Vec<(CoordPath<N>, Vec<u8>)> {
-        let mut results = Vec::new();
-        for path in BoundingBoxIter::<N>::new(*ranges) {
+        let iter = BoundingBoxIter::<N>::new(*ranges);
+        let capacity = iter.count_paths();
+        let mut results = Vec::with_capacity(capacity);
+        for path in iter {
             if let Some(val) = self.get_by_coord_path(&path) {
                 results.push((path, val));
             }

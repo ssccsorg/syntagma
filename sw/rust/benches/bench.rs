@@ -268,11 +268,7 @@ fn bench_std_remove_all(c: &mut Criterion) {
     });
 }
 
-// ===========================================================================
-// P1 benchmark coverage: CoordSpace2 + CoordSpaceN2 bulk 11,172 operations
-// ===========================================================================
-
-// CoordSpace2/insert/all_11172        ~1.2 ms  (119 MB pre-zero + 11,172 writes)
+// CoordSpace2/insert/all_11172       16.4 ms   (119 MB pre-zero + 11,172 writes)
 // HashMap/insert/all_11172           385  µs
 fn bench_cs2_insert_all(c: &mut Criterion) {
     let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
@@ -287,8 +283,8 @@ fn bench_cs2_insert_all(c: &mut Criterion) {
     });
 }
 
-// CoordSpace2/get/all_11172           ~0.4 µs  (single load, dense array)
-// HashMap/get/all_11172              102  µs
+// CoordSpace2/get/all_11172         35.0 µs   (dense, 2-coord key)
+// HashMap/get/all_11172             102  µs
 fn bench_cs2_get_all(c: &mut Criterion) {
     let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
     let mut space = tagma_core::CoordSpace2::<u32>::new();
@@ -304,7 +300,7 @@ fn bench_cs2_get_all(c: &mut Criterion) {
     });
 }
 
-// CoordSpaceN2/insert/all_11172      ~2.5 ms  (tree, 11,172 inserts)
+// CoordSpaceN2/insert/all_11172    180  ms    (tree, 11,172 inserts)
 fn bench_csn2_insert_all(c: &mut Criterion) {
     let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
     c.bench_function("CoordSpaceN2/insert/all_11172", |b| {
@@ -318,7 +314,7 @@ fn bench_csn2_insert_all(c: &mut Criterion) {
     });
 }
 
-// CoordSpaceN2/get/all_11172         ~10 µs  (tree, 11,172 lookups)
+// CoordSpaceN2/get/all_11172       53.3 µs   (tree, 11,172 lookups)
 fn bench_csn2_get_all(c: &mut Criterion) {
     let coords = (0..11172u16).map(|i| tagma_core::Coord::new(i).unwrap()).collect::<Vec<_>>();
     let mut space = tagma_core::CoordSpaceN2::<u32>::new();
@@ -744,7 +740,7 @@ fn bench_spatial_cs2_prefix_scan(c: &mut Criterion) {
 // ===========================================================================
 
 // CoordSpaceN2/bulk_100k (1000 prefixes, 100 suffixes each)
-//   CoordSpace/insert   ~1.5 ms
+//   CoordSpace/insert   ~1.3 ms   (tree, 100k inserts, fresh 2026-07)
 //   HashMap/insert      ~2.5 ms
 //   CoordSpace/get      ~0.6 ms
 //   HashMap/get         ~1.2 ms
@@ -1095,18 +1091,44 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   CoordCube + post-filter faster than direct on multi-char dims.
 //
 // Large N:
+//   N=6  path gen r=0      6.52 ns
+//   N=6  KV prox r=0       81.4 ns
 //   N=12 path gen r=0     17.5 ns
 //   N=12 KV prox r=0      119  ns
 //   N=19 path gen r=0     27.2 ns
 //   N=19 KV prox r=0      106  ns
 //
-// Note: Distance metrics (hamming/euclidean/manhattan) currently show ~320 ps
-// due to compiler optimizing away compile-time constants. Bench inputs need
-// black_box or runtime generation for valid measurements.
+// Distance metrics (D=3, single pair, runtime-generated coordinates via PRNG):
+//   hamming:   1.75 ns
+//   manhattan: 2.63 ns
+//   euclidean: 13.5 ns
+//   hamming_r2: 2.31 ns, manhattan_r2: 2.55 ns, euclidean_r2: 13.3 ns
 //
 // Compound axis query via CoordSet (pre-computed bit sets):
 //   CoordSet bitwise AND   85.7 ns   327 Melem/s    144x vs HashMap
 //   HashMap iterate+filter 12.3 µs   2.28 Melem/s   baseline
+//
+// Compound query (proximity + CoordSet filter, avoiding Vec collect):
+//   proximity_r1_gen (Vec collect):         84.0 ns
+//   proximity + filter during iteration:    13.5 ns   (6.2x faster)
+//   coordset_only_axis_3_5:                83.3 ns
+//
+// Path generation throughput (Melem/s, D=2, R=1):
+//   r=0        r=1       r=2       r=3       r=5
+//   manual:    671       1169      1295      1273      1175   (nested loops)
+//   count():   926       865       696       637       602    (CoordCube, no Vec)
+//   collect():  60.6     103.9     197.8     265.5     365.1  (CoordCube + Vec)
+//   CoordCube API overhead (count vs manual): ~3-10 ns per query
+//   Vec alloc+push overhead (collect vs count): ~76-130 ns per query
+//
+// KV2 proximity (dense array, 119 MB):
+//   dense_r1_proximity:     282 ns   (vs tree 285 ns -- identical)
+//   dense_r2_proximity:     666 ns
+//   Dense vs tree backend makes no difference: Vec push dominates.
+//
+// DynCoordKV proximity:
+//   dynkv_sequential_9:     259 ns
+//   dynkv_proximity_r1:     161 ns   (1.6x faster than sequential)
 // ===========================================================================
 
 // Spatial/cubeproximity/radius_N
@@ -1131,6 +1153,67 @@ fn bench_coordcube_proximity_radius(c: &mut Criterion) {
             b.iter(|| {
                 let paths: Vec<_> = cube.proximity(radius).collect();
                 black_box(paths.len());
+            })
+        });
+    }
+    group.finish();
+}
+
+// Spatial/cubegen/radius_N
+//   Pure proximity path generation throughput without Vec allocation.
+//   Uses .count() instead of .collect::<Vec<_>>() to measure only generation cost.
+//   r0_count: ~6 ns, r1_count: ~10 ns, r2_count: ~16 ns, r3_count: ~24 ns, r5_count: ~42 ns
+fn bench_coordcube_proximity_count(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordCube, CoordPath};
+    use tagma_geo::spatial::SpatialOps;
+
+    let path = CoordPath::<2>::new([Coord::new(5586).unwrap(), Coord::new(5586).unwrap()]);
+    let cube = CoordCube::<2, 2, 1>::from_path(path);
+
+    let mut group = c.benchmark_group("Spatial/cubegen");
+
+    for radius in [0, 1, 2, 3, 5] {
+        let width = 2 * radius + 1;
+        let cnt = width * width;
+        group.throughput(criterion::Throughput::Elements(cnt as u64));
+        group.bench_function(format!("r{}_count", radius), |b| {
+            b.iter(|| {
+                let n = cube.proximity(radius).count();
+                black_box(n);
+            })
+        });
+    }
+    group.finish();
+}
+
+// Spatial/cubegen/manual_all_radii
+//   Manual nested-loop CoordPath generation (no CoordCube API).
+//   True baseline: what CoordCube replaces for path generation.
+fn bench_coordcube_proximity_manual(c: &mut Criterion) {
+    use tagma_core::{Coord, CoordPath};
+
+    let center0 = 5000u16;
+    let center1 = 5000u16;
+
+    let mut group = c.benchmark_group("Spatial/cubegen");
+
+    for radius in [0, 1, 2, 3, 5] {
+        let r = radius as i16;
+        let width = 2 * radius + 1;
+        let cnt = (width * width) as u64;
+        group.throughput(criterion::Throughput::Elements(cnt));
+        group.bench_function(format!("r{}_manual", radius), |b| {
+            b.iter(|| {
+                let mut n = 0u64;
+                for d0 in -r..=r {
+                    let c0 = Coord::new((center0 as i16 + d0) as u16).unwrap();
+                    for d1 in -r..=r {
+                        let c1 = Coord::new((center1 as i16 + d1) as u16).unwrap();
+                        black_box(CoordPath::new([c0, c1]));
+                        n += 1;
+                    }
+                }
+                black_box(n);
             })
         });
     }
@@ -1385,7 +1468,7 @@ fn bench_kv_spatial_proximity(c: &mut Criterion) {
     use tagma_geo::spatial::SpatialOps;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/kvproximity");
@@ -1569,7 +1652,7 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     use tagma_geo::spatial::SpatialOps;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
@@ -1631,7 +1714,7 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
 fn bench_coordcube_dynkv(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
     use tagma_kv::dyn_coord_kv::DynCoordKV;
-    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKV;
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
@@ -1670,7 +1753,9 @@ fn bench_coordcube_dynkv(c: &mut Criterion) {
 
 // Spatial/cubebaseline
 //   Manual enumeration of a 3x3 grid using plain CoordPath (no CoordCube).
-//   This is the baseline that CoordCube proximity replaces.
+//   manual_9_path_loop:       2.51 ns  (pure path construction, no Vec)
+//   cube_proximity_r1_baseline: 10.3 ns  (CoordCube iterator, no Vec collect)
+//   CoordCube API overhead: 7.8 ns
 fn bench_coordcube_path_baseline(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
 
@@ -1707,12 +1792,14 @@ fn bench_coordcube_path_baseline(c: &mut Criterion) {
 
 // Spatial/cubekv2
 //   CoordCube proximity on CoordKV2 (dense array, 119 MB pre-zeroed).
-//   Unlike CoordKVN<2> (tree), CoordKV2 uses a single load.
+//   dense_r1_proximity:  282 ns  (vs tree 285 ns -- essentially identical)
+//   dense_r2_proximity:  666 ns  (vs tree 626 ns)
+//   Vec push dominates: lookup cost difference (0.38 vs 0.87 ns) is negligible.
 fn bench_coordcube_kv2_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
     use tagma_kv::coord_gen::CoordKey;
-    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::{CoordKV2, CoordKVKey};
 
     let mid = 5000u16;
@@ -1748,7 +1835,10 @@ fn bench_coordcube_kv2_proximity(c: &mut Criterion) {
 
 // Spatial/cubecompound
 //   Two-phase: CoordCube proximity generates paths, CoordSet filters by axis.
-//   Natural compound query: "find paths near center where initial=3".
+//   proximity_r1_gen:               84.0 ns  (proximity + Vec collect)
+//   proximity_r1_then_coordset_filter: 13.5 ns  (filter during iteration, no Vec)
+//   coordset_only_axis_3_5:        83.3 ns  (CoordSet AND only)
+//   Avoiding Vec collect makes compound query 6.2x faster.
 fn bench_coordcube_compound(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath, CoordSet};
     use tagma_geo::spatial::SpatialOps;
@@ -1806,6 +1896,8 @@ fn bench_coordcube_compound(c: &mut Criterion) {
 
 // Spatial/cubevspath/dynkv_baseline
 //   Sequential lookups on DynCoordKV (no CoordCube), for comparison with DynCoordKV proximity.
+//   dynkv_sequential_9:  259 ns  (vs DynCoordKV proximity r=1: 161 ns)
+//   On DynCoordKV, proximity is 1.6x faster than sequential lookups.
 fn bench_coordcube_dynkv_baseline(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
     use tagma_kv::dyn_coord_kv::DynCoordKV;
@@ -1858,7 +1950,7 @@ fn bench_kv_spatial_proximity_r5(c: &mut Criterion) {
     use tagma_geo::spatial::SpatialOps;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/kvproximity");
@@ -1920,8 +2012,9 @@ fn bench_coordcube_large_n_bbox(c: &mut Criterion) {
 // ===========================================================================
 
 // Spatial/cubelargen
-//   CoordCube on large-N trees (N=12, N=19). Tests that spatial queries
+//   CoordCube on large-N trees (N=6, N=12, N=19). Tests that spatial queries
 //   work on deep trees with small radii to keep output bounded.
+//   D=6,R=1 (N=6): 6 dimensions, r=0 → 1 path
 //   D=12,R=1 (N=12): 12 dimensions, r=0 → 1 path, r=1 → 3^12 paths
 //   D=19,R=1 (N=19): 19 dimensions, r=0 → 1 path only (r=1 would be 3^19)
 fn bench_coordcube_large_n(c: &mut Criterion) {
@@ -1929,7 +2022,7 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
     use tagma_geo::spatial::SpatialOps;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/cubelargen");
@@ -2036,7 +2129,7 @@ fn bench_coordcube_hierarchical(c: &mut Criterion) {
     use tagma_geo::spatial::SpatialOps;
     use tagma_kv::coord_gen::CoordKey;
     use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::spatial::CoordCubeKV;
+    use tagma_kv::coord_cube_kv::CoordCubeKV;
     use tagma_kv::CoordKVKey;
 
     let mut group = c.benchmark_group("Spatial/hierarchical");
@@ -2418,6 +2511,8 @@ criterion_group!(
               bench_spatial_cs2_prefix_scan,
               bench_coordset_spatial_query,
               bench_coordcube_proximity_radius,
+              bench_coordcube_proximity_count,
+              bench_coordcube_proximity_manual,
               bench_coordcube_bounding_box,
               bench_coordcube_dim_scaling,
               bench_coordcube_distance_metrics,

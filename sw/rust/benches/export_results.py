@@ -3,7 +3,7 @@
 import json, os, sys, glob
 
 criterion_dir = os.path.join(os.path.dirname(__file__), '..', 'target', 'criterion')
-output_path = sys.argv[1] if len(sys.argv) > 1 else 'bench-result/summary.json'
+output_path = sys.argv[1] if len(sys.argv) > 1 else 'result/summary.json'
 
 results = {}
 if os.path.isdir(criterion_dir):

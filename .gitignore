@@ -49,8 +49,8 @@
 # ============================================================
 # Benchmark output artifacts
 # ============================================================
-sw/rust/bench-result/output-*.txt
-sw/rust/bench-result/bench-*.json
+sw/rust/benches/result/output-*.txt
+sw/rust/benches/result/bench-*.json
 
 # ============================================================
 # C2PA

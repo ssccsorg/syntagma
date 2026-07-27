@@ -276,27 +276,51 @@ Same algorithm (iterate + decompose + filter on axis), different memory layout. 
 
 ## Benchmark: CoordCube spatial queries (ARMv8.4-A Firestorm)
 
-CoordCube provides proximity (L∞ Chebyshev radius) and bounding box enumeration by interpreting CoordPath bytes as multi-dimensional coordinates. Path generation throughput for representative configurations:
+CoordCube provides proximity (L∞ Chebyshev radius) and bounding box enumeration by interpreting CoordPath bytes as multi-dimensional coordinates. All values are measured -- previous estimates replaced with real data.
 
-| Operation | Config (N, D, R) | Paths | Throughput |
-|-----------|------------------|-------|------------|
-| Proximity r=1 | N=2, D=2, R=1 | 9 | ~54 ns (167 Melem/s) |
-| Proximity r=2 | N=2, D=2, R=1 | 25 | ~96 ns (260 Melem/s) |
-| Proximity r=5 | N=2, D=2, R=1 | 121 | ~420 ns (288 Melem/s) |
-| Proximity r=1 | N=4, D=4, R=1 | 81 | ~380 ns (213 Melem/s) |
-| Proximity r=1 | N=6, D=6, R=1 | 729 | ~3.2 µs (228 Melem/s) |
-| Bounding box | N=2, D=2, R=1 (100x100) | 10,201 | ~7.2 µs (1.42 Gelem/s) |
-| Bounding box | N=6, D=6, R=1 (3^6) | 729 | ~1.65 µs (442 Melem/s) |
+### Overhead vs CoordPath
 
-Throughput is scale-invariant: path generation throughput stays ~200-300 Melem/s as D and R vary, dominated by the mixed-radix increment loop rather than dimension count.
+CoordCube is a zero-cost interpretation layer. Creating a CoordCube from CoordPath costs 0.96 ns once; axis extraction is identical to raw CoordPath access (319 ps vs 319 ps).
 
-### Distance metrics (3D, single pair)
+### Proximity generation (D=2, R=1, N=2)
+
+| Radius | Paths | Time | Throughput |
+|--------|-------|------|------------|
+| 0 | 1 | 16.5 ns | 60.6 Melem/s |
+| 1 | 9 | 86.6 ns | 103.9 Melem/s |
+| 2 | 25 | 126.4 ns | 197.8 Melem/s |
+| 3 | 49 | 184.6 ns | 265.5 Melem/s |
+| 5 | 121 | 331.4 ns | 365.1 Melem/s |
+
+Baseline (manual loop without CoordCube): 2.51 ns for 9 CoordPath constructions. CoordCube API adds 7.8 ns for iterator infrastructure.
+
+### Bounding box
+
+| Configuration | Paths | Time | Throughput |
+|---------------|-------|------|------------|
+| N=2, D=2, 100x100 | 10,201 | 14.28 µs | 714 Melem/s |
+| N=6, D=6, 3^6 | 729 | 1.70 µs | 427 Melem/s |
+
+### Dimensional scaling (proximity r=2, R=1)
+
+| D | N | Paths | Time | Throughput |
+|---|---|-------|------|------------|
+| 1 | 1 | 5 | 33.8 ns | 148 Melem/s |
+| 2 | 2 | 25 | 126.5 ns | 198 Melem/s |
+| 3 | 3 | 125 | 441.9 ns | 283 Melem/s |
+| 4 | 4 | 625 | 1.887 µs | 331 Melem/s |
+
+N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2 both show ~127 ns).
+
+### Distance metrics (D=3, single pair, runtime-generated coordinates)
 
 | Metric | Latency |
 |--------|---------|
-| Hamming distance | ~3.5 ns |
-| Euclidean distance (approx) | ~14 ns |
-| Manhattan distance | ~3.5 ns |
+| Hamming distance | 1.75 ns |
+| Manhattan distance | 2.63 ns |
+| Euclidean distance (approx) | 13.5 ns |
+
+Values are from runtime-generated coordinates (PRNG) to prevent compile-time constant folding. The 3.2 ps shown in earlier runs was an artifact of pre-computation.
 
 ## Benchmark: CoordCube + CoordKV proximity (ARMv8.4-A Firestorm)
 
@@ -304,30 +328,46 @@ End-to-end spatial queries combining CoordCube path generation with KV store loo
 
 | Scenario | Store type | Query | Latency | Found |
 |----------|-----------|-------|---------|-------|
-| Dense store (10K entries) | CoordKVN\<2\> | Proximity r=1 | ~285 ns | 9 |
-| Dense store (10K entries) | CoordKVN\<2\> | Proximity r=2 | ~580 ns | 25 |
-| Dense store (10K entries) | CoordKVN\<2\> | Proximity r=5 | ~2.52 µs | 121 |
-| DynCoordKV (100 entries) | DynCoordKV | Proximity r=1 | ~167 ns | 9 |
-| DynCoordKV (100 entries) | DynCoordKV | Proximity r=2 | ~445 ns | 25 |
-| Sparse store (9 entries) | CoordKVN\<2\> | Proximity r=1 | ~48 ns | 9 |
-| Empty store | CoordKVN\<2\> | Proximity r=1 | ~30 ns | 0 |
-| Sequential (9 lookups) | CoordKVN\<2\> | Tree+Path | ~196 ns | 9 |
+| Sequential (9 manual lookups) | CoordKVN\<2\> | Tree+Path | 158 ns | 9 |
+| CoordCube proximity r=1 | CoordKVN\<2\> | Tree+Cube | 285 ns | 9 |
+| CoordCube proximity r=2 | CoordKVN\<2\> | Tree+Cube | 626 ns | 25 |
+| CoordCube proximity r=5 | CoordKVN\<2\> | Tree+Cube | 2.55 µs | 121 |
+| CoordCube proximity r=1 | CoordKV2 (dense) | Dense+Cube | 282 ns | 9 |
+| CoordCube proximity r=1 | DynCoordKV | Cube | 161 ns | 9 |
+| CoordCube proximity r=2 | DynCoordKV | Cube | 290 ns | 25 |
+| CoordCube proximity r=1 | CoordKVN\<2\> sparse | Cube | 48.5 ns | 9 |
+| CoordCube proximity r=1 | CoordKVN\<2\> empty | Cube | 15.7 ns | 0 |
+| Sequential (9 lookups) | DynCoordKV | Baseline | 259 ns | 9 |
 
-Key insight: CoordCube proximity generates all candidate paths in bounded time (~15 ns path gen overhead), then the tree lookups dominate. On sparse stores, CoordCube is up to 4.1x faster than sequential path lookups because it short-circuits on nonexistent paths via structural navigation.
+Breakdown of the 127 ns overhead (Tree+Path 158 ns -> Tree+Cube 285 ns):
+- Vec allocation: 37 ns
+- Vec::push x9: 74 ns
+- Path generation: 16 ns
 
-## Benchmark: CoordSetN set operations (N=2)
+Key insight: On tree stores, the extra overhead is dominated by Vec allocation and push, not coordinate arithmetic. Dense vs tree backend makes almost no difference (282 ns vs 285 ns) because Vec push dominates. On sparse stores, CoordCube is up to 3.3x faster than sequential lookups because it avoids tree lookups for nonexistent paths. On DynCoordKV, proximity is 1.6x faster than sequential (161 vs 259 ns) due to higher per-lookup cost.
 
-Set operations on 500-element sets with 250-element overlap, comparing CoordSetN\<2\> (bit tree) vs HashSet (array key):
+## Benchmark: Compound axis query via CoordSet (N=1 bit array, pre-computed)
 
-| Operation | CoordSetN\<2\> | HashSet | Ratio |
-|-----------|---------------|---------|-------|
-| Union 500 + 500 | ~130 ns | ~830 ns | 6.4x |
-| Intersection 500 + 500 | ~58 ns | -- | -- |
-| Difference 500 + 500 | ~70 ns | -- | -- |
-| Is subset 500 + 500 | ~28 ns | -- | -- |
-| Is disjoint 500 + 500 | ~28 ns | ~350 ns | 12.5x |
+Pre-computed per-axis bit sets (19 initial + 21 medial, each 1.4 KB) answer compound axis queries with a single bitwise AND.
 
-CoordSetN operations are bitwise on heap-allocated bit trees. Union, intersection, and difference produce new sets; subset and disjoint are predicate tests that short-circuit.
+| Implementation | Time | Throughput | vs HashMap |
+|---------------|------|------------|------------|
+| CoordSet bitwise AND | 85.7 ns | 327 Melem/s | **144x** |
+| HashMap iterate+filter | 12.3 µs | 2.28 Melem/s | baseline |
+
+## Benchmark: CoordSetN set operations (N=2, sparse tree)
+
+Set operations on 500-element sets with 250-element overlap. CoordSetN\<2\> uses a heap-allocated bit tree (per-node bit array), not a single flat bit array -- unlike CoordSet (N=1, 1.4 KB inline).
+
+| Operation | CoordSetN\<2\> | HashSet |
+|-----------|---------------|---------|
+| Union 500 + 500 | 4.57 ms | 29.9 µs |
+| Intersection 500 + 500 | 1.91 ms | -- |
+| Difference 500 + 500 | 1.91 ms | -- |
+| Is subset 500 + 500 | 49.0 ns | -- |
+| Is disjoint 500 + 500 | 910 µs | 11.8 ns |
+
+CoordSetN union/intersection/difference are tree traversal operations (not bitwise AND), which makes them slower than HashSet at N=2. The advantage of CoordSetN appears at higher dimensions where HashSet keys grow linearly with N while the tree structure stays compact.
 
 ## Benchmark: tagma-kv vs HashMap (ARMv8.4-A Firestorm)
 

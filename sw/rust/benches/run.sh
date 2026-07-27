@@ -2,7 +2,7 @@
 set -e
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 COMMIT_HASH=$(cd "$(dirname "$0")/.." && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-RESULT_DIR="$(dirname "$0")/../bench-result"
+RESULT_DIR="$(dirname "$0")/result"
 mkdir -p "$RESULT_DIR"
 
 echo "=== Tagma Benchmark Suite ==="
