@@ -1,5 +1,5 @@
 ---
-title: "타그마(Tagma) Project"
+title: "Tagma Project"
 subtitle: "Master Document"
 date: 2026-07
 date-format: "MMMM, YYYY"
@@ -39,8 +39,6 @@ format:
       text: |
         \usepackage{xcolor}
         \usepackage{microtype}
-        \usepackage{xeCJK}
-        \setCJKmainfont{Noto Sans CJK KR}
         \setkeys{Gin}{width=\linewidth,height=\textheight,keepaspectratio}
         \addtokomafont{disposition}{\rmfamily}
         \input{./_files/wp_metadata.tex}
