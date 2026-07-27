@@ -2652,7 +2652,7 @@ criterion_group!(
 //   CoordKV2   22.3    21.6    21.6     (flat)
 //   CoordKVN<2> 23.2   —        —
 //   DynCoordKV 54.7    —        —
-//   HashMap    13.2    19.9    26.5     (+100%, projected)
+//   HashMap    13.2    17.0    18.2     (+38%)
 //
 // Scale workload (insert, 65k keys):
 //   CoordKV2   227 ms   (119 MB alloc dominated)
