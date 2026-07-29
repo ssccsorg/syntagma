@@ -2,10 +2,10 @@ use tagma_core::Coord;
 
 #[test]
 fn all_11172_coords_are_valid() {
-    for i in 0..11172u16 {
+    for i in 0..(Coord::N_VALID as u16) {
         assert!(Coord::new(i).is_some());
     }
-    assert!(Coord::new(11172).is_none());
+    assert!(Coord::new(Coord::N_VALID as u16).is_none());
 }
 
 #[test]

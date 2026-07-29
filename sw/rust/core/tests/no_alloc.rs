@@ -5,19 +5,19 @@ use tagma_core::{Coord, CoordPath, CoordSet, CoordSpace};
 #[test]
 fn cm_insert_11172_values() {
     let mut map = CoordSpace::new();
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         assert_eq!(map.place(Coord::new(i).unwrap(), i as u32), None);
     }
-    assert_eq!(map.len(), 11172);
+    assert_eq!(map.len(), Coord::N_VALID);
 }
 
 #[test]
 fn cm_all_11172_accessible() {
     let mut map = CoordSpace::new();
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         map.place(Coord::new(i).unwrap(), i);
     }
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         assert_eq!(map.at(&Coord::new(i).unwrap()), Some(&i));
     }
 }
@@ -34,10 +34,10 @@ fn cm_path_api() {
 #[test]
 fn cm_remove_all() {
     let mut map = CoordSpace::new();
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         map.place(Coord::new(i).unwrap(), i as u32);
     }
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         map.vacate(&Coord::new(i).unwrap());
     }
     assert!(map.is_empty());
@@ -274,7 +274,7 @@ fn cm_new_map_is_empty() {
     let map: CoordSpace<u32> = CoordSpace::new();
     assert!(map.is_empty());
     assert_eq!(map.len(), 0);
-    assert_eq!(map.capacity(), 11172);
+    assert_eq!(map.capacity(), Coord::N_VALID);
 }
 
 #[test]

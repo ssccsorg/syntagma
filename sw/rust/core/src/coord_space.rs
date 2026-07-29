@@ -19,7 +19,7 @@ use crate::coord_path::CoordPath;
 /// ```
 #[derive(Clone, Debug)]
 pub struct CoordSpace<V> {
-    slots: [Option<V>; 11172],
+    slots: [Option<V>; Coord::N_VALID],
     len: usize,
 }
 
@@ -53,7 +53,7 @@ impl<V> CoordSpace<V> {
     /// Returns the maximum capacity (always 11,172).
     #[inline]
     pub const fn capacity(&self) -> usize {
-        11172
+        Coord::N_VALID
     }
 
     // ── read ────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ pub struct FlatDrain<'a, V> {
 impl<'a, V> Iterator for FlatDrain<'a, V> {
     type Item = (Coord, V);
     fn next(&mut self) -> Option<Self::Item> {
-        while self.idx < 11172 {
+        while self.idx < (Coord::N_VALID as u16) {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
             if let Some(val) = self.space.vacate(&coord) {
@@ -251,13 +251,13 @@ impl<'a, V> Iterator for FlatDrain<'a, V> {
         None
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(11172 - self.idx as usize))
+        (0, Some(Coord::N_VALID - self.idx as usize))
     }
 }
 
 impl<'a, V> Drop for FlatDrain<'a, V> {
     fn drop(&mut self) {
-        while self.idx < 11172 {
+        while self.idx < (Coord::N_VALID as u16) {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
             self.space.vacate(&coord);
@@ -401,7 +401,7 @@ pub struct FlatIntoIter<V> {
 impl<V> Iterator for FlatIntoIter<V> {
     type Item = (Coord, V);
     fn next(&mut self) -> Option<Self::Item> {
-        while self.idx < 11172 {
+        while self.idx < (Coord::N_VALID as u16) {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
             let slot = unsafe { self.map.slots.get_unchecked_mut(coord.index() as usize) };
@@ -412,7 +412,7 @@ impl<V> Iterator for FlatIntoIter<V> {
         None
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(11172 - self.idx as usize))
+        (0, Some(Coord::N_VALID - self.idx as usize))
     }
 }
 

@@ -32,7 +32,7 @@ impl<const N: usize> BoundingBoxIter<N> {
                 max
             );
             assert!(
-                max < 11172,
+                max < (Coord::N_VALID as u16),
                 "BoundingBoxIter: range {} has max {} >= 11172",
                 i,
                 max
@@ -318,7 +318,7 @@ fn dimension_value<const N: usize, const D: usize, const R: usize>(
     for i in 0..R {
         let idx = cube.coords()[start + i].index() as u64;
         val = val.wrapping_add(idx.wrapping_mul(mul));
-        mul = mul.wrapping_mul(11172);
+        mul = mul.wrapping_mul(Coord::N_VALID as u64);
     }
     val
 }
@@ -331,7 +331,7 @@ fn dimension_max_value<const R: usize>() -> u64 {
     let mut mul = 1u64;
     for _ in 0..R {
         max = max.wrapping_add(11171u64.wrapping_mul(mul));
-        mul = mul.wrapping_mul(11172);
+        mul = mul.wrapping_mul(Coord::N_VALID as u64);
     }
     max
 }
@@ -421,7 +421,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "max 11172 >= 11172")]
     fn bb_iter_oob_range_panics() {
-        let _ = BoundingBoxIter::<1>::new([(0, 11172)]);
+        let _ = BoundingBoxIter::<1>::new([(0, (Coord::N_VALID as u16))]);
     }
 
     // ── SpatialOps ─────────────────────────────────────────────────
@@ -613,7 +613,7 @@ mod tests {
             Coord::new(20).unwrap(),
         ]));
         // value diff = 10 * 1 + 20 * 11172 = 10 + 223440 = 223450
-        assert_eq!(a.manhattan_distance(&b), 10 + 20 * 11172);
+        assert_eq!(a.manhattan_distance(&b), 10 + 20 * (Coord::N_VALID as u64));
     }
 
     // ── Hamming proximity ──────────────────────────────────────────

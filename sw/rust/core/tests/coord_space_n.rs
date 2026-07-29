@@ -9,7 +9,7 @@ fn new_map_is_empty() {
     let map: CoordSpaceN<1, u32> = CoordSpaceN::new();
     assert!(map.is_empty());
     assert_eq!(map.len(), 0);
-    assert_eq!(map.capacity(), Some(11172));
+    assert_eq!(map.capacity(), Some(Coord::N_VALID));
 }
 
 #[test]

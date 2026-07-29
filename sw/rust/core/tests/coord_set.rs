@@ -185,12 +185,12 @@ fn index_trait() {
 #[test]
 fn fill_all() {
     let mut set = CoordSet::new();
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         set.insert(Coord::new(i).unwrap());
     }
-    assert_eq!(set.len(), 11172);
+    assert_eq!(set.len(), Coord::N_VALID);
     assert!(!set.is_empty());
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         assert!(set.contains(Coord::new(i).unwrap()));
     }
 }
@@ -198,10 +198,10 @@ fn fill_all() {
 #[test]
 fn remove_all() {
     let mut set = CoordSet::new();
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         set.insert(Coord::new(i).unwrap());
     }
-    for i in 0u16..11172 {
+    for i in 0u16..(Coord::N_VALID as u16) {
         set.remove(Coord::new(i).unwrap());
     }
     assert!(set.is_empty());
@@ -294,5 +294,5 @@ fn retain_empty() {
 #[test]
 fn capacity_instance() {
     let set = CoordSet::new();
-    assert_eq!(set.capacity(), 11172);
+    assert_eq!(set.capacity(), Coord::N_VALID);
 }

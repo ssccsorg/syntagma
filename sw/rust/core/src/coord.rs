@@ -69,7 +69,7 @@ impl Coord {
     /// let c = Coord::new(0).unwrap();
     /// assert_eq!(c.to_char(), '가');
     ///
-    /// let invalid = Coord::new(11172);
+    /// let invalid = Coord::new(Coord::N_VALID as u16);
     /// assert!(invalid.is_none());
     /// ```
     #[inline]

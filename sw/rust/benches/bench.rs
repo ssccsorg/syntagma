@@ -44,18 +44,17 @@
 // ===========================================================================
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use tagma_core::Coord;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const N: usize = tagma_core::Coord::N_VALID;
+const N: usize = Coord::N_VALID;
 
 /// Generate N pre-computed valid coordinates.
 fn all_coords() -> Vec<tagma_core::Coord> {
-    (0..N as u16)
-        .map(|i| tagma_core::Coord::new(i).unwrap())
-        .collect()
+    (0..N as u16).map(|i| Coord::new(i).unwrap()).collect()
 }
 
 /// N coordinates in random order.
@@ -74,7 +73,7 @@ fn mixed_workload(count: usize) -> Vec<MixedOp> {
     let mut rng = rand::thread_rng();
     let mut ops = Vec::with_capacity(count);
     for _ in 0..count {
-        let coord = tagma_core::Coord::new(rng.gen_range(0..N as u16)).unwrap();
+        let coord = Coord::new(rng.gen_range(0..N as u16)).unwrap();
         let kind = rng.gen_range(0..4);
         ops.push(MixedOp { coord, kind });
     }
@@ -271,8 +270,8 @@ fn bench_std_remove_all(c: &mut Criterion) {
 // CoordSpace2/insert/all_11172       16.4 ms   (119 MB pre-zero + 11,172 writes)
 // HashMap/insert/all_11172           385  µs
 fn bench_cs2_insert_all(c: &mut Criterion) {
-    let coords = (0..11172u16)
-        .map(|i| tagma_core::Coord::new(i).unwrap())
+    let coords = (0..Coord::N_VALID as u16)
+        .map(|i| Coord::new(i).unwrap())
         .collect::<Vec<_>>();
     c.bench_function("CoordSpace2/insert/all_11172", |b| {
         b.iter(|| {
@@ -291,8 +290,8 @@ fn bench_cs2_insert_all(c: &mut Criterion) {
 // CoordSpace2/get/all_11172         35.0 µs   (dense, 2-coord key)
 // HashMap/get/all_11172             102  µs
 fn bench_cs2_get_all(c: &mut Criterion) {
-    let coords = (0..11172u16)
-        .map(|i| tagma_core::Coord::new(i).unwrap())
+    let coords = (0..Coord::N_VALID as u16)
+        .map(|i| Coord::new(i).unwrap())
         .collect::<Vec<_>>();
     let mut space = tagma_core::CoordSpace2::<u32>::new();
     for &coord in &coords {
@@ -312,8 +311,8 @@ fn bench_cs2_get_all(c: &mut Criterion) {
 
 // CoordSpaceN2/insert/all_11172    180  ms    (tree, 11,172 inserts)
 fn bench_csn2_insert_all(c: &mut Criterion) {
-    let coords = (0..11172u16)
-        .map(|i| tagma_core::Coord::new(i).unwrap())
+    let coords = (0..Coord::N_VALID as u16)
+        .map(|i| Coord::new(i).unwrap())
         .collect::<Vec<_>>();
     c.bench_function("CoordSpaceN2/insert/all_11172", |b| {
         b.iter(|| {
@@ -331,8 +330,8 @@ fn bench_csn2_insert_all(c: &mut Criterion) {
 
 // CoordSpaceN2/get/all_11172       53.3 µs   (tree, 11,172 lookups)
 fn bench_csn2_get_all(c: &mut Criterion) {
-    let coords = (0..11172u16)
-        .map(|i| tagma_core::Coord::new(i).unwrap())
+    let coords = (0..Coord::N_VALID as u16)
+        .map(|i| Coord::new(i).unwrap())
         .collect::<Vec<_>>();
     let mut space = tagma_core::CoordSpaceN2::<u32>::new();
     for &coord in &coords {
@@ -509,7 +508,7 @@ fn bench_std_drain_all(c: &mut Criterion) {
 // CoordSpace/get/single             0.81 ns
 // HashMap/get/single               8.9  ns   11x faster
 fn bench_tagma_get_single(c: &mut Criterion) {
-    let coord = tagma_core::Coord::new(5000).unwrap();
+    let coord = Coord::new(5000).unwrap();
     let mut space = tagma_core::CoordSpace::new();
     space.place(coord, 42u64);
     let space = space; // freeze
@@ -525,7 +524,7 @@ fn bench_tagma_get_single(c: &mut Criterion) {
 // HashMap/get/single               8.9  ns   11x faster
 fn bench_std_get_single(c: &mut Criterion) {
     use std::collections::HashMap;
-    let coord = tagma_core::Coord::new(5000).unwrap();
+    let coord = Coord::new(5000).unwrap();
     let mut map = HashMap::new();
     map.insert(coord, 42u64);
     let map = map;
@@ -538,7 +537,7 @@ fn bench_std_get_single(c: &mut Criterion) {
 }
 
 fn bench_tagma_insert_single(c: &mut Criterion) {
-    let coord = tagma_core::Coord::new(5000).unwrap();
+    let coord = Coord::new(5000).unwrap();
     c.bench_function("CoordSpace/insert/single", |b| {
         b.iter(|| {
             let mut space = tagma_core::CoordSpace::new();
@@ -549,7 +548,7 @@ fn bench_tagma_insert_single(c: &mut Criterion) {
 
 fn bench_std_insert_single(c: &mut Criterion) {
     use std::collections::HashMap;
-    let coord = tagma_core::Coord::new(5000).unwrap();
+    let coord = Coord::new(5000).unwrap();
     c.bench_function("HashMap/insert/single", |b| {
         b.iter(|| {
             let mut map = HashMap::new();
@@ -641,8 +640,8 @@ fn bench_spatial_axis_filter(c: &mut Criterion) {
     let mut cs = tagma_core::CoordSpace::new();
     let mut hm: std::collections::HashMap<tagma_core::Coord, u32> =
         std::collections::HashMap::new();
-    for i in 0u16..11172 {
-        let coord = tagma_core::Coord::new(i).unwrap();
+    for i in 0u16..(Coord::N_VALID as u16) {
+        let coord = Coord::new(i).unwrap();
         cs.place(coord, i as u32);
         hm.insert(coord, i as u32);
     }
@@ -676,8 +675,8 @@ fn bench_spatial_axis_filter_range(c: &mut Criterion) {
     let mut cs = tagma_core::CoordSpace::new();
     let mut hm: std::collections::HashMap<tagma_core::Coord, u32> =
         std::collections::HashMap::new();
-    for i in 0u16..11172 {
-        let coord = tagma_core::Coord::new(i).unwrap();
+    for i in 0u16..(Coord::N_VALID as u16) {
+        let coord = Coord::new(i).unwrap();
         cs.place(coord, i as u32);
         hm.insert(coord, i as u32);
     }
@@ -721,10 +720,7 @@ fn bench_spatial_cs2_prefix_scan(c: &mut Criterion) {
     // 1000 prefixes × 100 suffixes = 100,000 entries
     for p in 0u16..1000 {
         for s in 0u16..100 {
-            let path = tagma_core::CoordPath::new([
-                tagma_core::Coord::new(p).unwrap(),
-                tagma_core::Coord::new(s).unwrap(),
-            ]);
+            let path = tagma_core::CoordPath::new([Coord::new(p).unwrap(), Coord::new(s).unwrap()]);
             cs2.place_path(&path, (p * 1000 + s).into());
             hm.insert((p, s), (p * 1000 + s).into());
         }
@@ -735,7 +731,7 @@ fn bench_spatial_cs2_prefix_scan(c: &mut Criterion) {
     group.throughput(criterion::Throughput::Elements(100));
 
     group.bench_function("CoordSpaceN2", |b| {
-        let prefix_path = vec![tagma_core::Coord::new(42).unwrap()];
+        let prefix_path = vec![Coord::new(42).unwrap()];
         b.iter(|| {
             let count = cs2
                 .iter_prefix(&prefix_path)
@@ -770,10 +766,7 @@ fn bench_cs2_bulk_100k(c: &mut Criterion) {
     let mut paths = Vec::with_capacity(100_000);
     for p in 0u16..1000 {
         for s in 0u16..100 {
-            let path = tagma_core::CoordPath::new([
-                tagma_core::Coord::new(p).unwrap(),
-                tagma_core::Coord::new(s).unwrap(),
-            ]);
+            let path = tagma_core::CoordPath::new([Coord::new(p).unwrap(), Coord::new(s).unwrap()]);
             paths.push((path, p, s));
         }
     }
@@ -841,13 +834,16 @@ fn bench_cs2_sparse_10M(c: &mut Criterion) {
     for p in 0u16..10000 {
         for s in 0u16..1000 {
             let path = tagma_core::CoordPath::new([
-                tagma_core::Coord::new((p * 22) % 11172).unwrap(),
-                tagma_core::Coord::new((s * 587 + p) % 11172).unwrap(),
+                Coord::new((p * 22) % (Coord::N_VALID as u16)).unwrap(),
+                Coord::new((s * 587 + p) % (Coord::N_VALID as u16)).unwrap(),
             ]);
             paths.push((path, p, s));
             cs2.place_path(&path, (p * 1000 + s).into());
             hm.insert(
-                ((p * 22) % 11172, (s * 587 + p) % 11172),
+                (
+                    (p * 22) % (Coord::N_VALID as u16),
+                    (s * 587 + p) % (Coord::N_VALID as u16),
+                ),
                 (p * 1000 + s).into(),
             );
         }
@@ -866,7 +862,10 @@ fn bench_cs2_sparse_10M(c: &mut Criterion) {
     group.bench_function("HashMap/get", |b| {
         b.iter(|| {
             for (_, p, s) in &paths {
-                black_box(hm.get(&((p * 22) % 11172, (s * 587 + p) % 11172)));
+                black_box(hm.get(&(
+                    (p * 22) % (Coord::N_VALID as u16),
+                    (s * 587 + p) % (Coord::N_VALID as u16),
+                )));
             }
         })
     });
@@ -890,10 +889,7 @@ fn bench_cs2_md_axis_projection(c: &mut Criterion) {
     let mut hm: std::collections::HashMap<(u16, u16), u32> = std::collections::HashMap::new();
     for p in 0u16..10000 {
         for s in 0u16..1000 {
-            let path = tagma_core::CoordPath::new([
-                tagma_core::Coord::new(p).unwrap(),
-                tagma_core::Coord::new(s).unwrap(),
-            ]);
+            let path = tagma_core::CoordPath::new([Coord::new(p).unwrap(), Coord::new(s).unwrap()]);
             cs2.place_path(&path, (p * 1000 + s).into());
             hm.insert((p, s), (p * 1000 + s).into());
         }
@@ -922,8 +918,8 @@ fn bench_cs2_md_axis_projection(c: &mut Criterion) {
             let count = hm
                 .iter()
                 .filter(|((p, s), _)| {
-                    tagma_core::Coord::new(*p).unwrap().to_axes().0 == 3
-                        && tagma_core::Coord::new(*s).unwrap().to_axes().1 == 7
+                    Coord::new(*p).unwrap().to_axes().0 == 3
+                        && Coord::new(*s).unwrap().to_axes().1 == 7
                 })
                 .count();
             black_box(count);
@@ -947,18 +943,21 @@ fn bench_cs2_nonexistent_prefix(c: &mut Criterion) {
     for p in 0u16..10000 {
         for s in 0u16..1000 {
             let path = tagma_core::CoordPath::new([
-                tagma_core::Coord::new(p).unwrap(),
-                tagma_core::Coord::new((s * 587 + p) % 11172).unwrap(),
+                Coord::new(p).unwrap(),
+                Coord::new((s * 587 + p) % (Coord::N_VALID as u16)).unwrap(),
             ]);
             cs2.place_path(&path, (p * 1000 + s).into());
-            hm.insert((p, (s * 587 + p) % 11172), (p * 1000 + s).into());
+            hm.insert(
+                (p, (s * 587 + p) % (Coord::N_VALID as u16)),
+                (p * 1000 + s).into(),
+            );
         }
     }
 
     let mut group = c.benchmark_group("Edge/cs2_nonexistent_prefix");
     group.throughput(criterion::Throughput::Elements(5_000_000));
     group.bench_function("CoordSpaceN2", |b| {
-        let missing = vec![tagma_core::Coord::new(11111).unwrap()];
+        let missing = vec![Coord::new(11111).unwrap()];
         b.iter(|| black_box(cs2.iter_prefix(&missing).map(|it| it.count()).unwrap_or(0)))
     });
     group.bench_function("HashMap", |b| {
@@ -1015,7 +1014,7 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
             let mut set = CoordSet::new();
             for m in 0..21u8 {
                 for f in 0..28u8 {
-                    set.insert(tagma_core::Coord::from_axes(init, m, f).unwrap());
+                    set.insert(Coord::from_axes(init, m, f).unwrap());
                 }
             }
             set
@@ -1026,7 +1025,7 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
             let mut set = CoordSet::new();
             for i in 0..19u8 {
                 for f in 0..28u8 {
-                    set.insert(tagma_core::Coord::from_axes(i, med, f).unwrap());
+                    set.insert(Coord::from_axes(i, med, f).unwrap());
                 }
             }
             set
@@ -1035,8 +1034,8 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 
     // HashMap baseline: store all 11,172 coords
     let mut hm: std::collections::HashMap<tagma_core::Coord, ()> = std::collections::HashMap::new();
-    for i in 0u16..11172 {
-        hm.insert(tagma_core::Coord::new(i).unwrap(), ());
+    for i in 0u16..(Coord::N_VALID as u16) {
+        hm.insert(Coord::new(i).unwrap(), ());
     }
 
     let mut group = c.benchmark_group("Spatial/coordset_and_axis_3_5");
@@ -2096,7 +2095,7 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
     // N=6, D=6, R=1: path gen r=0 (single path, 6-D coord)
     {
         let path = CoordPath::<6>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let cube = CoordCube::<6, 6, 1>::from_path(path);
         group.bench_function("n6_path_gen_r0", |b| {
@@ -2108,12 +2107,12 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
     {
         let mut kv = CoordKVN::<6>::new();
         let path = CoordPath::<6>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let key = CoordKey::from_coord_path(&path);
         kv.insert_by_coordkey(&key, b"v".to_vec());
         let center = CoordPath::<6>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         group.bench_function("n6_kv_proximity_r0", |b| {
             b.iter(|| {
@@ -2126,7 +2125,7 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
     // N=12, D=12, R=1: path gen r=0 on tree
     {
         let path = CoordPath::<12>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let cube = CoordCube::<12, 12, 1>::from_path(path);
         group.bench_function("n12_path_gen_r0", |b| {
@@ -2138,12 +2137,12 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
     {
         let mut kv = CoordKVN::<12>::new();
         let path = CoordPath::<12>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let key = CoordKey::from_coord_path(&path);
         kv.insert_by_coordkey(&key, b"v".to_vec());
         let center = CoordPath::<12>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         group.bench_function("n12_kv_proximity_r0", |b| {
             b.iter(|| {
@@ -2156,7 +2155,7 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
     // N=19, D=19, R=1: path gen r=0 (single path, 19-D coord)
     {
         let path = CoordPath::<19>::new(core::array::from_fn(|i| {
-            Coord::new(Coord::N_VALID as u16 - 1 - (i as u16 % 11172)).unwrap()
+            Coord::new(Coord::N_VALID as u16 - 1 - (i as u16 % (Coord::N_VALID as u16))).unwrap()
         }));
         let cube = CoordCube::<19, 19, 1>::from_path(path);
         group.bench_function("n19_path_gen_r0", |b| {
@@ -2168,12 +2167,12 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
     {
         let mut kv = CoordKVN::<19>::new();
         let path = CoordPath::<19>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let key = CoordKey::from_coord_path(&path);
         kv.insert_by_coordkey(&key, b"v".to_vec());
         let center = CoordPath::<19>::new(core::array::from_fn(|i| {
-            Coord::new((i as u16) % 11172).unwrap()
+            Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         group.bench_function("n19_kv_proximity_r0", |b| {
             b.iter(|| {
@@ -2310,31 +2309,25 @@ fn bench_coordcube_proximity_hamming(c: &mut Criterion) {
 //   N=12  CoordSpaceN12   19.0  ns   space 10^67
 //   N=19  CoordSpaceN19   47.8  ns   space 10^77 (SHA-256 scale)
 fn bench_n_scaling_get(c: &mut Criterion) {
-    let path6 = tagma_core::CoordPath::<6>::new(core::array::from_fn(|i| {
-        tagma_core::Coord::new(i as u16).unwrap()
-    }));
-    let path12 = tagma_core::CoordPath::<12>::new(core::array::from_fn(|i| {
-        tagma_core::Coord::new(i as u16).unwrap()
-    }));
-    let path19 = tagma_core::CoordPath::<19>::new(core::array::from_fn(|i| {
-        tagma_core::Coord::new(i as u16).unwrap()
-    }));
-    let path2 = tagma_core::CoordPath::<2>::new([
-        tagma_core::Coord::new(0).unwrap(),
-        tagma_core::Coord::new(1).unwrap(),
-    ]);
+    let path6 =
+        tagma_core::CoordPath::<6>::new(core::array::from_fn(|i| Coord::new(i as u16).unwrap()));
+    let path12 =
+        tagma_core::CoordPath::<12>::new(core::array::from_fn(|i| Coord::new(i as u16).unwrap()));
+    let path19 =
+        tagma_core::CoordPath::<19>::new(core::array::from_fn(|i| Coord::new(i as u16).unwrap()));
+    let path2 = tagma_core::CoordPath::<2>::new([Coord::new(0).unwrap(), Coord::new(1).unwrap()]);
     let path3 = tagma_core::CoordPath::<3>::new([
-        tagma_core::Coord::new(0).unwrap(),
-        tagma_core::Coord::new(1).unwrap(),
-        tagma_core::Coord::new(2).unwrap(),
+        Coord::new(0).unwrap(),
+        Coord::new(1).unwrap(),
+        Coord::new(2).unwrap(),
     ]);
 
     {
         let mut cs = tagma_core::CoordSpace::new();
-        cs.place(tagma_core::Coord::new(0).unwrap(), 42u64);
+        cs.place(Coord::new(0).unwrap(), 42u64);
         let mut group = c.benchmark_group("N_scaling/get/N=1");
         group.bench_function("CoordSpace", |b| {
-            b.iter(|| black_box(cs.at(&tagma_core::Coord::new(0).unwrap())))
+            b.iter(|| black_box(cs.at(&Coord::new(0).unwrap())))
         });
         group.finish();
     }
@@ -2413,8 +2406,8 @@ fn bench_cm2_insert_1000(c: &mut Criterion) {
             for i in 0u16..100 {
                 for j in 0u16..10 {
                     let path = tagma_core::CoordPath::new([
-                        tagma_core::Coord::new(i).unwrap(),
-                        tagma_core::Coord::new(j).unwrap(),
+                        Coord::new(i).unwrap(),
+                        Coord::new(j).unwrap(),
                     ]);
                     black_box(map.place_path(&path, (i * 100 + j) as u32));
                 }
@@ -2428,8 +2421,8 @@ fn bench_cm2_insert_1000(c: &mut Criterion) {
             for i in 0u16..100 {
                 for j in 0u16..10 {
                     let path = tagma_core::CoordPath::new([
-                        tagma_core::Coord::new(i).unwrap(),
-                        tagma_core::Coord::new(j).unwrap(),
+                        Coord::new(i).unwrap(),
+                        Coord::new(j).unwrap(),
                     ]);
                     black_box(map.place_path(&path, (i * 100 + j) as u32));
                 }
@@ -2447,10 +2440,8 @@ fn bench_cm2_get_1000(c: &mut Criterion) {
         let mut map = tagma_core::CoordSpaceN2::new();
         for i in 0u16..100 {
             for j in 0u16..10 {
-                let path = tagma_core::CoordPath::new([
-                    tagma_core::Coord::new(i).unwrap(),
-                    tagma_core::Coord::new(j).unwrap(),
-                ]);
+                let path =
+                    tagma_core::CoordPath::new([Coord::new(i).unwrap(), Coord::new(j).unwrap()]);
                 map.place_path(&path, (i * 100 + j) as u32);
             }
         }
@@ -2460,10 +2451,8 @@ fn bench_cm2_get_1000(c: &mut Criterion) {
         let mut map = tagma_core::CoordSpace2::new();
         for i in 0u16..100 {
             for j in 0u16..10 {
-                let path = tagma_core::CoordPath::new([
-                    tagma_core::Coord::new(i).unwrap(),
-                    tagma_core::Coord::new(j).unwrap(),
-                ]);
+                let path =
+                    tagma_core::CoordPath::new([Coord::new(i).unwrap(), Coord::new(j).unwrap()]);
                 map.place_path(&path, (i * 100 + j) as u32);
             }
         }
@@ -2475,8 +2464,8 @@ fn bench_cm2_get_1000(c: &mut Criterion) {
             for i in 0u16..100 {
                 for j in 0u16..10 {
                     let path = tagma_core::CoordPath::new([
-                        tagma_core::Coord::new(i).unwrap(),
-                        tagma_core::Coord::new(j).unwrap(),
+                        Coord::new(i).unwrap(),
+                        Coord::new(j).unwrap(),
                     ]);
                     black_box(map_n2.at_path(&path));
                 }
@@ -2488,8 +2477,8 @@ fn bench_cm2_get_1000(c: &mut Criterion) {
             for i in 0u16..100 {
                 for j in 0u16..10 {
                     let path = tagma_core::CoordPath::new([
-                        tagma_core::Coord::new(i).unwrap(),
-                        tagma_core::Coord::new(j).unwrap(),
+                        Coord::new(i).unwrap(),
+                        Coord::new(j).unwrap(),
                     ]);
                     black_box(map_dense.at_path(&path));
                 }
@@ -3413,7 +3402,7 @@ fn bench_cs6_sparse_1k(c: &mut Criterion) {
     let mut cs6 = tagma_core::CoordSpaceN6::<u32>::new();
     let mut hm: std::collections::HashMap<[u16; 6], u32> = std::collections::HashMap::new();
     let mut paths = Vec::with_capacity(1000);
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
 
     for a in 0u16..2 {
         for b in 0u16..5 {
@@ -3426,7 +3415,7 @@ fn bench_cs6_sparse_1k(c: &mut Criterion) {
                             mk(2234 + cc * 1117),
                             mk(4468 + d * 1117),
                             mk(6698 + e * 1117),
-                            mk(8930 + (a + b + cc + d + e) % 11172),
+                            mk(8930 + (a + b + cc + d + e) % (Coord::N_VALID as u16)),
                         ]);
                         let val = a as u32 * 100_000
                             + b as u32 * 20_000
@@ -3474,7 +3463,7 @@ fn bench_cs6_sparse_1k(c: &mut Criterion) {
 fn bench_cs6_nonexistent_prefix(c: &mut Criterion) {
     let mut cs6 = tagma_core::CoordSpaceN6::<u32>::new();
     let mut hm: std::collections::HashMap<[u16; 6], u32> = std::collections::HashMap::new();
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
 
     for a in 0u16..2 {
         for b in 0u16..5 {
@@ -3487,7 +3476,7 @@ fn bench_cs6_nonexistent_prefix(c: &mut Criterion) {
                             mk(2234 + cc * 1117),
                             mk(4468 + d * 1117),
                             mk(6698 + e * 1117),
-                            mk(8930 + (a + b + cc + d + e) % 11172),
+                            mk(8930 + (a + b + cc + d + e) % (Coord::N_VALID as u16)),
                         ]);
                         let val = a as u32 * 100_000
                             + b as u32 * 20_000
@@ -3523,7 +3512,7 @@ fn bench_cs6_nonexistent_prefix(c: &mut Criterion) {
 fn bench_cs6_md_axis_projection(c: &mut Criterion) {
     let mut cs6 = tagma_core::CoordSpaceN6::<u32>::new();
     let mut hm: std::collections::HashMap<[u16; 6], u32> = std::collections::HashMap::new();
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
 
     for a in 0u16..2 {
         for b in 0u16..5 {
@@ -3536,7 +3525,7 @@ fn bench_cs6_md_axis_projection(c: &mut Criterion) {
                             mk(2234 + cc * 1117),
                             mk(4468 + d * 1117),
                             mk(6698 + e * 1117),
-                            mk(8930 + (a + b + cc + d + e) % 11172),
+                            mk(8930 + (a + b + cc + d + e) % (Coord::N_VALID as u16)),
                         ]);
                         let val = a as u32 * 100_000
                             + b as u32 * 20_000
@@ -3573,8 +3562,8 @@ fn bench_cs6_md_axis_projection(c: &mut Criterion) {
             let count = hm
                 .iter()
                 .filter(|(hk, _)| {
-                    tagma_core::Coord::new(hk[2]).unwrap().to_axes().0 == 2
-                        && tagma_core::Coord::new(hk[4]).unwrap().to_axes().1 == 3
+                    Coord::new(hk[2]).unwrap().to_axes().0 == 2
+                        && Coord::new(hk[4]).unwrap().to_axes().1 == 3
                 })
                 .count();
             black_box(count);
@@ -3598,7 +3587,7 @@ fn bench_cs19_sparse_100(c: &mut Criterion) {
     let mut cs19 = tagma_core::CoordSpaceN19::<u32>::new();
     let mut hm: std::collections::HashMap<[u16; 19], u32> = std::collections::HashMap::new();
     let mut paths = Vec::with_capacity(100);
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
 
     // 2 × 2 prefixes, then 25 unique 19th coords
     for a in 0u16..2 {
@@ -3647,7 +3636,7 @@ fn bench_cs19_sparse_100(c: &mut Criterion) {
 fn bench_cs19_nonexistent_prefix(c: &mut Criterion) {
     let mut cs19 = tagma_core::CoordSpaceN19::<u32>::new();
     let mut hm: std::collections::HashMap<[u16; 19], u32> = std::collections::HashMap::new();
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
 
     for a in 0u16..2 {
         for b in 0u16..2 {
@@ -3687,7 +3676,7 @@ fn bench_cs19_nonexistent_prefix(c: &mut Criterion) {
 fn bench_coordsetn_insert_1000_n2(c: &mut Criterion) {
     use tagma_core::CoordSetN;
 
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
     let mut paths: Vec<tagma_core::CoordPath<2>> = Vec::with_capacity(1000);
     let mut hkeys: Vec<[u16; 2]> = Vec::with_capacity(1000);
     for i in 0u16..1000 {
@@ -3721,7 +3710,7 @@ fn bench_coordsetn_insert_1000_n2(c: &mut Criterion) {
 fn bench_coordsetn_union_n2(c: &mut Criterion) {
     use tagma_core::CoordSetN;
 
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
     let mut a = CoordSetN::<2>::new();
     let mut b = CoordSetN::<2>::new();
     let mut ha = std::collections::HashSet::new();
@@ -3766,7 +3755,7 @@ fn bench_coordsetn_iter_1000_n2(c: &mut Criterion) {
     use tagma_core::CoordSetN;
 
     let mut set = CoordSetN::<2>::new();
-    let mk = |v: u16| tagma_core::Coord::new(v).unwrap();
+    let mk = |v: u16| Coord::new(v).unwrap();
     for i in 0u16..1000 {
         set.insert(tagma_core::CoordPath::new([mk(i), mk(i + 100)]));
     }
