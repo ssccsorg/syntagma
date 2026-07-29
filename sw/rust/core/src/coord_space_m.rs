@@ -15,7 +15,7 @@ const fn coord_slots(n: usize) -> usize {
     let sq = Coord::N_VALID.wrapping_mul(Coord::N_VALID); // 124,813,584
     match n {
         3 => sq.wrapping_mul(Coord::N_VALID), // = 11172^3, fits in 64-bit
-        _ => 0,                      // unsupported depth; new() will panic
+        _ => 0,                               // unsupported depth; new() will panic
     }
 }
 
