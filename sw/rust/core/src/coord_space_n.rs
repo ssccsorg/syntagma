@@ -52,7 +52,7 @@ impl<V> Node<V> {
     #[inline]
     fn new_leaf() -> Self {
         Node::Leaf(
-            (0..11172)
+            (0..Coord::N_VALID)
                 .map(|_| None)
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
@@ -62,7 +62,7 @@ impl<V> Node<V> {
     #[inline]
     fn new_branch() -> Self {
         Node::Branch(
-            (0..11172)
+            (0..Coord::N_VALID)
                 .map(|_| None)
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
@@ -180,7 +180,7 @@ impl<const N: usize, V> CoordSpaceN<N, V> {
     #[inline]
     pub fn capacity(&self) -> Option<usize> {
         if N == 1 {
-            Some(11172)
+            Some(Coord::N_VALID)
         } else {
             None
         }
@@ -510,7 +510,7 @@ impl<'a, V> Iterator for Iter<'a, V> {
     type Item = (Coord, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.idx < 11172 {
+        while self.idx < (Coord::N_VALID as u16) {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
             if let Some(val) = self.node.get_value(coord.index() as usize) {
@@ -521,7 +521,7 @@ impl<'a, V> Iterator for Iter<'a, V> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(11172 - self.idx as usize))
+        (0, Some(Coord::N_VALID - self.idx as usize))
     }
 }
 
@@ -535,7 +535,7 @@ impl<'a, V> Iterator for IterMut<'a, V> {
     type Item = (Coord, &'a mut V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.idx >= 11172 {
+        if self.idx >= (Coord::N_VALID as u16) {
             return None;
         }
         let coord = Coord::new(self.idx).unwrap();
@@ -547,7 +547,7 @@ impl<'a, V> Iterator for IterMut<'a, V> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(11172 - self.idx as usize))
+        (0, Some(Coord::N_VALID - self.idx as usize))
     }
 }
 
@@ -722,7 +722,7 @@ impl<V> CoordSpaceN<1, V> {
 
     pub fn retain<F: FnMut(Coord, &mut V) -> bool>(&mut self, mut f: F) {
         let mut idx = 0u16;
-        while idx < 11172 {
+        while idx < (Coord::N_VALID as u16) {
             let coord = Coord::new(idx).unwrap();
             idx += 1;
             if let Some(val) = self.root.get_value_mut(coord.index() as usize) {
@@ -748,7 +748,7 @@ impl<'a, V> Iterator for Drain<'a, V> {
     type Item = (Coord, V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.idx < 11172 {
+        while self.idx < (Coord::N_VALID as u16) {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
             if let Some(val) = self.map.vacate(&coord) {
@@ -759,13 +759,13 @@ impl<'a, V> Iterator for Drain<'a, V> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(11172 - self.idx as usize))
+        (0, Some(Coord::N_VALID - self.idx as usize))
     }
 }
 
 impl<'a, V> Drop for Drain<'a, V> {
     fn drop(&mut self) {
-        while self.idx < 11172 {
+        while self.idx < (Coord::N_VALID as u16) {
             let coord = Coord::new(self.idx).unwrap();
             self.idx += 1;
             self.map.vacate(&coord);
@@ -797,7 +797,7 @@ impl<V> IntoIterator for CoordSpaceN<1, V> {
 
     fn into_iter(mut self) -> Self::IntoIter {
         let mut vec = alloc::vec::Vec::with_capacity(self.len());
-        for i in 0u16..11172 {
+        for i in 0u16..(Coord::N_VALID as u16) {
             if let Some(val) = self.root.take_value(i as usize) {
                 vec.push((Coord::new(i).unwrap(), val));
             }

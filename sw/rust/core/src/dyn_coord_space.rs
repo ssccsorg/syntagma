@@ -36,7 +36,7 @@ impl<V> DynCoordSpace<V> {
     #[inline]
     pub fn new() -> Self {
         DynCoordSpace {
-            slots: (0..11172)
+            slots: (0..Coord::N_VALID)
                 .map(|_| None)
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),

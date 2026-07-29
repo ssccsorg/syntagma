@@ -142,8 +142,8 @@ impl CoordGen for CharWise {
         let mut coords = Vec::with_capacity(n_chars * 2);
         for ch in key.chars() {
             let code = ch as u32;
-            let c0 = (code / 11172) as u16;
-            let c1 = (code % 11172) as u16;
+            let c0 = (code / (Coord::N_VALID as u32)) as u16;
+            let c1 = (code % (Coord::N_VALID as u32)) as u16;
             // c0 is at most 99 (since 11172*100 > 1,114,112), always below 11172.
             // c1 is always below 11172 by construction.
             coords.push(Coord::new(c0).expect("c0 < 100 < 11172"));
@@ -250,7 +250,7 @@ impl<const N: usize> CoordGen for ByteFold<N> {
         }
         Ok(acc
             .into_iter()
-            .map(|v| Coord::new(v % 11172).expect("modulus < 11172"))
+            .map(|v| Coord::new(v % (Coord::N_VALID as u16)).expect("modulus < 11172"))
             .collect())
     }
 

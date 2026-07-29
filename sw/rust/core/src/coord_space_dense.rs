@@ -1,3 +1,4 @@
+use crate::coord::Coord;
 use crate::coord_path::CoordPath;
 use alloc::alloc::{alloc_zeroed, Layout};
 use alloc::boxed::Box;
@@ -16,9 +17,9 @@ use core::slice;
 /// For N=4+: overflow; not representable in usize on 64-bit.
 const fn coord_slots(n: usize) -> usize {
     match n {
-        1 => 11172,
-        2 => 11172 * 11172,
-        3 => 11172 * 11172 * 11172,
+        1 => Coord::N_VALID,
+        2 => Coord::N_VALID * Coord::N_VALID,
+        3 => Coord::N_VALID * Coord::N_VALID * Coord::N_VALID,
         _ => 0, // unreachable; guarded by call sites
     }
 }
@@ -189,7 +190,7 @@ pub(crate) fn linear_index<const N: usize>(path: &CoordPath<N>) -> usize {
     let mut i = 0;
     while i < N {
         idx = idx
-            .wrapping_mul(11172)
+            .wrapping_mul(Coord::N_VALID)
             .wrapping_add(path.coords()[i].index() as usize);
         i += 1;
     }

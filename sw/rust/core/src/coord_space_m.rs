@@ -1,3 +1,4 @@
+use crate::coord::Coord;
 use crate::coord_path::CoordPath;
 use core::ptr::{self, NonNull};
 
@@ -11,9 +12,9 @@ use core::ptr::{self, NonNull};
 /// N >= 6 exceeds `usize` (1.94e24 > u64::MAX) and is not supported.
 /// Use `CoordSpaceN` (sparse tree) for depths >= 4.
 const fn coord_slots(n: usize) -> usize {
-    let sq = 11172usize.wrapping_mul(11172); // 124,813,584
+    let sq = Coord::N_VALID.wrapping_mul(Coord::N_VALID); // 124,813,584
     match n {
-        3 => sq.wrapping_mul(11172), // = 11172^3, fits in 64-bit
+        3 => sq.wrapping_mul(Coord::N_VALID), // = 11172^3, fits in 64-bit
         _ => 0,                      // unsupported depth; new() will panic
     }
 }

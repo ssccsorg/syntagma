@@ -33,8 +33,8 @@ fn cm2_sparse_coverage() {
     // Sparse population over large logical space
     let mut map = CoordSpaceN2::new();
     for i in 0u16..1000 {
-        let c0 = Coord::new(i * 11 % 11172).unwrap();
-        let c1 = Coord::new(i * 7 % 11172).unwrap();
+        let c0 = Coord::new(i * 11 % (Coord::N_VALID as u16)).unwrap();
+        let c1 = Coord::new(i * 7 % (Coord::N_VALID as u16)).unwrap();
         map.place_path(&CoordPath::new([c0, c1]), i);
     }
     assert_eq!(map.len(), 1000);
@@ -147,7 +147,7 @@ fn cm19_multiple_paths() {
     let make_path = |offset: u16| -> CoordPath<19> {
         let mut coords = [Coord::new(0).unwrap(); 19];
         for i in 0..19u16 {
-            coords[i as usize] = Coord::new((i * 587 + offset) % 11172).unwrap();
+            coords[i as usize] = Coord::new((i * 587 + offset) % (Coord::N_VALID as u16)).unwrap();
         }
         CoordPath::new(coords)
     };
@@ -169,7 +169,7 @@ fn api_parity_with_hashmap() {
     let mut coord_space = CoordSpace::new();
     let mut hash_map: HashMap<Coord, u32> = HashMap::new();
     for i in 0u16..500 {
-        let c = Coord::new(i * 22 % 11172).unwrap();
+        let c = Coord::new(i * 22 % (Coord::N_VALID as u16)).unwrap();
         coord_space.place(c, i as u32);
         hash_map.insert(c, i as u32);
     }
@@ -239,7 +239,7 @@ fn dyn_coord_stress_1000() {
     for _ in 0..100 {
         let depth = (inserted.len() % 5) + 1;
         let path: Vec<Coord> = (0..depth)
-            .map(|i| Coord::new(((i * 587 + inserted.len()) % 11172) as u16).unwrap())
+            .map(|i| Coord::new(((i * 587 + inserted.len()) % Coord::N_VALID) as u16).unwrap())
             .collect();
         map.place(&path, depth as u64);
         inserted.push(path);
@@ -348,7 +348,7 @@ fn space19_sparse_19_paths() {
     let mut space = CoordSpaceN19::new();
     for seed in 0..19u16 {
         let coords: [Coord; 19] = core::array::from_fn(|i| {
-            let v = (i as u16 * 587 + seed * 331) % 11172;
+            let v = (i as u16 * 587 + seed * 331) % (Coord::N_VALID as u16);
             Coord::new(v).unwrap()
         });
         let path = CoordPath::new(coords);
@@ -358,7 +358,7 @@ fn space19_sparse_19_paths() {
     // Verify each path retrieves its value
     for seed in 0..19u16 {
         let coords: [Coord; 19] = core::array::from_fn(|i| {
-            let v = (i as u16 * 587 + seed * 331) % 11172;
+            let v = (i as u16 * 587 + seed * 331) % (Coord::N_VALID as u16);
             Coord::new(v).unwrap()
         });
         let path = CoordPath::new(coords);
