@@ -105,6 +105,10 @@ private:
   uint16_t index_ = 0;
 };
 
+// Display of the compositional character, mirroring the Rust Display impl.
+// Defined in namespace tagma so argument-dependent lookup finds it.
+std::ostream& operator<<(std::ostream& os, const Coord& coord);
+
 }  // namespace tagma
 
 // Hash by linear index, mirroring the Rust Hash derive.
@@ -116,6 +120,3 @@ struct hash<tagma::Coord> {
   }
 };
 }  // namespace std
-
-// Display of the compositional character, mirroring the Rust Display impl.
-std::ostream& operator<<(std::ostream& os, const tagma::Coord& coord);

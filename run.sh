@@ -17,6 +17,16 @@ export RUSTFLAGS="-D warnings"
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
+CPP_CORE_DIR="sw/cpp/tagma_core"
+CPP_CORE_BUILD="$CPP_CORE_DIR/build"
+
+check_cpp() {
+    echo "--- c++ core: configure + build + test ---"
+    cmake -S "$CPP_CORE_DIR" -B "$CPP_CORE_BUILD" -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$CPP_CORE_BUILD"
+    ctest --test-dir "$CPP_CORE_BUILD" --output-on-failure
+}
+
 check_checks() {
     (cd sw/rust && cargo fmt --check)
     # default feature set (alloc): tree, dense, set types
@@ -36,11 +46,13 @@ check_checks() {
     echo "--- no_alloc build + test ---"
     (cd sw/rust && cargo build --release --no-default-features)
     (cd sw/rust && cargo test --release --no-default-features)
+    check_cpp
 }
 
 build_and_test() {
     (cd sw/rust && cargo build --release)
     (cd sw/rust && cargo test --release)
+    check_cpp
 }
 
 auto_fix() {

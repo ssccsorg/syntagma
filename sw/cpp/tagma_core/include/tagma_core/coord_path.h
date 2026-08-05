@@ -7,6 +7,7 @@
 #include "tagma_core/coord.h"
 
 #include <array>
+#include <ostream>
 
 namespace tagma {
 
@@ -40,8 +41,24 @@ public:
   auto begin() const { return coords_.begin(); }
   auto end() const { return coords_.end(); }
 
+  // Equality and ordering by the coordinate array, mirroring the Rust
+  // PartialEq and Eq impls.
+  bool operator==(const CoordPath& other) const { return coords_ == other.coords_; }
+  bool operator!=(const CoordPath& other) const { return !(*this == other); }
+
 private:
   std::array<Coord, N> coords_;
 };
+
+// Display of the coordinate path, mirroring the Rust Display impl.
+template <int N>
+std::ostream& operator<<(std::ostream& os, const CoordPath<N>& path) {
+  os << "CoordPath<" << N << ">(";
+  for (int i = 0; i < N; ++i) {
+    if (i > 0) os << ", ";
+    os << path.coords()[i];
+  }
+  return os << ")";
+}
 
 }  // namespace tagma

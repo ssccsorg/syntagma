@@ -86,8 +86,8 @@ std::optional<Coord> Coord::from_be_bytes(
                     static_cast<uint16_t>(bytes[1]));
 }
 
-}  // namespace tagma
-
-std::ostream& operator<<(std::ostream& os, const tagma::Coord& coord) {
+std::ostream& operator<<(std::ostream& os, const Coord& coord) {
   return os << coord.to_hangul_string();
 }
+
+}  // namespace tagma
