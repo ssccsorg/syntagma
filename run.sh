@@ -17,14 +17,14 @@ export RUSTFLAGS="-D warnings"
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
-CPP_CORE_DIR="sw/cpp/tagma_core"
-CPP_CORE_BUILD="$CPP_CORE_DIR/build"
+CPP_DIR="sw/cpp"
+CPP_BUILD="$CPP_DIR/build"
 
 check_cpp() {
     echo "--- c++ core: configure + build + test ---"
-    cmake -S "$CPP_CORE_DIR" -B "$CPP_CORE_BUILD" -DCMAKE_BUILD_TYPE=Release
-    cmake --build "$CPP_CORE_BUILD"
-    ctest --test-dir "$CPP_CORE_BUILD" --output-on-failure
+    cmake -S "$CPP_DIR" -B "$CPP_BUILD" -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$CPP_BUILD"
+    ctest --test-dir "$CPP_BUILD" --output-on-failure
 }
 
 check_checks() {

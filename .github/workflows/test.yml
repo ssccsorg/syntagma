@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "sw/rust/**"
+      - "sw/cpp/**"
       - "run.sh"
       - ".github/workflows/*.yml"
       - "!sw/rust/**/*.md"
@@ -30,8 +31,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sw/rust
-      - name: Full pipeline (fmt, clippy, build, test, no_alloc)
+      - name: Full pipeline (fmt, clippy, build, test, no_alloc, c++ core)
         run: bash run.sh --check
+
+  cpp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: C++ pipeline (configure, build, test)
+        run: bash sw/cpp/run.sh
 
   bench:
     runs-on: ubuntu-latest

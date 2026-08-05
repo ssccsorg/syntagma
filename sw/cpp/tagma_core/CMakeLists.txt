@@ -35,3 +35,9 @@ target_include_directories(test_coord_cube PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
 target_link_libraries(test_coord_cube PRIVATE tagma_core)
 target_compile_options(test_coord_cube PRIVATE -Wall -Wextra)
 add_test(NAME coord_cube_test COMMAND test_coord_cube)
+
+add_executable(test_tree_types tests/test_tree_types.cpp)
+target_include_directories(test_tree_types PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_tree_types PRIVATE tagma_core)
+target_compile_options(test_tree_types PRIVATE -Wall -Wextra)
+add_test(NAME tree_types_test COMMAND test_tree_types)
