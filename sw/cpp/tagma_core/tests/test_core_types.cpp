@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdio>
+#include <vector>
 
 namespace {
 
@@ -98,6 +99,39 @@ void test_coord_set() {
   set.clear();
   check(set.is_empty() && set.len() == 0, "set clear");
   check(CoordSet::capacity() == tagma::Coord::kNValid, "set capacity");
+
+  // get, take, retain, iteration, equality.
+  set.insert(a);
+  set.insert(b);
+  check(set.get(a) == std::optional<tagma::Coord>(a), "set get present");
+  check(set.get(c) == std::nullopt, "set get absent");
+  check(set.take(b) == std::optional<tagma::Coord>(b), "set take present");
+  check(set.take(b) == std::nullopt, "set take absent");
+  check(set.len() == 1, "set length after take");
+
+  set.insert(b);
+  set.retain([](tagma::Coord coord) { return coord.index() % 2 == 0; });
+  check(set.contains(a) && !set.contains(b), "set retain parity");
+
+  std::vector<tagma::Coord> seen;
+  for (const tagma::Coord coord : set) seen.push_back(coord);
+  check(seen.size() == 1 && seen[0] == a, "set iteration");
+
+  CoordSet lhs;
+  lhs.insert(a);
+  CoordSet rhs;
+  rhs.insert(a);
+  check(lhs == rhs && !(lhs != rhs), "set equality");
+  rhs.insert(b);
+  check(lhs != rhs, "set inequality");
+
+  CoordSet full;
+  int iterated = 0;
+  for (const tagma::Coord coord : full) {
+    (void)coord;
+    iterated += 1;
+  }
+  check(iterated == 0, "empty set iteration");
 }
 
 void test_coord_space() {
@@ -128,6 +162,32 @@ void test_coord_space() {
   space.clear();
   check(space.is_empty() && space.len() == 0, "space clear");
   check(CoordSpace<int>::capacity() == tagma::Coord::kNValid, "space capacity");
+
+  // Path access, entry, retain, iteration.
+  const tagma::CoordPath<1> path_a =
+      tagma::CoordPath<1>::from_array({a});
+  check(space.place_path(path_a, 5) == std::nullopt, "place path");
+  check(space.at_path(path_a) != nullptr && *space.at_path(path_a) == 5,
+        "at path");
+  check(space.vacate_path(path_a) == std::optional<int>(5), "vacate path");
+
+  space.entry(a).or_insert(7);
+  space.entry(a).or_insert(9);
+  check(*space.at(a) == 7, "entry or_insert keeps existing");
+  space.entry(b).or_insert(3);
+  check(*space.at(b) == 3, "entry or_insert inserts");
+  space.entry(b).or_insert(0) = 3;
+  check(*space.at(b) == 3, "entry or_insert mutable reference");
+
+  space.retain([](tagma::Coord, int value) { return value > 5; });
+  check(space.occupied(a) && !space.occupied(b), "space retain");
+
+  int pairs = 0;
+  for (const auto& pair : space) {
+    check(pair.first == a, "space iteration coord");
+    pairs += 1;
+  }
+  check(pairs == 1, "space iteration count");
 }
 
 }  // namespace

@@ -14,8 +14,12 @@
 // detectable in constant time. This mirrors the Rust tagma-core Coord
 // in sw/rust/core.
 
+#include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
+#include <ostream>
+#include <string>
 #include <tuple>
 
 namespace tagma {
@@ -32,6 +36,11 @@ public:
   static constexpr int kMedialMax = 21;
   static constexpr int kFinalMax = 28;
   static constexpr int kNValid = 11172;
+
+  // Number of representable 16-bit states.
+  static constexpr int kTotal = 65536;
+
+  // Number of structurally invalid states (kTotal - kNValid).
   static constexpr int kInvalidMargin = 54364;
 
   // Compose from the three axes. Returns nullopt when any axis is out of
@@ -63,6 +72,19 @@ public:
   // Compositional character display of the code point.
   char32_t to_char() const { return static_cast<char32_t>(code_point()); }
 
+  // The compositional character as a UTF-8 string.
+  std::string to_hangul_string() const;
+
+  // Little-endian and big-endian bytes of the raw index (Rust
+  // to_le_bytes/to_be_bytes).
+  std::array<uint8_t, 2> to_le_bytes() const;
+  std::array<uint8_t, 2> to_be_bytes() const;
+
+  // Construct from little-endian or big-endian bytes of the raw index.
+  // Returns nullopt when the decoded index is invalid.
+  static std::optional<Coord> from_le_bytes(const std::array<uint8_t, 2>& bytes);
+  static std::optional<Coord> from_be_bytes(const std::array<uint8_t, 2>& bytes);
+
   // Decompose into (initial, medial, final).
   std::tuple<int, int, int> axes() const;
 
@@ -70,7 +92,13 @@ public:
   // (d_initial, d_medial, d_final).
   std::tuple<int, int, int> hamming_distance(const Coord& other) const;
 
+  // Ordering by linear index, mirroring the Rust Ord derive.
   bool operator==(const Coord& other) const { return index_ == other.index_; }
+  bool operator!=(const Coord& other) const { return !(*this == other); }
+  bool operator<(const Coord& other) const { return index_ < other.index_; }
+  bool operator<=(const Coord& other) const { return !(other < *this); }
+  bool operator>(const Coord& other) const { return other < *this; }
+  bool operator>=(const Coord& other) const { return !(*this < other); }
 
 private:
   explicit Coord(uint16_t index) : index_(index) {}
@@ -78,3 +106,16 @@ private:
 };
 
 }  // namespace tagma
+
+// Hash by linear index, mirroring the Rust Hash derive.
+namespace std {
+template <>
+struct hash<tagma::Coord> {
+  std::size_t operator()(const tagma::Coord& coord) const {
+    return static_cast<std::size_t>(coord.index());
+  }
+};
+}  // namespace std
+
+// Display of the compositional character, mirroring the Rust Display impl.
+std::ostream& operator<<(std::ostream& os, const tagma::Coord& coord);

@@ -6,6 +6,9 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <functional>
+#include <sstream>
+#include <string>
 #include <tuple>
 
 namespace {
@@ -90,6 +93,48 @@ int main() {
   // Invalidity margin: 65,536 - 11,172.
   check(Coord::kInvalidMargin == 65536 - Coord::kNValid,
         "invalidity margin constant");
+  check(Coord::kTotal == 65536, "total states constant");
+
+  // UTF-8 display of the compositional character.
+  check(Coord::from_index(0)->to_hangul_string() == "가",
+        "hangul string base");
+  check(Coord::from_index(11171)->to_hangul_string() == "힣",
+        "hangul string end");
+
+  // Byte serialization of the raw index.
+  const std::array<uint8_t, 2> le_last = {0xA3, 0x2B};  // 11171 LE
+  const std::array<uint8_t, 2> be_last = {0x2B, 0xA3};  // 11171 BE
+  check(Coord::from_index(11171)->to_le_bytes() == le_last, "le bytes");
+  check(Coord::from_index(11171)->to_be_bytes() == be_last, "be bytes");
+  check(Coord::from_le_bytes(le_last).has_value() &&
+            Coord::from_le_bytes(le_last)->index() == 11171,
+        "from le bytes");
+  check(Coord::from_be_bytes(be_last).has_value() &&
+            Coord::from_be_bytes(be_last)->index() == 11171,
+        "from be bytes");
+  const std::array<uint8_t, 2> le_invalid = {0xA4, 0x2B};  // 11172 LE
+  const std::array<uint8_t, 2> be_invalid = {0x2B, 0xA4};  // 11172 BE
+  check(!Coord::from_le_bytes(le_invalid).has_value(),
+        "invalid le bytes rejected");
+  check(!Coord::from_be_bytes(be_invalid).has_value(),
+        "invalid be bytes rejected");
+
+  // Ordering by index.
+  const Coord low = Coord::from_index(0).value();
+  const Coord high = Coord::from_index(11171).value();
+  check(low < high && low <= high && high > low && high >= low,
+        "ordering operators");
+  check(low != high, "inequality");
+  check(low == low, "equality");
+
+  // Hash by index.
+  check(std::hash<Coord>{}(low) == 0, "hash of index zero");
+  check(std::hash<Coord>{}(high) == 11171, "hash of last index");
+
+  // Stream display.
+  std::ostringstream out;
+  out << Coord::from_index(0).value();
+  check(out.str() == "가", "stream display");
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);
