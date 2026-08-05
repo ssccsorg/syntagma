@@ -8,6 +8,7 @@
 #include "tagma_core/coord_path.h"
 
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <optional>
 #include <utility>
@@ -30,6 +31,7 @@ public:
     const_iterator() = default;
 
     value_type operator*() const {
+      assert(idx_ < kCapacity && "dereferencing CoordSpace::end()");
       return {Coord::from_index(static_cast<uint16_t>(idx_)).value(),
               *space_->slots_[idx_]};
     }
@@ -76,6 +78,16 @@ public:
       std::optional<V>& slot = space_->slots_[coord_.index()];
       if (!slot.has_value()) {
         slot = std::move(value);
+        space_->len_ += 1;
+      }
+      return *slot;
+    }
+
+    template <typename F>
+    V& or_insert_with(F&& factory) {
+      std::optional<V>& slot = space_->slots_[coord_.index()];
+      if (!slot.has_value()) {
+        slot = factory();
         space_->len_ += 1;
       }
       return *slot;
@@ -175,6 +187,10 @@ public:
   }
 
 private:
+  // One slot per valid coordinate, 11,172 entries inline. For V = int this
+  // is about 89 KB per CoordSpace; CoordSpaceN<1, V> embeds the same leaf.
+  // Mirroring the Rust reference, prefer heap allocation when the object is
+  // stored by value or on the stack.
   std::array<std::optional<V>, kCapacity> slots_;
   std::size_t len_ = 0;
 };

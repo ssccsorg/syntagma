@@ -8,6 +8,7 @@
 #include "tagma_core/coord.h"
 
 #include <bitset>
+#include <cassert>
 #include <cstddef>
 #include <optional>
 #include <utility>
@@ -29,6 +30,7 @@ public:
     const_iterator() = default;
 
     Coord operator*() const {
+      assert(idx_ < kCapacity && "dereferencing CoordSet::end()");
       return Coord::from_index(static_cast<uint16_t>(idx_)).value();
     }
 

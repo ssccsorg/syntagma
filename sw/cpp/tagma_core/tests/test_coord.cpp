@@ -39,6 +39,16 @@ void check_axes(int i, int m, int f) {
 int main() {
   using tagma::Coord;
 
+  // constexpr evaluation of the closed-form arithmetic.
+  static_assert(Coord::from_axes(0, 0, 0).has_value());
+  static_assert(Coord::from_axes(5, 10, 15)->index() == 3235);
+  static_assert(Coord::from_axes(5, 10, 15)->code_point() == 0xB8A3);
+  static_assert(Coord::from_index(0)->to_char() == U'가');
+  static_assert(Coord::from_axes(1, 0, 0) < Coord::from_axes(2, 0, 0));
+  static_assert(Coord::from_axes(18, 20, 27)->hamming_distance(
+                    Coord::from_axes(0, 0, 0).value()) ==
+                std::make_tuple(18, 20, 27));
+
   // Lattice edges and a midpoint.
   check_axes(0, 0, 0);
   check_axes(18, 20, 27);

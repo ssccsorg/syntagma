@@ -45,63 +45,126 @@ public:
 
   // Compose from the three axes. Returns nullopt when any axis is out of
   // range.
-  static std::optional<Coord> from_axes(int initial, int medial, int final);
+  static constexpr std::optional<Coord> from_axes(int initial, int medial,
+                                                  int final) {
+    if (initial < 0 || initial >= kInitialMax || medial < 0 ||
+        medial >= kMedialMax || final < 0 || final >= kFinalMax) {
+      return std::nullopt;
+    }
+    return Coord(static_cast<uint16_t>(initial * (kMedialMax * kFinalMax) +
+                                       medial * kFinalMax + final));
+  }
 
   // Construct from the linear index 0..11171.
-  static std::optional<Coord> from_index(uint16_t index);
+  static constexpr std::optional<Coord> from_index(uint16_t index) {
+    if (index >= kNValid) return std::nullopt;
+    return Coord(index);
+  }
 
   // Construct from the Unicode code point U+AC00..U+D7AF. Filler
   // positions U+D7A4..U+D7AF are rejected.
-  static std::optional<Coord> from_code_point(uint16_t code_point);
+  static constexpr std::optional<Coord> from_code_point(uint16_t code_point) {
+    if (code_point < kBase || code_point > kLast) return std::nullopt;
+    const uint16_t offset = static_cast<uint16_t>(code_point - kBase);
+    if (offset >= kNValid) return std::nullopt;  // filler positions
+    return Coord(offset);
+  }
 
   // Construct from a code point carried as a 32-bit character.
-  static std::optional<Coord> from_char(char32_t ch);
+  static constexpr std::optional<Coord> from_char(char32_t ch) {
+    if (ch < kBase || ch > kLast) return std::nullopt;
+    const uint16_t offset = static_cast<uint16_t>(ch - kBase);
+    if (offset >= kNValid) return std::nullopt;
+    return Coord(offset);
+  }
 
-  Coord() = default;
+  constexpr Coord() = default;
 
   // Structural validity. Every constructed Coord is valid; the predicate
   // mirrors the hardware range check for completeness.
-  bool valid() const { return index_ < kNValid; }
+  constexpr bool valid() const { return index_ < kNValid; }
 
   // Linear index in 0..11171, the offset from the block base.
-  uint16_t index() const { return index_; }
+  constexpr uint16_t index() const { return index_; }
 
   // Unicode code point U+AC00..U+D7AF.
-  uint16_t code_point() const { return static_cast<uint16_t>(kBase + index_); }
+  constexpr uint16_t code_point() const {
+    return static_cast<uint16_t>(kBase + index_);
+  }
 
   // Compositional character display of the code point.
-  char32_t to_char() const { return static_cast<char32_t>(code_point()); }
+  constexpr char32_t to_char() const {
+    return static_cast<char32_t>(code_point());
+  }
 
   // The compositional character as a UTF-8 string.
   std::string to_hangul_string() const;
 
   // Little-endian and big-endian bytes of the raw index (Rust
   // to_le_bytes/to_be_bytes).
-  std::array<uint8_t, 2> to_le_bytes() const;
-  std::array<uint8_t, 2> to_be_bytes() const;
+  constexpr std::array<uint8_t, 2> to_le_bytes() const {
+    return {static_cast<uint8_t>(index_ & 0xFF),
+            static_cast<uint8_t>(index_ >> 8)};
+  }
+
+  constexpr std::array<uint8_t, 2> to_be_bytes() const {
+    return {static_cast<uint8_t>(index_ >> 8),
+            static_cast<uint8_t>(index_ & 0xFF)};
+  }
 
   // Construct from little-endian or big-endian bytes of the raw index.
   // Returns nullopt when the decoded index is invalid.
-  static std::optional<Coord> from_le_bytes(const std::array<uint8_t, 2>& bytes);
-  static std::optional<Coord> from_be_bytes(const std::array<uint8_t, 2>& bytes);
+  static constexpr std::optional<Coord> from_le_bytes(
+      const std::array<uint8_t, 2>& bytes) {
+    return from_index(static_cast<uint16_t>(bytes[0]) |
+                      (static_cast<uint16_t>(bytes[1]) << 8));
+  }
+
+  static constexpr std::optional<Coord> from_be_bytes(
+      const std::array<uint8_t, 2>& bytes) {
+    return from_index((static_cast<uint16_t>(bytes[0]) << 8) |
+                      static_cast<uint16_t>(bytes[1]));
+  }
 
   // Decompose into (initial, medial, final).
-  std::tuple<int, int, int> axes() const;
+  constexpr std::tuple<int, int, int> axes() const {
+    const int index = index_;
+    return {index / (kMedialMax * kFinalMax),
+            (index / kFinalMax) % kMedialMax, index % kFinalMax};
+  }
 
   // Field-wise Hamming distance: per-axis absolute differences as
   // (d_initial, d_medial, d_final).
-  std::tuple<int, int, int> hamming_distance(const Coord& other) const;
+  constexpr std::tuple<int, int, int> hamming_distance(
+      const Coord& other) const {
+    const auto [i1, m1, f1] = axes();
+    const auto [i2, m2, f2] = other.axes();
+    const auto abs_diff = [](int a, int b) { return a > b ? a - b : b - a; };
+    return {abs_diff(i1, i2), abs_diff(m1, m2), abs_diff(f1, f2)};
+  }
 
   // Ordering by linear index, mirroring the Rust Ord derive.
-  bool operator==(const Coord& other) const { return index_ == other.index_; }
-  bool operator!=(const Coord& other) const { return !(*this == other); }
-  bool operator<(const Coord& other) const { return index_ < other.index_; }
-  bool operator<=(const Coord& other) const { return !(other < *this); }
-  bool operator>(const Coord& other) const { return other < *this; }
-  bool operator>=(const Coord& other) const { return !(*this < other); }
+  constexpr bool operator==(const Coord& other) const {
+    return index_ == other.index_;
+  }
+  constexpr bool operator!=(const Coord& other) const {
+    return !(*this == other);
+  }
+  constexpr bool operator<(const Coord& other) const {
+    return index_ < other.index_;
+  }
+  constexpr bool operator<=(const Coord& other) const {
+    return !(other < *this);
+  }
+  constexpr bool operator>(const Coord& other) const {
+    return other < *this;
+  }
+  constexpr bool operator>=(const Coord& other) const {
+    return !(*this < other);
+  }
 
 private:
-  explicit Coord(uint16_t index) : index_(index) {}
+  constexpr explicit Coord(uint16_t index) : index_(index) {}
   uint16_t index_ = 0;
 };
 

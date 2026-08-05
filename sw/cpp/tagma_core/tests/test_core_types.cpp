@@ -182,6 +182,11 @@ void test_coord_space() {
   space.retain([](tagma::Coord, int value) { return value > 5; });
   check(space.occupied(a) && !space.occupied(b), "space retain");
 
+  space.entry(b).or_insert_with([] { return 5; });
+  check(*space.at(b) == 5, "space entry or_insert_with");
+  check(space.len() == 2, "space length after or_insert_with");
+  space.vacate(b);
+
   int pairs = 0;
   for (const auto& pair : space) {
     check(pair.first == a, "space iteration coord");

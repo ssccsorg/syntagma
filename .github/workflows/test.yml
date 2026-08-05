@@ -38,7 +38,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: cpp_filter
+        with:
+          filters: |
+            cpp:
+              - 'sw/cpp/**'
       - name: C++ pipeline (configure, build, test)
+        if: steps.cpp_filter.outputs.cpp == 'true'
         run: bash sw/cpp/run.sh
 
   bench:
