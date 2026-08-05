@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
 #include <utility>
 
 namespace tagma_geo {
@@ -44,15 +45,18 @@ public:
   using reference = value_type;
   using iterator_category = std::forward_iterator_tag;
 
-  // Creates an iterator over the given per-character ranges. Asserts that
-  // every range is non-inverted and max < 11172.
+  // Creates an iterator over the given per-character ranges. Throws
+  // std::invalid_argument when a range is inverted or max >= 11172,
+  // mirroring the always-on panic of the Rust reference.
   explicit BoundingBoxIter(
       const std::array<std::pair<uint16_t, uint16_t>, N>& ranges) {
     for (int i = 0; i < N; ++i) {
-      assert(ranges[i].first <= ranges[i].second &&
-             "BoundingBoxIter: inverted range");
-      assert(ranges[i].second < tagma::Coord::kNValid &&
-             "BoundingBoxIter: max out of bounds");
+      if (ranges[i].first > ranges[i].second) {
+        throw std::invalid_argument("BoundingBoxIter: inverted range");
+      }
+      if (ranges[i].second >= tagma::Coord::kNValid) {
+        throw std::invalid_argument("BoundingBoxIter: max out of bounds");
+      }
     }
     ranges_ = ranges;
     for (int i = 0; i < N; ++i) {
@@ -76,6 +80,7 @@ public:
   }
 
   value_type operator*() const {
+    assert(!finished_ && "dereferencing BoundingBoxIter::end()");
     std::array<tagma::Coord, N> coords{};
     for (int i = 0; i < N; ++i) {
       coords[i] = tagma::Coord::from_index(current_[i]).value();
@@ -151,7 +156,10 @@ public:
     skip_invalid();
   }
 
-  value_type operator*() const { return *inner_; }
+  value_type operator*() const {
+    assert(inner_ != inner_.end() && "dereferencing HammingFilter::end()");
+    return *inner_;
+  }
 
   HammingFilter& operator++() {
     ++inner_;

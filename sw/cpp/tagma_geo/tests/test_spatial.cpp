@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <initializer_list>
+#include <stdexcept>
 
 namespace {
 
@@ -109,6 +110,28 @@ void test_bb_iter_exhaustion() {
   ++box;
   ++box;
   check(box.is_empty(), "bb exhaustion empty after two steps");
+}
+
+void test_bb_iter_invalid_ranges() {
+  bool threw = false;
+  try {
+    tagma_geo::BoundingBoxIter<1> inverted(
+        std::array<std::pair<uint16_t, uint16_t>, 1>{{{5, 3}}});
+    (void)inverted;
+  } catch (const std::invalid_argument&) {
+    threw = true;
+  }
+  check(threw, "bb inverted range throws");
+
+  threw = false;
+  try {
+    tagma_geo::BoundingBoxIter<1> oob(
+        std::array<std::pair<uint16_t, uint16_t>, 1>{{{0, 11172}}});
+    (void)oob;
+  } catch (const std::invalid_argument&) {
+    threw = true;
+  }
+  check(threw, "bb out of bounds range throws");
 }
 
 void test_bb_count_paths() {
@@ -223,6 +246,7 @@ int main() {
   test_bb_iter_max_range();
   test_bb_iter_empty_n0();
   test_bb_iter_exhaustion();
+  test_bb_iter_invalid_ranges();
   test_bb_count_paths();
   test_cube_bounding_box_basic();
   test_cube_proximity();
