@@ -88,6 +88,14 @@ public:
     return get_by_coordkey(key).has_value();
   }
 
+  // Looks up a value by a CoordPath, converting internally. Used by the
+  // spatial queries in coord_cube_kv.h.
+  std::optional<Value> get_by_coord_path(
+      const tagma::CoordPath<N>& path) const {
+    const Value* value = space_.at_path(path);
+    return value != nullptr ? std::optional<Value>(*value) : std::nullopt;
+  }
+
 private:
   tagma::CoordSpaceN<N, Value> space_;
   std::size_t len_ = 0;

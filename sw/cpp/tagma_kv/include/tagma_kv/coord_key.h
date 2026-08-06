@@ -52,6 +52,16 @@ public:
     return tagma::CoordPath<N>::from_array(coords);
   }
 
+  // Creates a key from a CoordPath: each character index byte is the key
+  // byte, mirroring the Rust from_coord_path.
+  static CoordKey from_coord_path(const tagma::CoordPath<N>& path) {
+    std::array<uint8_t, N> bytes{};
+    for (int i = 0; i < N; ++i) {
+      bytes[i] = static_cast<uint8_t>(path.coords()[i].index());
+    }
+    return CoordKey(bytes);
+  }
+
   bool operator==(const CoordKey& other) const {
     return bytes_ == other.bytes_;
   }

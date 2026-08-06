@@ -35,3 +35,9 @@ target_include_directories(test_dyn_kv PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inclu
 target_link_libraries(test_dyn_kv PRIVATE tagma_kv tagma_core)
 target_compile_options(test_dyn_kv PRIVATE -Wall -Wextra)
 add_test(NAME dyn_kv_test COMMAND test_dyn_kv)
+
+add_executable(test_cube_kv tests/test_cube_kv.cpp)
+target_include_directories(test_cube_kv PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_cube_kv PRIVATE tagma_kv tagma_geo tagma_core)
+target_compile_options(test_cube_kv PRIVATE -Wall -Wextra)
+add_test(NAME cube_kv_test COMMAND test_cube_kv)
