@@ -146,6 +146,31 @@ int main() {
   out << Coord::from_index(0).value();
   check(out.str() == "가", "stream display");
 
+  // Exhaustive lattice scan: every index 0..11171 is valid and
+  // roundtrips through axes, code points, and characters; the first
+  // invalid index is rejected. Mirrors the Rust
+  // all_11172_coords_are_valid.
+  bool scan_valid = true;
+  bool scan_roundtrip = true;
+  for (int index = 0; index < Coord::kNValid; ++index) {
+    const auto lattice_coord = Coord::from_index(static_cast<uint16_t>(index));
+    if (!lattice_coord) {
+      scan_valid = false;
+      break;
+    }
+    const auto [initial, medial, final] = lattice_coord->axes();
+    if (Coord::from_axes(initial, medial, final) != *lattice_coord ||
+        Coord::from_code_point(lattice_coord->code_point()) != *lattice_coord ||
+        Coord::from_char(lattice_coord->to_char()) != *lattice_coord) {
+      scan_roundtrip = false;
+      break;
+    }
+  }
+  check(scan_valid, "all 11172 indices valid");
+  check(scan_roundtrip, "axes/code point/char roundtrip over all indices");
+  check(!Coord::from_index(static_cast<uint16_t>(Coord::kNValid)).has_value(),
+        "first invalid index rejected");
+
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);
     return 1;
