@@ -131,23 +131,12 @@ void test_coord_kvn() {
   check(kv.is_empty(), "kvn empty after remove");
   check(kv.get("hi") == std::nullopt, "kvn get after remove");
 
-  // Wrong-length keys: every &str entry throws, mirroring the Rust panic
-  // in CoordKey::from.
+  // Wrong-length keys: get/remove return nullopt, insert throws, mirroring
+  // the Rust reference (CoordKV::get/remove guard on length; insert panics
+  // via CoordKey::from).
+  check(kv.get("x") == std::nullopt, "kvn wrong length get");
+  check(kv.remove("x") == std::nullopt, "kvn wrong length remove");
   bool threw = false;
-  try {
-    kv.get("x");
-  } catch (const std::invalid_argument&) {
-    threw = true;
-  }
-  check(threw, "kvn wrong length get throws");
-  threw = false;
-  try {
-    kv.remove("x");
-  } catch (const std::invalid_argument&) {
-    threw = true;
-  }
-  check(threw, "kvn wrong length remove throws");
-  threw = false;
   try {
     kv.insert("x", bytes("v"));
   } catch (const std::invalid_argument&) {

@@ -44,17 +44,18 @@ public:
                               std::move(value));
   }
 
-  // Retrieves a value by key. Throws std::invalid_argument when
-  // key.size() != N (mirrors the Rust panic via CoordKey::from); returns
-  // nullopt when the key is absent.
+  // Retrieves a value by key. Returns nullopt when the key length is not N
+  // or the key is absent, mirroring the Rust reference (CoordKV::get
+  // guards on key.len() != N).
   std::optional<Value> get(const std::string& key) const {
+    if (key.size() != static_cast<std::size_t>(N)) return std::nullopt;
     return get_by_coordkey(CoordKey<N>::from_string(key));
   }
 
-  // Removes a key-value pair; returns the value when present. Throws
-  // std::invalid_argument when key.size() != N, mirroring the Rust panic
-  // via CoordKey::from.
+  // Removes a key-value pair; returns the value when present. Returns
+  // nullopt when the key length is not N, mirroring the Rust reference.
   std::optional<Value> remove(const std::string& key) {
+    if (key.size() != static_cast<std::size_t>(N)) return std::nullopt;
     return remove_by_coordkey(CoordKey<N>::from_string(key));
   }
 
