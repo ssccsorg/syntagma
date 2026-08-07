@@ -69,7 +69,10 @@ public:
   bool is_empty() const { return finished_; }
 
   // The total number of paths, the saturating product of range widths.
+  // For N=0 the iterator is always finished, so the count is 0 rather
+  // than the vacuous product 1.
   std::size_t count_paths() const {
+    if (N == 0) return 0;
     std::size_t total = 1;
     for (const auto& range : ranges_) {
       const std::size_t width =
@@ -222,10 +225,13 @@ template <int N, int D, int R>
 BoundingBoxIter<N> proximity(const tagma::CoordCube<N, D, R>& cube,
                              std::size_t radius) {
   std::array<std::pair<uint16_t, uint16_t>, N> ranges{};
+  const std::size_t kMaxIndex =
+      static_cast<std::size_t>(tagma::Coord::kNValid) - 1;
   for (int i = 0; i < N; ++i) {
     const std::size_t index = cube.coords()[i].index();
     const std::size_t min = index >= radius ? index - radius : 0;
-    const std::size_t max = index + radius > 11171 ? 11171 : index + radius;
+    const std::size_t max = index + radius > kMaxIndex ? kMaxIndex
+                                                       : index + radius;
     ranges[i] = {static_cast<uint16_t>(min), static_cast<uint16_t>(max)};
   }
   return BoundingBoxIter<N>(ranges);
@@ -262,8 +268,10 @@ template <int R>
 std::uint64_t dimension_max_value() {
   std::uint64_t max = 0;
   std::uint64_t mul = 1;
+  const std::uint64_t kMaxIndex =
+      static_cast<std::uint64_t>(tagma::Coord::kNValid) - 1;
   for (int i = 0; i < R; ++i) {
-    max += 11171ull * mul;
+    max += kMaxIndex * mul;
     mul *= static_cast<std::uint64_t>(tagma::Coord::kNValid);
   }
   return max;

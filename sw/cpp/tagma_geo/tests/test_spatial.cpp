@@ -95,6 +95,7 @@ void test_bb_iter_max_range() {
 void test_bb_iter_empty_n0() {
   const tagma_geo::BoundingBoxIter<0> box(std::array<std::pair<uint16_t, uint16_t>, 0>{});
   check(box.is_empty(), "bb n0 empty");
+  check(box.count_paths() == 0, "bb n0 count paths");
   int count = 0;
   for (const tagma::CoordPath<0>& path : box) {
     (void)path;
