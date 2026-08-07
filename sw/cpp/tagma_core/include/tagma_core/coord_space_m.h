@@ -20,6 +20,7 @@
 // V should be trivially destructible or values are reclaimed only by
 // the operating system.
 
+// macOS defines __unix__ as well; __APPLE__ is listed for explicitness.
 #if !defined(__unix__) && !defined(__APPLE__)
 #error "tagma_core CoordSpaceM requires a Unix-like platform (mmap)"
 #endif
@@ -129,11 +130,15 @@ public:
       // Mirror the Rust slot.take(): the slot reads as disengaged while
       // the replacement value is constructed, so a throwing move leaves
       // a clean disengaged slot instead of a half-constructed object.
+      // The entry count is decremented here and restored after a
+      // successful construction, keeping len() consistent on the throw
+      // path.
       slot.engaged = false;
+      len_ -= 1;
     }
     ::new (static_cast<void*>(slot.storage)) V(std::move(value));
     slot.engaged = true;
-    if (!previous) len_ += 1;
+    len_ += 1;
     return previous;
   }
 
