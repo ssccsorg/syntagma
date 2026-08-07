@@ -157,6 +157,24 @@ void test_coord_kvn() {
   check(kv.is_empty() && kv.len() == 0, "kvn clear");
 }
 
+void test_kvn_iter() {
+  using tagma_kv::CoordKVN;
+  const CoordKVN<2> empty;
+  check(empty.iter().empty(), "kvn iter empty");
+
+  CoordKVN<2> kv;
+  kv.insert("aa", bytes("1"));
+  kv.insert("bb", bytes("2"));
+  const auto entries = kv.iter();
+  check(entries.size() == 2, "kvn iter size");
+  check(entries[0].first == std::array<uint8_t, 2>{{'a', 'a'}} &&
+            *entries[0].second == bytes("1"),
+        "kvn iter first in ascending order");
+  check(entries[1].first == std::array<uint8_t, 2>{{'b', 'b'}} &&
+            *entries[1].second == bytes("2"),
+        "kvn iter second in ascending order");
+}
+
 }  // namespace
 
 int main() {
@@ -167,6 +185,7 @@ int main() {
   test_string_to_coord_path();
   test_coord_key();
   test_coord_kvn();
+  test_kvn_iter();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);

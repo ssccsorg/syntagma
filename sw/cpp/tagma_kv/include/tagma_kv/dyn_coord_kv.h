@@ -77,6 +77,23 @@ public:
     return value != nullptr ? std::optional<Value>(*value) : std::nullopt;
   }
 
+  // All (key, value) pairs in depth-first coordinate-ascending order.
+  // Keys are reconstructed from the stored byte-wise path. The value
+  // pointers stay valid until the next mutation of the store. Mirrors
+  // the Rust DynCoordKV::iter.
+  std::vector<std::pair<std::string, const Value*>> iter() const {
+    std::vector<std::pair<std::string, const Value*>> out;
+    for (const auto& entry : space_.entries()) {
+      std::string key;
+      key.reserve(entry.first.size());
+      for (const tagma::Coord coord : entry.first) {
+        key.push_back(static_cast<char>(coord.index()));
+      }
+      out.emplace_back(std::move(key), entry.second);
+    }
+    return out;
+  }
+
 private:
   tagma::DynCoordSpace<Value> space_;
   std::size_t len_ = 0;

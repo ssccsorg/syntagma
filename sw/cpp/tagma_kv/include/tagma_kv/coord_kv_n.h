@@ -98,6 +98,21 @@ public:
     return value != nullptr ? std::optional<Value>(*value) : std::nullopt;
   }
 
+  // All (key bytes, value) pairs in ascending coordinate order. The value
+  // pointers stay valid until the next mutation of the store. Mirrors the
+  // Rust CoordKVN::iter.
+  std::vector<std::pair<std::array<uint8_t, N>, const Value*>> iter() const {
+    std::vector<std::pair<std::array<uint8_t, N>, const Value*>> out;
+    for (const auto& entry : space_.entries()) {
+      std::array<uint8_t, N> key{};
+      for (int i = 0; i < N; ++i) {
+        key[i] = static_cast<uint8_t>(entry.first.coords()[i].index());
+      }
+      out.emplace_back(key, entry.second);
+    }
+    return out;
+  }
+
 private:
   tagma::CoordSpaceN<N, Value> space_;
   std::size_t len_ = 0;

@@ -112,11 +112,28 @@ void test_dyn_coord_kv() {
   check(kv.is_empty() && kv.len() == 0, "dynkv clear");
 }
 
+void test_dyn_iter() {
+  using tagma_kv::DynCoordKV;
+  const DynCoordKV empty;
+  check(empty.iter().empty(), "dyn iter empty");
+
+  DynCoordKV kv;
+  kv.insert("abc", bytes("123"));
+  kv.insert("def", bytes("456"));
+  const auto entries = kv.iter();
+  check(entries.size() == 2, "dyn iter size");
+  check(entries[0].first == "abc" && *entries[0].second == bytes("123"),
+        "dyn iter first in ascending order");
+  check(entries[1].first == "def" && *entries[1].second == bytes("456"),
+        "dyn iter second in ascending order");
+}
+
 }  // namespace
 
 int main() {
   test_dyn_coord_space();
   test_dyn_coord_kv();
+  test_dyn_iter();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);
