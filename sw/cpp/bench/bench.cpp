@@ -30,7 +30,6 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
-#include <random>
 #include <string>
 #include <utility>
 #include <vector>
@@ -80,25 +79,27 @@ tagma::Coord coord(uint16_t index) {
   return tagma::Coord::from_index(index).value();
 }
 
-// count distinct 2D paths: (i % 11172, (i / 11172) % 11172).
+// count distinct 2D paths: (i % N_VALID, (i / N_VALID) % N_VALID).
 std::vector<tagma::CoordPath<2>> paths_2d(int count) {
+  const int kValid = tagma::Coord::kNValid;
   std::vector<tagma::CoordPath<2>> out;
   out.reserve(static_cast<std::size_t>(count));
   for (int i = 0; i < count; ++i) {
-    const uint16_t a = static_cast<uint16_t>(i % 11172);
-    const uint16_t b = static_cast<uint16_t>((i / 11172) % 11172);
+    const uint16_t a = static_cast<uint16_t>(i % kValid);
+    const uint16_t b = static_cast<uint16_t>((i / kValid) % kValid);
     out.push_back(tagma::CoordPath<2>::from_array({coord(a), coord(b)}));
   }
   return out;
 }
 
-// count distinct 3D paths: (i % 11172, (i / 11172) % 11172, 0).
+// count distinct 3D paths: (i % N_VALID, (i / N_VALID) % N_VALID, 0).
 std::vector<tagma::CoordPath<3>> paths_3d(int count) {
+  const int kValid = tagma::Coord::kNValid;
   std::vector<tagma::CoordPath<3>> out;
   out.reserve(static_cast<std::size_t>(count));
   for (int i = 0; i < count; ++i) {
-    const uint16_t a = static_cast<uint16_t>(i % 11172);
-    const uint16_t b = static_cast<uint16_t>((i / 11172) % 11172);
+    const uint16_t a = static_cast<uint16_t>(i % kValid);
+    const uint16_t b = static_cast<uint16_t>((i / kValid) % kValid);
     out.push_back(
         tagma::CoordPath<3>::from_array({coord(a), coord(b), coord(0)}));
   }
@@ -178,20 +179,22 @@ void bench_csn2_mixed() {
 // ── core: dense CoordSpace (N=1) ───────────────────────────────────
 
 void bench_space_entry_or_insert() {
+  const int kValid = tagma::Coord::kNValid;
   bench("space entry or_insert 10k", 1, 5, [&] {
     tagma::CoordSpace<uint32_t> space;
     for (int i = 0; i < 10000; ++i) {
-      space.entry(coord(static_cast<uint16_t>(i % 11172))).or_insert(1);
+      space.entry(coord(static_cast<uint16_t>(i % kValid))).or_insert(1);
     }
     g_sink += space.len();
   });
 }
 
 void bench_space_retain_half() {
+  const int kValid = tagma::Coord::kNValid;
   bench("space fill+retain half 10k", 1, 5, [&] {
     tagma::CoordSpace<uint32_t> space;
     for (int i = 0; i < 10000; ++i) {
-      space.place(coord(static_cast<uint16_t>(i % 11172)), 1);
+      space.place(coord(static_cast<uint16_t>(i % kValid)), 1);
     }
     space.retain(
         [](tagma::Coord c, uint32_t) { return c.index() % 2 == 0; });
