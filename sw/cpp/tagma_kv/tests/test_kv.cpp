@@ -175,6 +175,66 @@ void test_kvn_iter() {
         "kvn iter second in ascending order");
 }
 
+void test_strategy_edge_cases() {
+  // Empty keys are rejected by every strategy.
+  check(!tagma_kv::Prefix<2>::generate("").has_value(),
+        "prefix empty rejected");
+  check(!tagma_kv::ByteFold<2>::generate("").has_value(),
+        "bytefold empty rejected");
+
+  // ByteFold: XOR is commutative within each accumulator; swapping
+  // even-position bytes between two strings produces a collision.
+  // Mirrors bytefold_collision_same_xor.
+  const std::string key_a{'a', '\0', 'c'};
+  const std::string key_b{'c', '\0', 'a'};
+  const auto path_a = tagma_kv::ByteFold<2>::generate(key_a);
+  const auto path_b = tagma_kv::ByteFold<2>::generate(key_b);
+  check(path_a.has_value() && path_b.has_value() && path_a == path_b,
+        "bytefold commutative xor collision");
+  if (path_a) {
+    check((*path_a)[0].index() == 2 && (*path_a)[1].index() == 0,
+          "bytefold collision accumulators");
+  }
+
+  // ByteFold accumulator values: "abcd" folds to acc[0] = 'a'^'c',
+  // acc[1] = 'b'^'d'. Mirrors bytefold_basic.
+  const auto folded = tagma_kv::ByteFold<2>::generate("abcd");
+  check(folded.has_value() && folded->size() == 2, "bytefold path length");
+  if (folded) {
+    check((*folded)[0].index() == ('a' ^ 'c') &&
+              (*folded)[1].index() == ('b' ^ 'd'),
+          "bytefold accumulator values");
+  }
+
+  // Prefix truncation: keys sharing the first N bytes collide.
+  const auto short_key = tagma_kv::Prefix<2>::generate("ab");
+  const auto long_key = tagma_kv::Prefix<2>::generate("abcdef");
+  check(short_key.has_value() && long_key.has_value() &&
+            short_key == long_key,
+        "prefix truncation collision");
+
+  // Prefix<2> matches the first two ByteWise coords. Mirrors
+  // prefix2_matches_bytewise_first_two.
+  const auto prefixed = tagma_kv::Prefix<2>::generate("abcd");
+  const auto bytewise = tagma_kv::ByteWise::generate("abcd");
+  check(prefixed.has_value() && bytewise.has_value() &&
+            bytewise->size() >= 2 && (*prefixed)[0] == (*bytewise)[0] &&
+            (*prefixed)[1] == (*bytewise)[1],
+        "prefix2 matches bytewise first two");
+}
+
+void test_coord_key_roundtrip() {
+  using tagma_kv::CoordKey;
+  const CoordKey<3> key(std::array<uint8_t, 3>{{1, 255, 42}});
+  const CoordKey<3> back = CoordKey<3>::from_coord_path(key.to_coord_path());
+  check(back == key, "coord key roundtrip");
+
+  // Distinct byte keys map to distinct paths.
+  const CoordKey<2> k1(std::array<uint8_t, 2>{{0, 1}});
+  const CoordKey<2> k2(std::array<uint8_t, 2>{{1, 0}});
+  check(!(k1.to_coord_path() == k2.to_coord_path()), "coord key injective");
+}
+
 }  // namespace
 
 int main() {
@@ -186,6 +246,8 @@ int main() {
   test_coord_key();
   test_coord_kvn();
   test_kvn_iter();
+  test_strategy_edge_cases();
+  test_coord_key_roundtrip();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);

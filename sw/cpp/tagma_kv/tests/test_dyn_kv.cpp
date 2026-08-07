@@ -128,12 +128,30 @@ void test_dyn_iter() {
         "dyn iter second in ascending order");
 }
 
+void test_dyn_long_key_roundtrip() {
+  // 64-byte key: the ByteWise path length equals the key size and lookup
+  // is O(key length). Mirrors dyn_roundtrip_large_key.
+  std::string long_key;
+  long_key.reserve(64);
+  for (int i = 0; i < 64; ++i) {
+    long_key.push_back(static_cast<char>(i));
+  }
+  tagma_kv::DynCoordKV kv;
+  check(kv.insert(long_key, bytes("v")) == std::nullopt,
+        "dyn long key insert");
+  check(kv.get(long_key) ==
+            std::optional<std::vector<uint8_t>>(bytes("v")),
+        "dyn long key get");
+  check(kv.len() == 1, "dyn long key len");
+}
+
 }  // namespace
 
 int main() {
   test_dyn_coord_space();
   test_dyn_coord_kv();
   test_dyn_iter();
+  test_dyn_long_key_roundtrip();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);
