@@ -11,6 +11,7 @@
 #include <tagma_core/coord_path.h>
 
 #include <array>
+#include <cassert>
 #include <cstdio>
 #include <cstdint>
 #include <initializer_list>
@@ -35,6 +36,8 @@ tagma::Coord coord(uint16_t index) {
 
 template <int N>
 tagma::CoordPath<N> path_of(std::initializer_list<uint16_t> indices) {
+  assert(indices.size() <= static_cast<std::size_t>(N) &&
+         "path_of: too many indices for depth N");
   std::array<tagma::Coord, N> coords{};
   int i = 0;
   for (const uint16_t index : indices) coords[i++] = coord(index);

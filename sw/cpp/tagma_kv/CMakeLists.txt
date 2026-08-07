@@ -17,6 +17,10 @@ endif()
 if(NOT TARGET tagma_core)
     add_subdirectory(../tagma_core tagma_core_build)
 endif()
+# coord_cube_kv.h includes tagma_geo/spatial.h and test_cube_kv links it.
+if(NOT TARGET tagma_geo)
+    add_subdirectory(../tagma_geo tagma_geo_build)
+endif()
 
 add_library(tagma_kv src/coord_gen.cpp)
 target_include_directories(tagma_kv PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
