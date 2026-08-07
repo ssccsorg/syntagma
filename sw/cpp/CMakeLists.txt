@@ -19,3 +19,11 @@ enable_testing()
 # then the modules that depend on it.
 add_subdirectory(tagma_core)
 add_subdirectory(base11172)
+add_subdirectory(tagma_geo)
+add_subdirectory(tagma_kv)
+
+# The benchmark suite uses CoordSpaceM (mmap); Unix only, mirroring the
+# Rust mmap feature gate.
+if(UNIX)
+    add_subdirectory(bench)
+endif()

@@ -25,6 +25,10 @@ tagma::Coord coord(int i, int m, int f) {
   return tagma::Coord::from_axes(i, m, f).value();
 }
 
+tagma::Coord coord_index(int index) {
+  return tagma::Coord::from_index(static_cast<uint16_t>(index)).value();
+}
+
 void test_coord_path() {
   using tagma::CoordPath;
   const std::array<tagma::Coord, 3> coords = {coord(0, 0, 0), coord(1, 2, 3),
@@ -195,12 +199,78 @@ void test_coord_space() {
   check(pairs == 1, "space iteration count");
 }
 
+void test_coord_set_fill_and_remove_all() {
+  using tagma::CoordSet;
+  // Fill every slot. Mirrors fill_all.
+  CoordSet full;
+  for (int i = 0; i < tagma::Coord::kNValid; ++i) {
+    full.insert(coord_index(i));
+  }
+  check(full.len() == static_cast<std::size_t>(tagma::Coord::kNValid),
+        "set fill all length");
+  check(!full.is_empty(), "set fill all not empty");
+  bool all_present = true;
+  for (int i = 0; i < tagma::Coord::kNValid; ++i) {
+    if (!full.contains(coord_index(i))) {
+      all_present = false;
+      break;
+    }
+  }
+  check(all_present, "set fill all contains every coord");
+
+  // Remove every slot. Mirrors remove_all.
+  for (int i = 0; i < tagma::Coord::kNValid; ++i) {
+    full.remove(coord_index(i));
+  }
+  check(full.is_empty() && full.len() == 0, "set remove all");
+}
+
+void test_coord_set_from_iterator() {
+  using tagma::CoordSet;
+  // from-iterator equivalent: collect from a coord vector, deduplicating
+  // on insert. Mirrors from_iterator.
+  const std::vector<tagma::Coord> input = {coord_index(1), coord_index(2),
+                                           coord_index(1)};
+  CoordSet set;
+  int inserted = 0;
+  for (const tagma::Coord c : input) {
+    if (set.insert(c)) inserted += 1;
+  }
+  check(inserted == 2 && set.len() == 2, "set from iterator dedups");
+  check(set.contains(coord_index(1)) && set.contains(coord_index(2)),
+        "set from iterator contents");
+}
+
+void test_coord_set_retain_all_and_empty() {
+  using tagma::CoordSet;
+  CoordSet set;
+  set.insert(coord_index(1));
+  set.insert(coord_index(2));
+  set.retain([](tagma::Coord) { return true; });
+  check(set.len() == 2, "set retain all keeps everything");
+  set.retain([](tagma::Coord) { return false; });
+  check(set.is_empty(), "set retain none empties");
+}
+
+void test_coord_set_copy_eq() {
+  using tagma::CoordSet;
+  CoordSet original;
+  original.insert(coord_index(1));
+  const CoordSet copy = original;
+  check(copy == original, "set copy equality");
+  check(copy.contains(coord_index(1)), "set copy contents");
+}
+
 }  // namespace
 
 int main() {
   test_coord_path();
   test_coord_set();
   test_coord_space();
+  test_coord_set_fill_and_remove_all();
+  test_coord_set_from_iterator();
+  test_coord_set_retain_all_and_empty();
+  test_coord_set_copy_eq();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);

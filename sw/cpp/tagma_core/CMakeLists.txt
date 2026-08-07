@@ -41,3 +41,13 @@ target_include_directories(test_tree_types PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
 target_link_libraries(test_tree_types PRIVATE tagma_core)
 target_compile_options(test_tree_types PRIVATE -Wall -Wextra)
 add_test(NAME tree_types_test COMMAND test_tree_types)
+
+# CoordSpaceM requires <sys/mman.h>; built and tested on Unix only,
+# mirroring the Rust mmap feature gate.
+if(UNIX)
+    add_executable(test_coord_space_m tests/test_coord_space_m.cpp)
+    target_include_directories(test_coord_space_m PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(test_coord_space_m PRIVATE tagma_core)
+    target_compile_options(test_coord_space_m PRIVATE -Wall -Wextra)
+    add_test(NAME coord_space_m_test COMMAND test_coord_space_m)
+endif()

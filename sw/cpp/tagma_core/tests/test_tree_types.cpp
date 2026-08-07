@@ -9,9 +9,13 @@
 #include <tagma_core/coord_space_n.h>
 
 #include <array>
+#include <cassert>
+#include <cstdint>
 #include <cstdio>
 #include <initializer_list>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -30,6 +34,8 @@ tagma::Coord coord(uint16_t index) {
 
 template <int N>
 tagma::CoordPath<N> path_of(std::initializer_list<uint16_t> indices) {
+  assert(indices.size() <= static_cast<std::size_t>(N) &&
+         "path_of: too many indices for depth N");
   std::array<tagma::Coord, N> coords{};
   int i = 0;
   for (const uint16_t index : indices) {
@@ -152,12 +158,150 @@ void test_coord_set_n3() {
   check(set.is_empty() && set.len() == 0, "setn3 clear");
 }
 
+void test_coord_set_n_edge_cases() {
+  using tagma::CoordSetN;
+
+  // from-iterator equivalent: collect from a path vector, deduplicating
+  // on insert. Mirrors from_iterator_collects_all and
+  // from_iterator_deduplicates.
+  const std::vector<tagma::CoordPath<2>> input = {
+      path_of<2>({1, 2}), path_of<2>({3, 4}), path_of<2>({1, 2})};
+  CoordSetN<2> collected;
+  int inserted = 0;
+  for (const auto& path : input) {
+    if (collected.insert(path)) inserted += 1;
+  }
+  check(inserted == 2 && collected.len() == 2, "setn from iterator dedups");
+  check(collected.contains(path_of<2>({1, 2})) &&
+            collected.contains(path_of<2>({3, 4})),
+        "setn from iterator contents");
+
+  // Empty-identity operations.
+  CoordSetN<2> a;
+  a.insert(path_of<2>({1, 2}));
+  const CoordSetN<2> empty;
+  check(a.set_union(empty).len() == 1 &&
+            a.set_union(empty).contains(path_of<2>({1, 2})),
+        "setn union with empty returns self");
+  check(a.set_intersection(empty).is_empty(),
+        "setn intersection with empty is empty");
+  check(a.set_difference(empty).len() == 1,
+        "setn difference with empty returns self");
+  check(a.set_symmetric_difference(empty).len() == 1,
+        "setn symdiff with empty returns self");
+  check(empty.is_subset(a) && !a.is_subset(empty), "setn subset with empty");
+  check(empty.is_disjoint(a), "setn disjoint with empty");
+
+  // clear then reinsert.
+  a.clear();
+  check(a.is_empty(), "setn clear");
+  a.insert(path_of<2>({3, 4}));
+  check(a.contains(path_of<2>({3, 4})) && a.len() == 1,
+        "setn reinsert after clear");
+
+  // Iteration order determinism: reverse insert order yields ascending
+  // paths. Mirrors iter_tree_order_deterministic.
+  CoordSetN<2> ordered;
+  for (int i = 19; i >= 0; --i) {
+    ordered.insert(path_of<2>({static_cast<uint16_t>(i), 0}));
+  }
+  const auto paths = ordered.paths();
+  check(paths.size() == 20, "setn iter count");
+  bool ascending = true;
+  for (std::size_t i = 1; i < paths.size(); ++i) {
+    if (paths[i - 1].coords()[0].index() > paths[i].coords()[0].index()) {
+      ascending = false;
+    }
+  }
+  check(ascending, "setn iter ascending");
+
+  // Iteration count equals len. Mirrors iter_tree_yields_same_as_len.
+  CoordSetN<2> many;
+  for (int i = 0; i < 30; ++i) {
+    many.insert(path_of<2>({static_cast<uint16_t>(i),
+                            static_cast<uint16_t>(i + 50)}));
+  }
+  check(many.paths().size() == 30 && many.len() == 30,
+        "setn iter same as len");
+}
+
+void test_coord_space_n6() {
+  using tagma::CoordSpaceN6;
+  CoordSpaceN6<std::string> space;
+  const auto path = path_of<6>({0, 1, 2, 3, 4, 5});
+  check(space.at_path(path) == nullptr, "n6 missing path");
+  check(space.place_path(path, std::string("hello")) == std::nullopt,
+        "n6 place");
+  check(space.at_path(path) != nullptr && *space.at_path(path) == "hello",
+        "n6 at");
+  check(space.len() == 1, "n6 len");
+  check(space.vacate_path(path) == std::optional<std::string>("hello"),
+        "n6 vacate");
+  check(space.is_empty(), "n6 empty after vacate");
+}
+
+void test_coord_space_n12_and_max_depth() {
+  using tagma::CoordSpaceN12;
+  CoordSpaceN12<uint32_t> twelve;
+  const auto p12 = path_of<12>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+  check(twelve.place_path(p12, 42) == std::nullopt, "n12 place");
+  check(twelve.at_path(p12) != nullptr && *twelve.at_path(p12) == 42,
+        "n12 at");
+
+  using tagma::CoordSpaceN19;
+  CoordSpaceN19<uint32_t> max_depth;
+  const auto p19 = path_of<19>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+                                14, 15, 16, 17, 18});
+  check(max_depth.place_path(p19, 42) == std::nullopt,
+        "n19 max depth place");
+  check(max_depth.at_path(p19) != nullptr && *max_depth.at_path(p19) == 42,
+        "n19 max depth at");
+  check(max_depth.len() == 1, "n19 max depth len");
+}
+
+void test_type_aliases() {
+  tagma::CoordSpaceN1<uint32_t> m1;
+  tagma::CoordSpaceN2<uint32_t> m2;
+  tagma::CoordSpaceN3<uint32_t> m3;
+  tagma::CoordSpaceN6<uint32_t> m6;
+  tagma::CoordSpaceN12<uint32_t> m12;
+  tagma::CoordSpaceN19<uint32_t> m19;
+  check(m1.is_empty() && m2.is_empty() && m3.is_empty() && m6.is_empty() &&
+            m12.is_empty() && m19.is_empty(),
+        "type aliases exist and start empty");
+}
+
+void test_entries_order_deterministic() {
+  // Reverse insert order; entries() must yield ascending depth-first
+  // order. Mirrors iter_tree_order_is_deterministic.
+  tagma::CoordSpaceN2<uint32_t> space;
+  for (int i = 99; i >= 0; --i) {
+    space.place_path(path_of<2>({static_cast<uint16_t>(i), 0}),
+                     static_cast<uint32_t>(i));
+  }
+  const auto entries = space.entries();
+  check(entries.size() == 100, "entries count");
+  bool ascending = true;
+  for (std::size_t i = 1; i < entries.size(); ++i) {
+    if (entries[i - 1].first.coords()[0].index() >
+        entries[i].first.coords()[0].index()) {
+      ascending = false;
+    }
+  }
+  check(ascending, "entries ascending order");
+}
+
 }  // namespace
 
 int main() {
   test_coord_space_n1();
   test_coord_space_n2();
   test_coord_set_n3();
+  test_coord_set_n_edge_cases();
+  test_coord_space_n6();
+  test_coord_space_n12_and_max_depth();
+  test_type_aliases();
+  test_entries_order_deterministic();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);

@@ -113,6 +113,15 @@ public:
     return out;
   }
 
+  // All (path, value) pairs in depth-first coordinate-ascending order.
+  // The value pointers stay valid until the next mutation of the space.
+  std::vector<std::pair<CoordPath<N>, const V*>> entries() const {
+    std::vector<std::pair<CoordPath<N>, const V*>> out;
+    std::array<Coord, N> prefix{};
+    collect_entries<N - 1>(root_, prefix, 0, out);
+    return out;
+  }
+
   // ── N == 1: single-coordinate access ───────────────────────────────
 
   template <bool Enable = (N == 1), typename = std::enable_if_t<Enable>>
@@ -241,6 +250,31 @@ private:
         if (child) {
           prefix[level] = Coord::from_index(static_cast<uint16_t>(i)).value();
           collect_paths<D - 1>(*child, prefix, level + 1, out);
+        }
+      }
+    }
+  }
+
+  // Collects present (path, value) pairs in depth-first
+  // coordinate-ascending order.
+  template <int D>
+  static void collect_entries(const SpaceNode<D, V>& node,
+                              std::array<Coord, N>& prefix, int level,
+                              std::vector<std::pair<CoordPath<N>, const V*>>&
+                                  out) {
+    if constexpr (D == 0) {
+      for (int i = 0; i < kCapacity; ++i) {
+        if (node.slots[i].has_value()) {
+          prefix[level] = Coord::from_index(static_cast<uint16_t>(i)).value();
+          out.emplace_back(CoordPath<N>::from_array(prefix), &*node.slots[i]);
+        }
+      }
+    } else {
+      for (int i = 0; i < kCapacity; ++i) {
+        const auto& child = node.children[i];
+        if (child) {
+          prefix[level] = Coord::from_index(static_cast<uint16_t>(i)).value();
+          collect_entries<D - 1>(*child, prefix, level + 1, out);
         }
       }
     }
