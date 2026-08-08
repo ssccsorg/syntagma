@@ -4,6 +4,9 @@
 **/*.log
 **/*.bak
 **/*.backup
+**/*.swp
+**/*.swo
+**/*~
 
 # ============================================================
 # Python
@@ -47,9 +50,13 @@
 **/target/
 
 # ============================================================
-# C++ (tagma_core)
+# C++ (sw/cpp)
 # ============================================================
+# In-source CMake build tree (see sw/cpp/run.sh), at any depth.
 sw/cpp/**/build/
+
+# CMake compile database for editors and IDEs.
+sw/cpp/**/compile_commands.json
 
 # ============================================================
 # Benchmark output artifacts
