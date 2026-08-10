@@ -7,13 +7,21 @@
 
 use tagma_core::Coord;
 use tagma_sec::proxy::{route_update, SecStack};
-use tagma_sec::types::{Decision, Path, Scope};
+use tagma_sec::types::{Attestation, Decision, Path, Scope};
 
 /// Builds a path from raw coordinate indices.
 fn path(idxs: &[u16]) -> Path {
     idxs.iter()
         .map(|&i| Coord::new(i).expect("valid coord"))
         .collect()
+}
+
+/// Issues an attestation valid from epoch 0 through epoch 100.
+fn issue_default(stack: &mut SecStack, principal: u64, scope: Scope) -> Attestation {
+    stack
+        .authority
+        .issue(principal, scope, 0, 100)
+        .expect("issuance succeeds")
 }
 
 /// Runs the given closure against both stack implementations.
@@ -28,11 +36,7 @@ fn with_both_stacks<F: Fn(&mut SecStack)>(f: F) {
 fn authorized_route_update_is_accepted_and_chained() {
     with_both_stacks(|stack| {
         let principal = stack.authority.register(b"coordinator-1");
-        let scope = Scope::Prefix(path(&[1, 2]));
-        let att = stack
-            .authority
-            .issue(principal, scope, 100)
-            .expect("issuance succeeds");
+        let att = issue_default(stack, principal, Scope::Prefix(path(&[1, 2])));
 
         let first = route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 50)
             .expect("in-scope update accepted");
@@ -43,7 +47,7 @@ fn authorized_route_update_is_accepted_and_chained() {
             .expect("second in-scope update accepted");
         assert_eq!(
             second.event.id, 2,
-            "receipt entry of the first update takes id 1"
+            "the receipt entry of the first update takes id 1"
         );
         assert_eq!(second.event.prev, Some(1));
 
@@ -62,11 +66,7 @@ fn authorized_route_update_is_accepted_and_chained() {
 fn route_outside_scope_is_rejected_without_appending() {
     with_both_stacks(|stack| {
         let principal = stack.authority.register(b"coordinator-1");
-        let scope = Scope::Exact(path(&[1, 2]));
-        let att = stack
-            .authority
-            .issue(principal, scope, 100)
-            .expect("issuance succeeds");
+        let att = issue_default(stack, principal, Scope::Exact(path(&[1, 2])));
 
         // A longer path is outside an Exact scope.
         assert!(route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 50).is_none());
@@ -85,7 +85,7 @@ fn expired_attestation_is_rejected() {
         let principal = stack.authority.register(b"coordinator-1");
         let att = stack
             .authority
-            .issue(principal, Scope::Prefix(path(&[1, 2])), 10)
+            .issue(principal, Scope::Prefix(path(&[1, 2])), 0, 10)
             .expect("issuance succeeds");
 
         assert!(route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 10).is_some());
@@ -97,17 +97,34 @@ fn expired_attestation_is_rejected() {
 }
 
 #[test]
+fn attestation_not_yet_valid_is_rejected() {
+    with_both_stacks(|stack| {
+        let principal = stack.authority.register(b"coordinator-1");
+        let att = stack
+            .authority
+            .issue(principal, Scope::Prefix(path(&[1, 2])), 10, 100)
+            .expect("issuance succeeds");
+
+        assert!(
+            route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 9).is_none(),
+            "attestation must not authorize before its issued epoch"
+        );
+        assert!(route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 10).is_some());
+    });
+}
+
+#[test]
 fn revoked_scope_stops_authorization() {
     with_both_stacks(|stack| {
         let principal = stack.authority.register(b"coordinator-1");
         let scope = Scope::Prefix(path(&[1, 2]));
         let att = stack
             .authority
-            .issue(principal, scope.clone(), 100)
+            .issue(principal, scope.clone(), 0, 100)
             .expect("issuance succeeds");
 
         assert_eq!(
-            stack.authority.authorize(&att, &path(&[1, 2, 3]), 5),
+            stack.authority.authorize(&att, &path(&[1, 2, 3]), 1, 5),
             Decision::Allow
         );
 
@@ -141,6 +158,27 @@ fn tampered_record_fails_integrity_verification() {
 }
 
 #[test]
+fn integrity_refresh_rebinds_seal() {
+    with_both_stacks(|stack| {
+        let principal = stack.authority.register(b"coordinator-1");
+        let record = b"route-v1";
+        let target = path(&[1, 2]);
+
+        let seal = stack.integrity.seal(record, &target, principal, 5);
+        let refreshed = stack
+            .integrity
+            .refresh(record, &target, principal, 5, 6, &seal)
+            .expect("refresh from the binding epoch succeeds");
+        assert!(
+            stack
+                .integrity
+                .verify(record, &target, principal, 6, &refreshed),
+            "refreshed seal verifies at the new epoch"
+        );
+    });
+}
+
+#[test]
 fn channel_detects_tampered_evidence() {
     with_both_stacks(|stack| {
         let evidence = b"route-update-request";
@@ -157,26 +195,49 @@ fn channel_detects_tampered_evidence() {
 }
 
 #[test]
-fn workflow_produces_verifiable_signed_evidence() {
+fn channel_exchange_binds_epoch_and_remote() {
+    with_both_stacks(|stack| {
+        let receipt = stack.channel.exchange(b"request", 7, 5);
+        assert!(stack.channel.verify_receipt(&receipt));
+        assert_eq!(receipt.remote, 7);
+        assert_eq!(receipt.epoch, 5);
+
+        let mut forged_epoch = receipt.clone();
+        forged_epoch.epoch = 6;
+        assert!(
+            !stack.channel.verify_receipt(&forged_epoch),
+            "epoch tampering must be detected"
+        );
+
+        let mut forged_remote = receipt.clone();
+        forged_remote.remote = 8;
+        assert!(
+            !stack.channel.verify_receipt(&forged_remote),
+            "remote tampering must be detected"
+        );
+    });
+}
+
+#[test]
+fn workflow_produces_verifiable_receipt() {
     with_both_stacks(|stack| {
         let principal = stack.authority.register(b"coordinator-1");
-        let att = stack
-            .authority
-            .issue(principal, Scope::Prefix(path(&[1, 2])), 100)
-            .expect("issuance succeeds");
+        let att = issue_default(stack, principal, Scope::Prefix(path(&[1, 2])));
 
         let res =
             route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 50).expect("update accepted");
         assert!(
-            stack.channel.verify(&res.signed),
-            "non-repudiation evidence verifies through the channel"
+            stack.channel.verify_receipt(&res.receipt),
+            "workflow receipt verifies through the channel"
         );
+        assert_eq!(res.receipt.remote, principal);
+        assert_eq!(res.receipt.epoch, 50);
 
-        let mut forged = res.signed.clone();
-        forged.evidence[0] ^= 0xFF;
+        let mut forged = res.receipt.clone();
+        forged.epoch = 51;
         assert!(
-            !stack.channel.verify(&forged),
-            "tampered evidence must fail channel verification"
+            !stack.channel.verify_receipt(&forged),
+            "tampered receipt must fail verification"
         );
     });
 }
@@ -201,13 +262,41 @@ fn audit_chain_rejects_invalid_ranges() {
 }
 
 #[test]
+fn audit_proof_and_export_verify() {
+    with_both_stacks(|stack| {
+        stack.audit.append(b"event-0", 0);
+        stack.audit.append(b"event-1", 1);
+        stack.audit.append(b"event-2", 2);
+
+        let proof = stack.audit.prove(1).expect("inclusion proof");
+        assert!(proof.verify(), "proof verifies without the log");
+
+        let bundle = stack.audit.export(0, 2).expect("evidence bundle");
+        assert!(bundle.verify(), "bundle verifies without the log");
+
+        let mut forged = bundle.clone();
+        forged.entries[1].payload = b"tampered".to_vec();
+        assert!(
+            !forged.verify(),
+            "tampered payload breaks bundle verification"
+        );
+
+        assert!(
+            stack.audit.prove(3).is_none(),
+            "out-of-range proof rejected"
+        );
+        assert!(
+            stack.audit.export(2, 1).is_none(),
+            "reversed range rejected"
+        );
+    });
+}
+
+#[test]
 fn audit_event_commits_to_record_payload() {
     with_both_stacks(|stack| {
         let principal = stack.authority.register(b"coordinator-1");
-        let att = stack
-            .authority
-            .issue(principal, Scope::Prefix(path(&[1, 2])), 100)
-            .expect("issuance succeeds");
+        let att = issue_default(stack, principal, Scope::Prefix(path(&[1, 2])));
 
         let record = b"route-v1";
         let res =
