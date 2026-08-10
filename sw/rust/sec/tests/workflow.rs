@@ -7,7 +7,7 @@
 
 use tagma_core::Coord;
 use tagma_sec::proxy::{route_update, SecStack};
-use tagma_sec::types::{Attestation, Decision, Path, Scope};
+use tagma_sec::types::{Attestation, Decision, Path, Scope, ACTION_ROUTE_UPDATE};
 
 /// Builds a path from raw coordinate indices.
 fn path(idxs: &[u16]) -> Path {
@@ -110,6 +110,50 @@ fn attestation_not_yet_valid_is_rejected() {
             "attestation must not authorize before its issued epoch"
         );
         assert!(route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 10).is_some());
+    });
+}
+
+#[test]
+fn malformed_attestation_lifetime_never_authorizes() {
+    with_both_stacks(|stack| {
+        let principal = stack.authority.register(b"coordinator-1");
+        // An invalid window: the issued epoch lies after the validity end.
+        let att = stack
+            .authority
+            .issue(principal, Scope::Prefix(path(&[1, 2])), 100, 10)
+            .expect("issuance succeeds");
+
+        assert_eq!(
+            stack
+                .authority
+                .authorize(&att, &path(&[1, 2, 3]), ACTION_ROUTE_UPDATE, 50),
+            Decision::Deny,
+            "an invalid lifetime window must fail closed at every epoch"
+        );
+        assert!(route_update(stack, &att, &path(&[1, 2, 3]), b"route-v1", 50).is_none());
+    });
+}
+
+#[test]
+fn principals_are_scoped_independently() {
+    with_both_stacks(|stack| {
+        let alice = stack.authority.register(b"coordinator-alice");
+        let bob = stack.authority.register(b"coordinator-bob");
+        let alice_att = issue_default(stack, alice, Scope::Prefix(path(&[1, 2])));
+        let bob_att = issue_default(stack, bob, Scope::Prefix(path(&[5, 6])));
+
+        assert!(
+            route_update(stack, &alice_att, &path(&[5, 6]), b"route-bob", 50).is_none(),
+            "alice must not act on bob's scope"
+        );
+        assert!(
+            route_update(stack, &bob_att, &path(&[1, 2]), b"route-alice", 50).is_none(),
+            "bob must not act on alice's scope"
+        );
+
+        let res = route_update(stack, &alice_att, &path(&[1, 2, 3]), b"route-alice", 50)
+            .expect("alice update accepted");
+        assert_eq!(res.receipt.remote, alice);
     });
 }
 

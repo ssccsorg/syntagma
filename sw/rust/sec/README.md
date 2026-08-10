@@ -85,12 +85,12 @@ assert!(stack.channel.verify_receipt(&res.receipt));
 
 From `sw/rust`:
 
-```
+```text
 cargo test -p tagma-sec
 cargo test --workspace
 ```
 
-The crate carries 20 tests: 13 common workflow tests and 7 tagma-sec-specific property tests.
+The crate carries 23 tests: 15 common workflow tests and 8 tagma-sec-specific property tests. The README usage example is additionally compiled as a doctest.
 
 ## Known limitations
 

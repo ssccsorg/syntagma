@@ -1,9 +1,6 @@
-//! tagma-sec: security layer for the synTagma ecosystem.
-//!
-//! Implements the authority, integrity, audit, and channel primitives
-//! specified in `spec/tagma-sec.md`, plus a proxy stack that switches
-//! between a legacy security pattern and the tagma-sec pattern against the
-//! same scenario-driven workflow tests.
+//! Crate documentation is generated from the README, whose code blocks are
+//! compiled as doctests.
+#![doc = include_str!("../README.md")]
 
 extern crate alloc;
 

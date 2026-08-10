@@ -52,6 +52,28 @@ fn delos_seal_binds_epoch_and_principal() {
 }
 
 #[test]
+fn delos_seal_changes_when_any_bound_input_changes() {
+    let delos = SecStack::delos();
+    let record = b"route-v1";
+    let target = path(&[1, 2]);
+    let base = delos.integrity.seal(record, &target, 7, 5);
+
+    let cases: Vec<(&[u8], Path, u64, u64)> = vec![
+        (b"route-v2", path(&[1, 2]), 7, 5), // record change
+        (record, path(&[1, 3]), 7, 5),      // path change
+        (record, path(&[1, 2]), 8, 5),      // principal change
+        (record, path(&[1, 2]), 7, 6),      // epoch change
+    ];
+    for (r, p, principal, epoch) in cases {
+        let seal = delos.integrity.seal(r, &p, principal, epoch);
+        assert_ne!(
+            seal.tag, base.tag,
+            "the delos seal must change when any bound input changes"
+        );
+    }
+}
+
+#[test]
 fn refresh_epoch_binding_differs_from_legacy() {
     let record = b"route-v1";
     let target = path(&[1, 2]);
