@@ -129,6 +129,9 @@ impl Integrity for DelosIntegrity {
         to_epoch: Epoch,
         seal: &Seal,
     ) -> Option<Seal> {
+        if to_epoch <= from_epoch {
+            return None;
+        }
         if self.verify(record, path, principal, from_epoch, seal) {
             Some(self.seal(record, path, principal, to_epoch))
         } else {

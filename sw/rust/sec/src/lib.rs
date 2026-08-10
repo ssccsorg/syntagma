@@ -8,7 +8,7 @@ pub mod audit;
 pub mod authority;
 pub mod channel;
 pub mod delos;
-pub mod hash;
+pub(crate) mod hash;
 pub mod integrity;
 pub mod legacy;
 pub mod proxy;

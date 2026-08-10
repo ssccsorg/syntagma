@@ -52,6 +52,33 @@ fn delos_seal_binds_epoch_and_principal() {
 }
 
 #[test]
+fn delos_refresh_rejects_non_newer_epoch() {
+    let delos = SecStack::delos();
+    let record = b"route-v1";
+    let target = path(&[1, 2]);
+    let seal = delos.integrity.seal(record, &target, 7, 5);
+
+    assert!(
+        delos
+            .integrity
+            .refresh(record, &target, 7, 5, 4, &seal)
+            .is_none(),
+        "refresh to an older epoch must be rejected"
+    );
+    assert!(
+        delos
+            .integrity
+            .refresh(record, &target, 7, 5, 5, &seal)
+            .is_none(),
+        "refresh to the same epoch must be rejected"
+    );
+    assert!(delos
+        .integrity
+        .refresh(record, &target, 7, 5, 6, &seal)
+        .is_some());
+}
+
+#[test]
 fn delos_seal_changes_when_any_bound_input_changes() {
     let delos = SecStack::delos();
     let record = b"route-v1";
