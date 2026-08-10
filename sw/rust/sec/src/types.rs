@@ -11,6 +11,9 @@ pub type Epoch = u64;
 /// Action label. The PoC workflow uses a single action (route update).
 pub type Action = u8;
 
+/// The single action of the PoC workflow: a coordination node route update.
+pub const ACTION_ROUTE_UPDATE: Action = 1;
+
 /// A scoped path: an ordered sequence of valid Coords.
 pub type Path = Vec<Coord>;
 
@@ -85,4 +88,12 @@ pub struct Event {
 pub struct SignedEvidence {
     pub evidence: Vec<u8>,
     pub tag: [u8; 32],
+}
+
+/// Proof of delivery and origin for exchanged evidence.
+#[derive(Clone, Debug)]
+pub struct Receipt {
+    pub signed: SignedEvidence,
+    pub remote: PrincipalId,
+    pub epoch: Epoch,
 }

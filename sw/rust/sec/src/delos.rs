@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 
 use crate::authority::Authority;
 use crate::integrity::Integrity;
-use crate::types::{Attestation, Decision, Epoch, Path, PrincipalId, Scope, Seal};
+use crate::types::{Action, Attestation, Decision, Epoch, Path, PrincipalId, Scope, Seal};
 
 const DELOS_INTEGRITY_KEY: &[u8; 32] = b"tagma-sec-poc-delos-int-key-0000";
 
@@ -49,6 +49,7 @@ impl Authority for DelosAuthority {
         &mut self,
         principal: PrincipalId,
         scope: Scope,
+        issued_epoch: Epoch,
         valid_until: Epoch,
     ) -> Option<Attestation> {
         self.next_att += 1;
@@ -56,7 +57,7 @@ impl Authority for DelosAuthority {
             id: self.next_att,
             principal,
             scope,
-            issued_epoch: 0,
+            issued_epoch,
             valid_until,
         };
         self.attestations
@@ -66,7 +67,7 @@ impl Authority for DelosAuthority {
         Some(att)
     }
 
-    fn authorize(&self, att: &Attestation, path: &Path, epoch: Epoch) -> Decision {
+    fn authorize(&self, att: &Attestation, path: &Path, _action: Action, epoch: Epoch) -> Decision {
         let in_scope = self
             .attestations
             .get(&att.principal)
@@ -74,7 +75,7 @@ impl Authority for DelosAuthority {
         if !in_scope {
             return Decision::Deny;
         }
-        if epoch > att.valid_until {
+        if epoch < att.issued_epoch || epoch > att.valid_until {
             return Decision::Deny;
         }
         if let Some(&revoked_at) = self.revoked.get(&(att.principal, att.scope.key())) {
@@ -117,5 +118,21 @@ impl Integrity for DelosIntegrity {
         seal: &Seal,
     ) -> bool {
         self.seal(record, path, principal, epoch).tag == seal.tag
+    }
+
+    fn refresh(
+        &self,
+        record: &[u8],
+        path: &Path,
+        principal: PrincipalId,
+        from_epoch: Epoch,
+        to_epoch: Epoch,
+        seal: &Seal,
+    ) -> Option<Seal> {
+        if self.verify(record, path, principal, from_epoch, seal) {
+            Some(self.seal(record, path, principal, to_epoch))
+        } else {
+            None
+        }
     }
 }

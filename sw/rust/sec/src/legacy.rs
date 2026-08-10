@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 use crate::authority::Authority;
 use crate::integrity::Integrity;
-use crate::types::{Attestation, Decision, Epoch, Path, PrincipalId, Scope, Seal};
+use crate::types::{Action, Attestation, Decision, Epoch, Path, PrincipalId, Scope, Seal};
 
 const LEGACY_INTEGRITY_KEY: &[u8; 32] = b"tagma-sec-poc-legacy-int-key-000";
 
@@ -48,6 +48,7 @@ impl Authority for LegacyAuthority {
         &mut self,
         principal: PrincipalId,
         scope: Scope,
+        issued_epoch: Epoch,
         valid_until: Epoch,
     ) -> Option<Attestation> {
         self.next_att += 1;
@@ -55,7 +56,7 @@ impl Authority for LegacyAuthority {
             id: self.next_att,
             principal,
             scope,
-            issued_epoch: 0,
+            issued_epoch,
             valid_until,
         };
         self.attestations
@@ -65,10 +66,14 @@ impl Authority for LegacyAuthority {
         Some(att)
     }
 
-    fn authorize(&self, att: &Attestation, path: &Path, epoch: Epoch) -> Decision {
+    fn authorize(&self, att: &Attestation, path: &Path, _action: Action, epoch: Epoch) -> Decision {
         let allowed = self.attestations.get(&att.principal).is_some_and(|list| {
-            list.iter()
-                .any(|a| a.id == att.id && a.scope.matches(path) && epoch <= a.valid_until)
+            list.iter().any(|a| {
+                a.id == att.id
+                    && a.scope.matches(path)
+                    && epoch >= a.issued_epoch
+                    && epoch <= a.valid_until
+            })
         });
         if allowed {
             Decision::Allow
@@ -108,5 +113,21 @@ impl Integrity for LegacyIntegrity {
         seal: &Seal,
     ) -> bool {
         self.seal(record, path, 0, 0).tag == seal.tag
+    }
+
+    fn refresh(
+        &self,
+        record: &[u8],
+        path: &Path,
+        principal: PrincipalId,
+        _from_epoch: Epoch,
+        to_epoch: Epoch,
+        seal: &Seal,
+    ) -> Option<Seal> {
+        if self.verify(record, path, principal, 0, seal) {
+            Some(self.seal(record, path, principal, to_epoch))
+        } else {
+            None
+        }
     }
 }

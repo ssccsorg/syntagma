@@ -20,4 +20,16 @@ pub trait Integrity {
         epoch: Epoch,
         seal: &Seal,
     ) -> bool;
+
+    /// Re-binds an existing seal to a newer epoch without altering the
+    /// record. Returns `None` when the input seal does not verify.
+    fn refresh(
+        &self,
+        record: &[u8],
+        path: &Path,
+        principal: PrincipalId,
+        from_epoch: Epoch,
+        to_epoch: Epoch,
+        seal: &Seal,
+    ) -> Option<Seal>;
 }
