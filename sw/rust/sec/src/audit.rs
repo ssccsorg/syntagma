@@ -67,10 +67,7 @@ impl EvidenceBundle {
 fn verify_entries(entries: &[Entry]) -> bool {
     entries.iter().enumerate().all(|(i, e)| {
         blake3::hash(&e.payload).as_bytes() == &e.event.payload_hash
-            && match e.event.prev {
-                None => i == 0,
-                Some(prev) => i > 0 && entries[i - 1].event.id == prev,
-            }
+            && (i == 0 || e.event.prev == Some(entries[i - 1].event.id))
     })
 }
 

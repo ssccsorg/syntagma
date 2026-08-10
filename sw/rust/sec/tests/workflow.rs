@@ -274,6 +274,12 @@ fn audit_proof_and_export_verify() {
         let bundle = stack.audit.export(0, 2).expect("evidence bundle");
         assert!(bundle.verify(), "bundle verifies without the log");
 
+        let mid = stack.audit.export(1, 2).expect("mid-range evidence bundle");
+        assert!(
+            mid.verify(),
+            "mid-range bundle verifies internally despite an external prev link"
+        );
+
         let mut forged = bundle.clone();
         forged.entries[1].payload = b"tampered".to_vec();
         assert!(
