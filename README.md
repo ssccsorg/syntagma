@@ -9,6 +9,7 @@ Tagma is a primitive where the address is the coordinate -- not a flat pointer, 
 ```
 synTagma (system)
   └─ Coordination layer (protocol, topology, distributed resolver)
+  └─ tagma-sec (security primitives: authority, integrity, audit, channel)
   └─ tagma-kv (hashless KV + CoordCubeKV spatial queries)
   └─ tagma-geo (CoordCube interpretation layer, spatial ops, distance metrics)
   └─ Tagma core primitive (Coord, CoordPath, CoordSet, CoordSetN, CoordCube, CoordSpace)
@@ -17,6 +18,7 @@ synTagma (system)
 - Tagma -- the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding. The atomic identity primitive.
 - tagma-geo -- spatial operations built on CoordCube: proximity (L∞ Chebyshev radius), bounding box enumeration, Hamming distance, Euclidean distance (approximate), Manhattan distance. Depends only on tagma-core.
 - tagma-kv -- native CoordSpace KV: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Integrates `tagma-geo` via `CoordCubeKV` for zero-cost spatial queries on KV data. Zero extra cost for spatial indexing.
+- tagma-sec -- security primitives for coordination traffic: authority (CoordPath Exact/Prefix scope authorization), integrity (epoch-bound seals), audit (chained evidence log with inclusion proofs), channel (non-repudiation receipts). Depends on tagma-core. Defined in `docs/spec/tagma-sec.md`.
 - synTagma coordination layer -- recursive coordinate space expansion, physical topology mapping, distributed routing, and consistency protocol. Defined in the [synTagma](https://docs.ssccs.org/projects/syntagma).
 
 ## Tagma primitive: Feature levels
@@ -80,6 +82,16 @@ Test coverage: 190+ unit/integration tests + 22+ doc-tests, all passing. Zero cl
 | CoordKV trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `kvsrc/coord_kv.rs` |
 | CoordKVKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `kvsrc/coord_kv.rs` |
 | CoordCubeKV\<N\> trait | Spatial queries on KV stores: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordKV2, CoordKVN\<N\>, DynCoordKV | `kvsrc/spatial.rs` |
+
+### tagma-sec: security primitives (requires alloc)
+
+| Type | Description | File |
+|------|-------------|------|
+| SecStack | Composable security stack over the four modules with switchable `legacy()` and `delos()` implementations | `sec/src/proxy.rs` |
+| Authority trait | register, issue (issued epoch and validity window), authorize (Exact/Prefix scope matching with action label), revoke (epoch-scoped) | `sec/src/authority.rs` |
+| Integrity trait | seal (record, path, principal, epoch binding), verify, refresh (monotonic re-binding) | `sec/src/integrity.rs` |
+| Audit trait | append, verify_chain, prove (inclusion proof), export (evidence bundle) | `sec/src/audit.rs` |
+| Channel trait | sign, verify, exchange (receipt binding evidence, remote, epoch), verify_receipt | `sec/src/channel.rs` |
 
 ## Quick start
 
@@ -214,6 +226,26 @@ let nearby: Vec<_> = kv.proximity::<2, 1>(&center, 1);
 assert_eq!(nearby.len(), 9);
 ```
 
+### tagma-sec usage
+
+```rust
+use tagma_core::Coord;
+use tagma_sec::proxy::{route_update, SecStack};
+use tagma_sec::types::{Path, Scope};
+
+let mut stack = SecStack::delos();
+let principal = stack.authority.register(b"coordinator-1");
+let scope = Scope::Prefix(vec![Coord::new(1).unwrap(), Coord::new(2).unwrap()]);
+let att = stack.authority.issue(principal, scope, 0, 100).unwrap();
+let path: Path = vec![
+    Coord::new(1).unwrap(),
+    Coord::new(2).unwrap(),
+    Coord::new(3).unwrap(),
+];
+let res = route_update(&mut stack, &att, &path, b"route-v1", 50).expect("authorized update");
+assert!(stack.channel.verify_receipt(&res.receipt));
+```
+
 ## Feature matrix
 
 | Feature | `no_alloc` | `alloc` (default) | `mmap` |
@@ -230,6 +262,7 @@ assert_eq!(nearby.len(), 9);
 | DynCoordSpace (runtime trie) | ❌ | ✅ | ❌ |
 | tagma-geo (spatial ops, metrics) | ❌ | ✅ | ❌ |
 | tagma-kv (string-key KV, HashMap API) | ❌ | ✅ | ❌ |
+| tagma-sec (security primitives, route-update workflow) | ❌ | ✅ | ❌ |
 
 ## How Tagma works
 
@@ -414,10 +447,12 @@ Once data is in Tagma coordinate space, spatial capabilities (prefix scan, axis 
 - [White Paper](https://docs.ssccs.org/projects/syntagma/tagma/wp) -- Tagma coordinate space, decoder, hardware implementation, benchmarks
 - [synTagma coordination layer](https://docs.ssccs.org/projects/syntagma/) -- Recursive topology mapping, transport, distributed resolver, consistency
 - [Tagma-ID](https://docs.ssccs.org/projects/syntagma/tagma/id) -- Content-addressable identity without hash functions
-- [Specification](spec/coord-space.md) -- Language-independent Tagma coordinate space definition
+- [Specification](docs/spec/coord-space.md) -- Language-independent Tagma coordinate space definition
+- [Specification (tagma-sec)](docs/spec/tagma-sec.md) -- Security layer: authority, integrity, audit, channel, hybrid confidentiality
 - [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
 - [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
 - [Rustdoc (tagma-kv)](https://docs.ssccs.org/projects/syntagma/tagma/kv/) -- CoordKV, CoordKV2, CoordKVN, DynCoordKV, CoordCubeKV, CoordKey
+- [Rustdoc (tagma-sec)](https://docs.ssccs.org/projects/syntagma/tagma/sec/) -- SecStack, Authority, Integrity, Audit, Channel
 
 ## License
 
