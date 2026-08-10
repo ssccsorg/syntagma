@@ -1,0 +1,201 @@
+//! tagma-sec-specific properties of the Delos stack.
+//!
+//! These tests pin the properties that distinguish the tagma-sec pattern
+//! from the legacy one: epoch-bound seals, prefix scope semantics, and
+//! revocation that is effective only from the recorded epoch.
+
+use tagma_core::Coord;
+use tagma_sec::proxy::SecStack;
+use tagma_sec::types::{Decision, Path, Scope};
+
+/// Builds a path from raw coordinate indices.
+fn path(idxs: &[u16]) -> Path {
+    idxs.iter()
+        .map(|&i| Coord::new(i).expect("valid coord"))
+        .collect()
+}
+
+#[test]
+fn delos_seal_binds_epoch_and_principal() {
+    let record = b"route-v1";
+    let target = path(&[1, 2]);
+
+    // Legacy seal binds only record and path: principal and epoch are free.
+    let legacy = SecStack::legacy();
+    let legacy_seal = legacy.integrity.seal(record, &target, 7, 5);
+    assert!(legacy.integrity.verify(record, &target, 7, 5, &legacy_seal));
+    assert!(
+        legacy
+            .integrity
+            .verify(record, &target, 99, 99, &legacy_seal),
+        "legacy seal ignores principal and epoch"
+    );
+
+    // Delos seal binds record, path, principal, and epoch.
+    let delos = SecStack::delos();
+    let delos_seal = delos.integrity.seal(record, &target, 7, 5);
+    assert!(delos.integrity.verify(record, &target, 7, 5, &delos_seal));
+    assert!(
+        !delos.integrity.verify(record, &target, 7, 6, &delos_seal),
+        "epoch change must break the delos seal"
+    );
+    assert!(
+        !delos.integrity.verify(record, &target, 8, 5, &delos_seal),
+        "principal change must break the delos seal"
+    );
+    assert!(
+        !delos
+            .integrity
+            .verify(record, &path(&[1, 3]), 7, 5, &delos_seal),
+        "path change must break the delos seal"
+    );
+}
+
+#[test]
+fn prefix_scope_covers_longer_paths() {
+    let mut stack = SecStack::delos();
+    let principal = stack.authority.register(b"coordinator-1");
+    let att = stack
+        .authority
+        .issue(principal, Scope::Prefix(path(&[1, 2])), 100)
+        .expect("issuance succeeds");
+
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2]), 50),
+        Decision::Allow
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3]), 50),
+        Decision::Allow
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3, 4]), 50),
+        Decision::Allow
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 3]), 50),
+        Decision::Deny
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[2, 3]), 50),
+        Decision::Deny
+    );
+}
+
+#[test]
+fn exact_scope_matches_only_identical_path() {
+    let mut stack = SecStack::delos();
+    let principal = stack.authority.register(b"coordinator-1");
+    let att = stack
+        .authority
+        .issue(principal, Scope::Exact(path(&[1, 2])), 100)
+        .expect("issuance succeeds");
+
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2]), 50),
+        Decision::Allow
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3]), 50),
+        Decision::Deny
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 3]), 50),
+        Decision::Deny
+    );
+}
+
+#[test]
+fn delos_revocation_is_effective_from_recorded_epoch() {
+    let mut stack = SecStack::delos();
+    let principal = stack.authority.register(b"coordinator-1");
+    let scope = Scope::Prefix(path(&[1, 2]));
+    let att = stack
+        .authority
+        .issue(principal, scope.clone(), 100)
+        .expect("issuance succeeds");
+
+    stack.authority.revoke(principal, &scope, 10);
+
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3]), 9),
+        Decision::Allow,
+        "delos revocation is not effective before the recorded epoch"
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3]), 10),
+        Decision::Deny,
+        "delos revocation takes effect at the recorded epoch"
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3]), 11),
+        Decision::Deny
+    );
+
+    // Legacy contrast: the ACL entry is removed immediately, so there is no
+    // grace window before the recorded epoch.
+    let mut legacy = SecStack::legacy();
+    let principal = legacy.authority.register(b"coordinator-1");
+    let scope = Scope::Prefix(path(&[1, 2]));
+    let att = legacy
+        .authority
+        .issue(principal, scope.clone(), 100)
+        .expect("issuance succeeds");
+    legacy.authority.revoke(principal, &scope, 10);
+    assert_eq!(
+        legacy.authority.authorize(&att, &path(&[1, 2, 3]), 9),
+        Decision::Deny,
+        "legacy revocation removes the entry immediately"
+    );
+}
+
+#[test]
+fn revocation_key_is_scope_specific() {
+    let mut stack = SecStack::delos();
+    let principal = stack.authority.register(b"coordinator-1");
+    let exact_att = stack
+        .authority
+        .issue(principal, Scope::Exact(path(&[1, 2])), 100)
+        .expect("issuance succeeds");
+    let prefix_att = stack
+        .authority
+        .issue(principal, Scope::Prefix(path(&[1, 2])), 100)
+        .expect("issuance succeeds");
+
+    stack
+        .authority
+        .revoke(principal, &Scope::Exact(path(&[1, 2])), 10);
+
+    assert_eq!(
+        stack.authority.authorize(&exact_att, &path(&[1, 2]), 10),
+        Decision::Deny,
+        "exact scope is revoked"
+    );
+    assert_eq!(
+        stack
+            .authority
+            .authorize(&prefix_att, &path(&[1, 2, 3]), 10),
+        Decision::Allow,
+        "prefix scope has a distinct revocation key"
+    );
+}
+
+#[test]
+fn attestation_lifetime_boundary_is_inclusive() {
+    let mut stack = SecStack::delos();
+    let principal = stack.authority.register(b"coordinator-1");
+    let att = stack
+        .authority
+        .issue(principal, Scope::Prefix(path(&[1, 2])), 10)
+        .expect("issuance succeeds");
+
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3]), 10),
+        Decision::Allow,
+        "the validity end epoch is inclusive"
+    );
+    assert_eq!(
+        stack.authority.authorize(&att, &path(&[1, 2, 3]), 11),
+        Decision::Deny
+    );
+}
