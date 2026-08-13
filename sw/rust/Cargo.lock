@@ -588,6 +588,7 @@ dependencies = [
  "tagma-core",
  "tagma-geo",
  "tagma-kv",
+ "tagma-sec",
 ]
 
 [[package]]
