@@ -3849,24 +3849,22 @@ fn bench_sec_authorize_ops(c: &mut Criterion) {
 
     c.bench_function("Sec/authorize/allow/prefix_d2_path_d3", |b| {
         b.iter(|| {
-            black_box(stack.authority.authorize(
-                &att,
-                &target,
-                ACTION_ROUTE_UPDATE,
-                50,
-            ))
+            black_box(
+                stack
+                    .authority
+                    .authorize(&att, &target, ACTION_ROUTE_UPDATE, 50),
+            )
         })
     });
 
     let outside = sec_path_range(100, 3);
     c.bench_function("Sec/authorize/deny", |b| {
         b.iter(|| {
-            black_box(stack.authority.authorize(
-                &att,
-                &outside,
-                ACTION_ROUTE_UPDATE,
-                50,
-            ))
+            black_box(
+                stack
+                    .authority
+                    .authorize(&att, &outside, ACTION_ROUTE_UPDATE, 50),
+            )
         })
     });
 
@@ -3874,12 +3872,11 @@ fn bench_sec_authorize_ops(c: &mut Criterion) {
     stack.authority.revoke(principal, &scope, 10);
     c.bench_function("Sec/authorize/revoked/hit", |b| {
         b.iter(|| {
-            black_box(stack.authority.authorize(
-                &att,
-                &target,
-                ACTION_ROUTE_UPDATE,
-                50,
-            ))
+            black_box(
+                stack
+                    .authority
+                    .authorize(&att, &target, ACTION_ROUTE_UPDATE, 50),
+            )
         })
     });
 }
@@ -3898,12 +3895,11 @@ fn bench_sec_authorize_depth(c: &mut Criterion) {
         let target = sec_path_range(0, depth + 1);
         c.bench_function(&format!("Sec/authorize/allow/scope_depth_{}", depth), |b| {
             b.iter(|| {
-                black_box(stack.authority.authorize(
-                    &att,
-                    &target,
-                    ACTION_ROUTE_UPDATE,
-                    50,
-                ))
+                black_box(
+                    stack
+                        .authority
+                        .authorize(&att, &target, ACTION_ROUTE_UPDATE, 50),
+                )
             })
         });
     }
@@ -3922,9 +3918,7 @@ fn bench_sec_integrity_ops(c: &mut Criterion) {
         b.iter(|| black_box(delos.integrity.verify(record, &target, 7, 50, &d_seal)))
     });
     c.bench_function("Sec/refresh/pattern", |b| {
-        b.iter(|| {
-            black_box(delos.integrity.refresh(record, &target, 7, 50, 51, &d_seal))
-        })
+        b.iter(|| black_box(delos.integrity.refresh(record, &target, 7, 50, 51, &d_seal)))
     });
 
     let legacy = SecStack::legacy();
@@ -3989,7 +3983,15 @@ fn bench_sec_route_update(c: &mut Criterion) {
         .issue(principal, scope, 0, u64::MAX)
         .expect("issuance succeeds");
     c.bench_function("Sec/route_update/legacy", |b| {
-        b.iter(|| black_box(route_update(&mut legacy, &l_att, &target, b"bench-route", 50)))
+        b.iter(|| {
+            black_box(route_update(
+                &mut legacy,
+                &l_att,
+                &target,
+                b"bench-route",
+                50,
+            ))
+        })
     });
 }
 
