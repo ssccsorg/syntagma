@@ -117,6 +117,13 @@ fn refresh_epoch_binding_differs_from_legacy() {
         legacy_refreshed.tag, legacy_seal.tag,
         "legacy seal is epoch-free, so refresh is a no-op"
     );
+    assert!(
+        legacy
+            .integrity
+            .refresh(record, &target, 7, 5, 4, &legacy_seal)
+            .is_some(),
+        "legacy refresh stays epoch-free even toward an older epoch"
+    );
 
     // Delos refresh re-binds the seal to the new epoch.
     let delos = SecStack::delos();
@@ -216,6 +223,63 @@ fn exact_scope_matches_only_identical_path() {
             .authority
             .authorize(&att, &path(&[1, 3]), ACTION_ROUTE_UPDATE, 50),
         Decision::Deny
+    );
+}
+
+#[test]
+fn revoked_scope_stays_revoked_after_reissue() {
+    // Delos: revocation is (principal, scope)-level and persists, per the
+    // specification's "revoked (principal, scope) pair" record. A fresh
+    // attestation for the same scope does not restore authorization.
+    let mut stack = SecStack::delos();
+    let principal = stack.authority.register(b"coordinator-1");
+    let scope = Scope::Prefix(path(&[1, 2]));
+    let first = stack
+        .authority
+        .issue(principal, scope.clone(), 0, 100)
+        .expect("issuance succeeds");
+    stack.authority.revoke(principal, &scope, 20);
+
+    let reissued = stack
+        .authority
+        .issue(principal, scope.clone(), 21, 100)
+        .expect("re-issuance succeeds");
+    assert_ne!(reissued.id, first.id);
+    assert_eq!(
+        stack
+            .authority
+            .authorize(&reissued, &path(&[1, 2, 3]), ACTION_ROUTE_UPDATE, 22),
+        Decision::Deny,
+        "a re-issued attestation for a revoked scope stays revoked"
+    );
+    assert_eq!(
+        stack
+            .authority
+            .authorize(&first, &path(&[1, 2, 3]), ACTION_ROUTE_UPDATE, 19),
+        Decision::Allow,
+        "revocation is effective only from the recorded epoch"
+    );
+
+    // Legacy contrast: revocation removes the entry, and a fresh grant
+    // restores authorization.
+    let mut legacy = SecStack::legacy();
+    let principal = legacy.authority.register(b"coordinator-1");
+    let scope = Scope::Prefix(path(&[1, 2]));
+    legacy
+        .authority
+        .issue(principal, scope.clone(), 0, 100)
+        .expect("issuance succeeds");
+    legacy.authority.revoke(principal, &scope, 20);
+    let reissued = legacy
+        .authority
+        .issue(principal, scope.clone(), 21, 100)
+        .expect("re-issuance succeeds");
+    assert_eq!(
+        legacy
+            .authority
+            .authorize(&reissued, &path(&[1, 2, 3]), ACTION_ROUTE_UPDATE, 22),
+        Decision::Allow,
+        "legacy revocation removes entries and permits a fresh grant"
     );
 }
 
