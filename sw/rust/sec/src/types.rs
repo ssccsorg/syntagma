@@ -35,7 +35,7 @@ pub enum Scope {
 
 impl Scope {
     /// Returns true when `path` falls inside this scope under the Milestone 1
-    /// matching rules (Exact and Prefix only; see spec/tagma-sec.md).
+    /// matching rules (Exact and Prefix only; see docs/spec/tagma-sec.md).
     pub fn matches(&self, path: &Path) -> bool {
         match self {
             Scope::Exact(p) => p == path,

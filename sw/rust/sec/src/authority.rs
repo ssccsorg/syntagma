@@ -1,7 +1,7 @@
 //! Authority: principal registration, attestation issuance, authorization,
 //! and revocation.
 //!
-//! Scope matching follows the Milestone 1 contract in `spec/tagma-sec.md`:
+//! Scope matching follows the Milestone 1 contract in `docs/spec/tagma-sec.md`:
 //! Exact and Prefix rules only. Authorization never depends on path secrecy;
 //! paths are observable and replayable by design.
 

@@ -44,7 +44,7 @@ std::optional<RouteUpdate> route_update(SecStack& stack, const Attestation& att,
 
   // Non-repudiation: bind the record to its path and epoch, exchange a
   // receipt with the channel, and commit the signed evidence to the audit
-  // log (receipts are appended by the caller per spec/tagma-sec.md).
+  // log (receipts are appended by the caller per docs/spec/tagma-sec.md).
   Bytes evidence;
   evidence.reserve(record.size() + path.size() * 2 + 8);
   evidence.insert(evidence.end(), record.begin(), record.end());
