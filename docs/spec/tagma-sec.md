@@ -14,8 +14,8 @@ This document fixes the security claims of the layer, defines the four module in
 | Term | Meaning |
 |------|---------|
 | Principal | An entity (device, process, node) with an identity issued by an authority |
-| Attestation | A capability statement that binds a principal to a scope |
-| Scope | A `CoordPath` or a set of `CoordPath` values that an action targets |
+| Attestation | A capability statement binding a principal to a scope, carrying an issued epoch and a validity window |
+| Scope | A `CoordPath` or a set of `CoordPath` values that an action targets, matched by the rules in the authority section |
 | Seal | An integrity binding over a record, its path, and an epoch |
 | Evidence | An auditable, verifiable record of an event or an exchange |
 | Epoch | A monotonic counter that scopes replay protection |
@@ -78,6 +78,14 @@ The initial framing proposed mechanisms that this repositioning removed or repla
 
 Coordinate arithmetic operations (composition, decomposition, slot access) run at nanosecond scale. Keyed hashing, MAC, and signature verification dominate end-to-end cost, so this specification sets no total-verification bound. Benchmark figures cover the arithmetic layer only.
 
+## Path representation
+
+Scopes are expressed with the `tagma-core` `CoordPath<N>` type, where `N` is a compile-time depth. Variable-length scopes are bounded by a maximum depth instead of dynamic allocation, so the security core stays usable without an allocator, consistent with `tagma-core`.
+
+- Exact and prefix matching operate on the coordinate sequence directly; no hashing or indirection is involved.
+- A scope that must cover paths of different depths is represented as a set of fixed-depth paths, one per depth.
+- The maximum scope depth is 19 coords, matching the coordinate space that covers 2^256 values with 19 coordinates (Section 3 of `coord-space.md`).
+
 ## Module interfaces
 
 Each module lists operations in a language-independent form. Rust trait sketches are informative drafts, marked as such.
@@ -87,6 +95,17 @@ Each module lists operations in a language-independent form. Rust trait sketches
 Purpose: principal registration, attestation issuance, scope authorization, and revocation.
 
 Scope is expressed as a `CoordPath` predicate. Authorization decisions depend only on the attestation and the scope condition. Path values are observable and replayable, so the decision never depends on path secrecy.
+
+Scope matching for the initial implementation supports two rules:
+
+| Rule | Meaning | Example |
+|------|---------|---------|
+| Exact | The target path equals the scope path | scope `CoordPath<2>(a, b)` authorizes only the path `(a, b)` |
+| Prefix | The scope path is a prefix of the target path | scope `CoordPath<2>(a, b)` authorizes `(a, b, c)` and any longer path beginning with `(a, b)` |
+
+A scope may name a single path or a set of paths. Compound policies (negation, union of disjoint prefixes, regular expressions over paths) are deferred; the two rules above are the Milestone 1 contract.
+
+Attestations carry a lifetime: an issued epoch and a validity window. `authorize` checks the current epoch against the window and rejects expired attestations. `revoke` records a revoked (principal, scope) pair, effective from the epoch recorded by the authority. The concrete epoch source is an open question (Section `Open questions`); the interface does not depend on its realization.
 
 Operations:
 

@@ -12,7 +12,7 @@ The agreed layer boundary (2026-08-05) splits the stack into three owners:
 | behavior | chton | all storage and IO operations |
 | semantics | nexus | FIH encoding, predicates, swarm runtime |
 
-The strategic intent behind chton is larger than fixing nexus storage. Chton is the common lower IO layer for every spatial-first project in the organization (rem, exaspec, exaverif expected among them), so that upgrades to chton propagate to all consumers automatically. The longer journey, documented in the tagma-wav draft, extends chton from file and digital storage toward the lowest-level infrastructure of physical signal transmission (RF, optical, acoustic). On the commercial track, the pager draft plans a legacy non-spatial KV storage product (Redis RESP and S3 REST adapters, clustering, security controls) built on the same coordinate core.
+The strategic intent behind chton is larger than fixing nexus storage. Chton is the common lower IO layer for every spatial-first project in the organization (rem, exaspec, exaverif expected among them), so that upgrades to chton propagate to all consumers automatically. The longer journey, documented in the tagma-signal draft, extends chton from file and digital storage toward the lowest-level infrastructure of physical signal transmission (RF, optical, acoustic). On the commercial track, the pager draft plans a legacy non-spatial KV storage product (Redis RESP and S3 REST adapters, clustering, security controls) built on the same coordinate core.
 
 Current reality against that vision: the file and digital storage layer is complete and adopted by the first consumer (nexus). The signal layer exists only as a design document. The commercial product is at the planning stage. The other consumer projects have not started adoption.
 
@@ -74,7 +74,7 @@ The decision was to keep SHA-256 (option A). Two notes qualify this decision. FI
 - Close nexus #172 after deciding the disposition of `coord_kv_proximity.rs`: keep it with a documented dev-dependency exception, or drop it since chton already carries a spatial proximity test (`search_json.rs`).
 - Record the SHA-256 mapping contract (no truncation, no padding, collision probability) on chton issue #6 before closing it.
 - Confirm that chton main enforces its `run.sh` gate before pushes. If not, at least keep the issue-to-commit link and verification record visible.
-- Treat the signal layer and the commercial KV product as separate tracks. The commercial KV is the nearer output; the signal layer follows the tagma-wav plan.
+- Treat the signal layer and the commercial KV product as separate tracks. The commercial KV is the nearer output; the signal layer follows the tagma-signal plan.
 - Start consumer adoption with the project whose spatial computation surface is already identified, then expand.
 
 ## References
@@ -83,5 +83,5 @@ The decision was to keep SHA-256 (option A). Two notes qualify this decision. FI
 - chton issue #6: add store surface (EntityStore family) to chton, <https://github.com/ssccsorg/chton/issues/6>
 - nexus main: `aa9794fb` (phase 2), `7e9978b8` (lockfile policy and run.sh fixes)
 - chton main: `e3ec990` (store surface)
-- tagma-wav draft: <file:///Users/blackgene/Documents/ssccs/docs/projects/syntagma/tagma/wav/index.qmd>
+- tagma-signal draft: <file:///Users/blackgene/Documents/ssccs/docs/projects/syntagma/tagma/signal/index.qmd>
 - chton commercial draft: <file:///Users/blackgene/Documents/ct/docs/pager.qmd>

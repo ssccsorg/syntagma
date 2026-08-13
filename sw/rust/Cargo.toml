@@ -6,9 +6,12 @@ members = [
     "benches",
     "geo",
     "kv",
+    "sec",
 ]
 
 [workspace.dependencies]
 tagma-core = { path = "core" }
 tagma-geo = { path = "geo" }
 tagma-kv = { path = "kv" }
+tagma-sec = { path = "sec" }
+blake3 = "1"

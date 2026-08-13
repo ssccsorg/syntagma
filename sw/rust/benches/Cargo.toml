@@ -16,6 +16,7 @@ criterion = { version = "0.5" }
 rand = "0.8"
 tagma-geo.workspace = true
 tagma-kv.workspace = true
+tagma-sec.workspace = true
 
 [[bench]]
 name = "bench"
