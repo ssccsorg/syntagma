@@ -68,17 +68,24 @@ impl Authority for DelosAuthority {
     }
 
     fn authorize(&self, att: &Attestation, path: &Path, _action: Action, epoch: Epoch) -> Decision {
-        let in_scope = self
+        // The presented attestation carries the holder's identity claim; the
+        // window, the scope, and the revocation record are read from the
+        // stored attestation, so a presented copy cannot extend or reshape
+        // the grant.
+        let Some(stored) = self
             .attestations
             .get(&att.principal)
-            .is_some_and(|list| list.iter().any(|a| a.id == att.id && a.scope.matches(path)));
-        if !in_scope {
+            .and_then(|list| list.iter().find(|a| a.id == att.id))
+        else {
+            return Decision::Deny;
+        };
+        if !stored.scope.matches(path) {
             return Decision::Deny;
         }
-        if epoch < att.issued_epoch || epoch > att.valid_until {
+        if epoch < stored.issued_epoch || epoch > stored.valid_until {
             return Decision::Deny;
         }
-        if let Some(&revoked_at) = self.revoked.get(&(att.principal, att.scope.key())) {
+        if let Some(&revoked_at) = self.revoked.get(&(att.principal, stored.scope.key())) {
             if epoch >= revoked_at {
                 return Decision::Deny;
             }

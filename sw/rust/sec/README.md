@@ -90,7 +90,7 @@ cargo test -p tagma-sec
 cargo test --workspace
 ```
 
-The crate carries 24 tests: 15 common workflow tests and 9 tagma-sec-specific property tests. The README usage example is additionally compiled as a doctest.
+The crate carries 26 tests: 17 common workflow tests and 9 tagma-sec-specific property tests. The README usage example is additionally compiled as a doctest.
 
 ## Known limitations
 

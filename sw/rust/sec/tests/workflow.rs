@@ -158,6 +158,53 @@ fn principals_are_scoped_independently() {
 }
 
 #[test]
+fn authorize_enforces_stored_attestation_window() {
+    with_both_stacks(|stack| {
+        let principal = stack.authority.register(b"coordinator-1");
+        let att = stack
+            .authority
+            .issue(principal, Scope::Exact(path(&[1, 2])), 0, 10)
+            .expect("issuance succeeds");
+
+        // A presented copy with a widened window must not extend the grant.
+        let mut forged = att.clone();
+        forged.valid_until = 1000;
+        assert_eq!(
+            stack
+                .authority
+                .authorize(&forged, &path(&[1, 2]), ACTION_ROUTE_UPDATE, 11),
+            Decision::Deny,
+            "authorization must use the stored validity window"
+        );
+    });
+}
+
+#[test]
+fn authorize_enforces_stored_scope_for_revocation() {
+    with_both_stacks(|stack| {
+        let principal = stack.authority.register(b"coordinator-1");
+        let scope = Scope::Exact(path(&[1, 2]));
+        let att = stack
+            .authority
+            .issue(principal, scope.clone(), 0, 100)
+            .expect("issuance succeeds");
+        stack.authority.revoke(principal, &scope, 10);
+
+        // A presented copy with a different but matching scope must not
+        // bypass the revocation of the granted scope.
+        let mut forged = att.clone();
+        forged.scope = Scope::Prefix(path(&[1, 2]));
+        assert_eq!(
+            stack
+                .authority
+                .authorize(&forged, &path(&[1, 2]), ACTION_ROUTE_UPDATE, 10),
+            Decision::Deny,
+            "authorization must consult the stored scope's revocation record"
+        );
+    });
+}
+
+#[test]
 fn revoked_scope_stops_authorization() {
     with_both_stacks(|stack| {
         let principal = stack.authority.register(b"coordinator-1");
@@ -168,7 +215,9 @@ fn revoked_scope_stops_authorization() {
             .expect("issuance succeeds");
 
         assert_eq!(
-            stack.authority.authorize(&att, &path(&[1, 2, 3]), 1, 5),
+            stack
+                .authority
+                .authorize(&att, &path(&[1, 2, 3]), ACTION_ROUTE_UPDATE, 5),
             Decision::Allow
         );
 
