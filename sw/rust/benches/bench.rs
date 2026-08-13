@@ -3792,10 +3792,10 @@ fn bench_coordsetn_iter_1000_n2(c: &mut Criterion) {
 //   Sec/authorize/deny                            3.1 ns
 //   Sec/authorize/revoked/hit                    40.5 ns
 //   Sec/authorize/allow/scope_depth_19           62.7 ns
-//   Sec/seal/delos/4way                         171.4 ns
+//   Sec/seal/pattern/4way                         171.4 ns
 //   Sec/seal/legacy/2way                        138.8 ns
-//   Sec/verify/delos                            129.2 ns
-//   Sec/refresh/delos                           296.0 ns
+//   Sec/verify/pattern                            129.2 ns
+//   Sec/refresh/pattern                           296.0 ns
 //   Sec/audit/append                            110.3 ns
 //   Sec/audit/verify_chain/10k                    9.9 µs
 //   Sec/audit/prove/10k                         201.3 µs
@@ -3804,7 +3804,7 @@ fn bench_coordsetn_iter_1000_n2(c: &mut Criterion) {
 //   Sec/channel/verify                           86.1 ns
 //   Sec/channel/exchange                        132.7 ns
 //   Sec/channel/verify_receipt                   86.8 ns
-//   Sec/route_update/delos                      696.1 ns
+//   Sec/route_update/pattern                      696.1 ns
 //   Sec/route_update/legacy                     609.5 ns
 //
 // Key insights:
@@ -3915,13 +3915,13 @@ fn bench_sec_integrity_ops(c: &mut Criterion) {
 
     let delos = SecStack::delos();
     let d_seal = delos.integrity.seal(record, &target, 7, 50);
-    c.bench_function("Sec/seal/delos/4way", |b| {
+    c.bench_function("Sec/seal/pattern/4way", |b| {
         b.iter(|| black_box(delos.integrity.seal(record, &target, 7, 50)))
     });
-    c.bench_function("Sec/verify/delos", |b| {
+    c.bench_function("Sec/verify/pattern", |b| {
         b.iter(|| black_box(delos.integrity.verify(record, &target, 7, 50, &d_seal)))
     });
-    c.bench_function("Sec/refresh/delos", |b| {
+    c.bench_function("Sec/refresh/pattern", |b| {
         b.iter(|| {
             black_box(delos.integrity.refresh(record, &target, 7, 50, 51, &d_seal))
         })
@@ -3977,7 +3977,7 @@ fn bench_sec_channel_ops(c: &mut Criterion) {
 fn bench_sec_route_update(c: &mut Criterion) {
     let (mut delos, _principal, att) = sec_stack_delos();
     let target = sec_path_range(0, 3);
-    c.bench_function("Sec/route_update/delos", |b| {
+    c.bench_function("Sec/route_update/pattern", |b| {
         b.iter(|| black_box(route_update(&mut delos, &att, &target, b"bench-route", 50)))
     });
 
