@@ -46,6 +46,18 @@ Flow: `synth_ice40 -top tagma_decoder -json out/tagma_decoder_ice40.json`.
 
 The design fits any iCE40 device. Place and route (`nextpnr-ice40` + `icepack`) runs in Phase 3 once the demo board is chosen.
 
+## Post-synthesis verification
+
+The synthesized netlist (`out/tagma_decoder_gates.v`) is verified on top of the RTL checks:
+
+| Check | Result |
+|-------|--------|
+| Gate-level simulation against golden anchors (Verilator) | PASS: all 11,172 golden anchors verified |
+| Formal equivalence RTL vs gate netlist (`equiv.ys`) | proven, 50 cells, all 2^16 inputs |
+| VCD activity trace (`make sim-trace`) | trace.vcd emitted for power estimation |
+
+Formal equivalence is stronger than simulation: `equiv_simple` and `equiv_induct` prove the RTL and the synthesized structure are logically identical over every possible input, so the gate count and the functional result are tied together.
+
 ## Interpretation
 
 The measured gate counts (206 cells generic, 232 cells 2-input gate estimate) are below the ~300 gate claim in the Tagma whitepaper. The claim holds and is conservative for this decoder structure: pure combinational logic, zero registers, constant divisors mapped to shift-subtract networks. Timing closure and the standard cell number must still be demonstrated with a real PDK flow; that is Phase 4.
@@ -53,6 +65,6 @@ The measured gate counts (206 cells generic, 232 cells 2-input gate estimate) ar
 ## Reproduction
 
 ```bash
-make -C hw sim     # exhaustive simulation
-make -C hw synth   # all three Yosys flows, reports in hw/synth/yosys/reports/
+make -C hw check    # sim + sim-golden + golden-check + gatesim + equiv + synth
+make -C hw sim-trace   # VCD activity trace for power estimation
 ```

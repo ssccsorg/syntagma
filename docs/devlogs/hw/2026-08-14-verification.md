@@ -24,6 +24,13 @@ The Phase 1 testbench recomputed the same formula it checks, which is self-refer
 - `hw/rtl/tagma_decoder_tb.v`: golden mode (`make sim-golden`) reads the anchor file and checks the decoder against the reference vectors.
 - `hw/tools/check_golden_anchors.py`: consistency gate over the generated anchor file, validating the format and the decomposition contract on all 11,172 entries. The anchor file itself is a build artifact produced by `make golden-export` before each golden simulation; the exporter is the committed source of truth. The pattern follows `ssccs/poc/baremetal_riscv/sv` (`_golden_anchors.svh` plus `check_golden_anchors.py`).
 
+### Post-synthesis verification
+
+The synthesized netlist is verified on top of the RTL checks:
+
+- `hw/synth/yosys/equiv.ys` plus the `gatesim` and `equiv` Makefile targets: the gate-level netlist (`out/tagma_decoder_gates.v`) is simulated against the golden anchors through Verilator, and formal equivalence between the RTL and the netlist is proven with `equiv_simple` and `equiv_induct` over all 2^16 inputs.
+- `make sim-trace` emits a VCD activity trace (`trace.vcd`) for later power estimation in the OpenROAD flow.
+
 ## Verification results
 
 | Check | Result |
@@ -31,6 +38,8 @@ The Phase 1 testbench recomputed the same formula it checks, which is self-refer
 | Exhaustive simulation, formula mode | PASS: all 11,172 code points verified |
 | Exhaustive simulation, golden mode | PASS: all 11,172 golden anchors verified |
 | Golden anchor consistency gate | golden anchors OK: 11172 entries |
+| Gate-level netlist simulation against golden anchors | PASS: all 11,172 golden anchors verified |
+| Formal equivalence RTL vs netlist | proven, 50 cells, all 2^16 inputs |
 | Generic synthesis (`stat -json`, ev schema) | 206 cells, 0 registers |
 | Gate-level estimate (2-input library) | 232 cells |
 | iCE40 synthesis | 95 LUT4 + 66 SB_CARRY, 0 registers |

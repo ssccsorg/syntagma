@@ -10,6 +10,8 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `rtl/tagma_decoder_tb.v` exhaustive testbench (11,172 code points) | Implemented, passing |
 | Golden-anchor cross-check against `tagma_core` (Rust reference) | Implemented, passing |
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
+| Gate-level netlist simulation against golden anchors | Implemented, passing |
+| Formal equivalence: RTL vs gate netlist | Proven |
 | Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Report in `docs/` |
 | Yosys gate-level estimate (2-input gate library) | Report in `docs/` |
 | Yosys iCE40 synthesis report (LUT count) | Report in `docs/` |
@@ -41,6 +43,10 @@ This phase runs on branch `48-hw-verification` (issue #48).
 The Phase 1 testbench recomputes the same formula it checks, which is self-referential. Phase 2 removes that risk: `sw/rust/core/examples/golden_export.rs` exports the full coordinate decomposition from the `tagma_core` reference engine (the `Coord::to_axes` path) into `rtl/golden_anchors.hex`, one packed 29-bit value per line (offset[28:15] i[14:10] m[9:5] f[4:0]). The testbench golden mode (`make sim-golden`) reads that file and checks the decoder against the reference vectors. `tools/check_golden_anchors.py` gates the file format and the decomposition contract, following the golden-anchor pattern in `ssccs/poc/baremetal_riscv/sv`.
 
 Delivered: golden exporter, golden testbench mode, Python consistency gate, all wired into `make check` and `run.sh`. The anchor file is a generated build artifact (`make golden-export`) regenerated before each golden simulation; the exporter is the committed source of truth, and the gate validates the generated file against the decomposition contract.
+
+### Post-synthesis verification
+
+The synthesized netlist is verified on top of the RTL checks: the gate-level netlist is simulated against the golden anchors (`make gatesim`) and formal equivalence between the RTL and the netlist is proven over all 2^16 inputs (`make equiv`, `synth/yosys/equiv.ys`). `make sim-trace` emits a VCD activity trace for the later power estimation step.
 
 ### Phase 3: FPGA board demo
 

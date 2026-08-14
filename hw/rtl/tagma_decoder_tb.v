@@ -42,6 +42,12 @@ module tagma_decoder_tb;
     initial begin
         errors = 0;
 
+`ifdef TRACE
+        // VCD activity trace for power estimation (make sim-trace).
+        $dumpfile("trace.vcd");
+        $dumpvars(0, dut);
+`endif
+
 `ifdef GOLDEN_CHECK
         $readmemh("golden_anchors.hex", golden);
 
