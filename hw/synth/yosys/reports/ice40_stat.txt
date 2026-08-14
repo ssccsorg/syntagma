@@ -1,0 +1,17 @@
+
+4. Printing statistics.
+
+=== tagma_decoder ===
+
+        +----------Local Count, excluding submodules.
+        | 
+      155 wires
+      405 wire bits
+      155 public wires
+      405 public wire bits
+        4 ports
+       31 port bits
+      161 cells
+       66   SB_CARRY
+       95   SB_LUT4
+

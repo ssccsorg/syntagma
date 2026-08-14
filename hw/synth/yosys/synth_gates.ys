@@ -1,0 +1,18 @@
+# Gate-level estimate of the Tagma decoder.
+#
+# Maps the synthesized design to a small 2-input gate library and reports
+# the cell count behind the "~300 gates" claim. The count is an estimate:
+# NOT and BUF are counted as cells, and the library is not a real PDK
+# standard cell library. The OpenROAD flow in Phase 4 replaces this with
+# a Sky130 report.
+
+read_verilog -sv ../../rtl/tagma_decoder.v
+hierarchy -check -top tagma_decoder
+proc
+flatten
+opt
+techmap
+opt
+abc -g AND,NAND,OR,NOR,XOR,XNOR
+tee -o reports/gates_stat.txt stat
+write_verilog out/tagma_decoder_gates.v

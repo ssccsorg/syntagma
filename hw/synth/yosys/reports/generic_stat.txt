@@ -1,0 +1,25 @@
+
+5. Printing statistics.
+
+=== tagma_decoder ===
+
+        +----------Local Count, excluding submodules.
+        | 
+      203 wires
+      310 wire bits
+       10 public wires
+      117 public wire bits
+        4 ports
+       31 port bits
+      206 cells
+       13   $_ANDNOT_
+       47   $_AND_
+       17   $_MUX_
+       61   $_NAND_
+        5   $_NOR_
+        7   $_NOT_
+        9   $_ORNOT_
+       18   $_OR_
+       19   $_XNOR_
+       10   $_XOR_
+

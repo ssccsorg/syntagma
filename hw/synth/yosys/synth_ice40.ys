@@ -1,0 +1,11 @@
+# iCE40 FPGA synthesis of the Tagma decoder.
+#
+# Produces the JSON netlist for nextpnr-ice40 and the LUT/FF utilization
+# report for the FPGA demo target. Place and route (nextpnr + icepack)
+# runs in Phase 3 once the board is chosen.
+
+read_verilog -sv ../../rtl/tagma_decoder.v
+hierarchy -check -top tagma_decoder
+synth_ice40 -top tagma_decoder -json out/tagma_decoder_ice40.json
+tee -o reports/ice40_stat.txt stat
+write_verilog out/tagma_decoder_ice40.v

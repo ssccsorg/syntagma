@@ -1,0 +1,14 @@
+# Generic synthesis of the Tagma decoder.
+#
+# Mirrors the canonical Yosys invocation in ev/src/synth/backends/yosys.rs:
+#   read_verilog -sv; hierarchy -top; proc; synth -top; stat -json
+# so the metrics stay compatible with SynthesisMetrics (num_cells to
+# gate_count, area) and can later be emitted as neXus Facts.
+
+read_verilog -sv ../../rtl/tagma_decoder.v
+hierarchy -top tagma_decoder
+proc
+synth -top tagma_decoder
+tee -o reports/generic_stat.json stat -json
+tee -o reports/generic_stat.txt stat
+write_json out/tagma_decoder_generic.json
