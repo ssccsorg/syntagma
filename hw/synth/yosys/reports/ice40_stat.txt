@@ -5,13 +5,13 @@
 
         +----------Local Count, excluding submodules.
         | 
-      155 wires
-      405 wire bits
-      155 public wires
-      405 public wire bits
+      179 wires
+      512 wire bits
+      179 public wires
+      512 public wire bits
         4 ports
        31 port bits
-      161 cells
-       66   SB_CARRY
-       95   SB_LUT4
+      242 cells
+       41   SB_CARRY
+      201   SB_LUT4
 

@@ -54,7 +54,7 @@ equiv: synth
 	cd synth/yosys && yosys -q -s equiv.ys && echo "equiv: RTL and gate netlist are formally equivalent"
 
 synth:
-	cd synth/yosys && ./run.sh
+	cd synth/yosys && bash run.sh
 
 report: synth
 	@echo "=== gate-level estimate ==="

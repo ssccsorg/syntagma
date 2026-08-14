@@ -33,10 +33,7 @@ fn main() {
     for offset in 0..Coord::N_VALID as u16 {
         let coord = Coord::new(offset).expect("offset in valid range");
         let (i, m, f) = coord.to_axes();
-        let packed = ((offset as u32) << 15)
-            | ((i as u32) << 10)
-            | ((m as u32) << 5)
-            | (f as u32);
+        let packed = ((offset as u32) << 15) | ((i as u32) << 10) | ((m as u32) << 5) | (f as u32);
         writeln!(writer, "{packed:08X}").expect("failed to write line");
     }
 
