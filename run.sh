@@ -89,7 +89,7 @@ case "${1:-}" in
     --bench|bench)
         build_and_test
         echo "--- running core benchmarks ---"
-        (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge" 2>&1 | tail -20)
+        (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge|hw" 2>&1 | tail -20)
         ;;
     --doc|doc)
         build_docs

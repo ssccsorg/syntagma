@@ -58,6 +58,34 @@ The synthesized netlist (`out/tagma_decoder_gates.v`) is verified on top of the 
 
 Formal equivalence is stronger than simulation: `equiv_simple` and `equiv_induct` prove the RTL and the synthesized structure are logically identical over every possible input, so the gate count and the functional result are tied together.
 
+## FPGA place and route (demo target)
+
+Target: Upduino 3.1 (iCE40UP5K-SG48), 12 MHz onboard clock, registered demo top (`hw/rtl/tagma_demo_top.v`, constraints in `hw/synth/yosys/upduino31_demo.pcf`). Flow: `synth_demo.ys` -> `nextpnr-ice40` -> `icepack` -> `icetime` (`run_pnr.sh`).
+
+| Metric | Value |
+|--------|-------|
+| ICESTORM_LC | 177 / 5280 (3%) |
+| SB_IO | 33 / 39 (84%) |
+| SB_GB | 1 / 8 |
+| critical path (icetime) | 115.90 ns |
+| Fmax | 8.63 MHz |
+| logic levels | 72 |
+
+The critical path is dominated by the shift-subtract divider network (72 logic levels). At 115.90 ns the design does not meet the 12 MHz board clock; the bitstream is generated, but timing closure would need a shallower division structure (multiply-shift constant division) or a slower clock. This is the first measured limit of the naive implementation and the target for the next optimization.
+
+## Software reference baseline
+
+`sw/rust/benches/bench_hw.rs` measures the reference implementation in criterion style (bench.rs convention), with the key results documented in comments:
+
+| Bench | Value |
+|-------|-------|
+| hw/decode/single | 1.44 ns |
+| hw/decode/all_11172 | 1.92 µs |
+| hw/decode/index_all_11172 (baseline) | 0.457 µs |
+| hw/golden/export_11172 | 4.56 µs |
+
+Run with `cargo bench --manifest-path sw/rust/Cargo.toml --bench bench_hw`.
+
 ## Interpretation
 
 The measured gate counts (206 cells generic, 232 cells 2-input gate estimate) are below the ~300 gate claim in the Tagma whitepaper. The claim holds and is conservative for this decoder structure: pure combinational logic, zero registers, constant divisors mapped to shift-subtract networks. Timing closure and the standard cell number must still be demonstrated with a real PDK flow; that is Phase 4.

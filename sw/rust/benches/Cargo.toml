@@ -22,3 +22,8 @@ tagma-sec.workspace = true
 name = "bench"
 path = "bench.rs"
 harness = false
+
+[[bench]]
+name = "bench_hw"
+path = "bench_hw.rs"
+harness = false

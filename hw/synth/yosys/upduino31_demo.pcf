@@ -1,0 +1,54 @@
+# Upduino 3.1 (iCE40UP5K-SG48) demo constraints.
+#
+# Pin numbers verified against the Upduino v3.1 reference PCF
+# (FPGAwars/icestudio, app/resources/boards/upduino31/pinout.pcf).
+#
+# Mapping:
+#   clk         -> pin 20, onboard 12 MHz oscillator input (global clock)
+#   code[15:0]  -> 16 GPIO pins (DIP switch module)
+#   i[4:0]      -> 5 GPIO pins (LED group)
+#   m[4:0]      -> 5 GPIO pins (LED group)
+#   f[4:0]      -> 5 GPIO pins (LED group)
+#   valid       -> onboard green LED (negative logic, write 0 to light)
+
+set_io --warn-no-port clk 20
+
+# code[11] reuses pin 14 (serial_txd). The FTDI chip does not drive this
+# pin, so it works as a switch input; keep the USB connection idle during
+# the demo.
+set_io --warn-no-port code[0]  2
+set_io --warn-no-port code[1]  3
+set_io --warn-no-port code[2]  4
+set_io --warn-no-port code[3]  6
+set_io --warn-no-port code[4]  9
+set_io --warn-no-port code[5]  11
+set_io --warn-no-port code[6]  13
+set_io --warn-no-port code[7]  19
+set_io --warn-no-port code[8]  21
+set_io --warn-no-port code[9]  12
+set_io --warn-no-port code[10] 10
+set_io --warn-no-port code[11] 14
+set_io --warn-no-port code[12] 28
+set_io --warn-no-port code[13] 38
+set_io --warn-no-port code[14] 42
+set_io --warn-no-port code[15] 36
+
+set_io --warn-no-port i[0] 43
+set_io --warn-no-port i[1] 34
+set_io --warn-no-port i[2] 37
+set_io --warn-no-port i[3] 31
+set_io --warn-no-port i[4] 35
+
+set_io --warn-no-port m[0] 32
+set_io --warn-no-port m[1] 27
+set_io --warn-no-port m[2] 26
+set_io --warn-no-port m[3] 25
+set_io --warn-no-port m[4] 23
+
+set_io --warn-no-port f[0] 45
+set_io --warn-no-port f[1] 47
+set_io --warn-no-port f[2] 46
+set_io --warn-no-port f[3] 48
+set_io --warn-no-port f[4] 44
+
+set_io --warn-no-port valid 39

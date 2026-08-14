@@ -1,0 +1,9 @@
+# iCE40 synthesis of the Tagma decoder demo top module.
+#
+# Produces the JSON netlist for nextpnr-ice40 (run_pnr.sh) targeting the
+# Upduino 3.1 (iCE40UP5K-SG48).
+
+read_verilog -sv ../../rtl/tagma_decoder.v
+read_verilog -sv ../../rtl/tagma_demo_top.v
+hierarchy -check -top tagma_demo_top
+synth_ice40 -top tagma_demo_top -json out/tagma_demo_top.json
