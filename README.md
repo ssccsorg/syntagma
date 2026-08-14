@@ -44,7 +44,7 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 | CoordSpace\<V\> | Single-character direct-address table. Inline `[Option<V>; 11172]` -- zero heap. O(1), no hashing, no collisions | `core/src/coord_space.rs` |
 | base11172 | Self-validating serialization: arbitrary bytes to composition-block strings | `base11172/src/lib.rs` |
 
-Test coverage: 190+ unit/integration tests + 22+ doc-tests, all passing. Zero clippy warnings. CI runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification).
+Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero clippy warnings. CI runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification).
 
 ### Requires alloc (default feature)
 
@@ -108,6 +108,7 @@ cd sw/rust
 cargo test --release       # All tests
 cargo bench -- spatial     # 18 CoordCube and spatial query benchmarks
 cargo bench -- stress      # 500k mixed-operation stress benchmark
+cargo bench -- sec         # tagma-sec security layer benchmarks (21)
 cargo build --no-default-features  # Verify no_alloc build
 ```
 
@@ -440,6 +441,25 @@ CoordKV2 latency is scale-invariant: 22.0 ns at 10k, 21.5 ns at 10M. HashMap per
 HashMap's bool-return advantage is erased by cache pressure at scale.
 
 Once data is in Tagma coordinate space, spatial capabilities (prefix scan, axis filter, proximity, bounding box, distance metrics) are available at zero additional conversion cost.
+
+## Benchmark: tagma-sec security layer (ARMv8.4-A Firestorm)
+
+tagma-sec provides authority, integrity, audit, and channel primitives for coordination traffic. Security rests on keyed primitives (blake3) over public coordinate arithmetic: coordinate arithmetic is negligible, keyed hashing dominates. Measured values come from the `sec` criterion group in `sw/rust/benches/bench.rs`.
+
+| Scenario | Benchmark | Measured | Insight |
+|----------|-----------|----------|---------|
+| Path authorization | `authorize/allow` | 36.8 ns | O(scope depth), independent of store size |
+| Fail-closed rejection | `authorize/deny` | 3.1 ns | Scope miss short-circuits at the first coord, ~12x cheaper than Allow |
+| Revoked scope | `authorize/revoked` | 40.5 ns | One map lookup on top of the scope match |
+| Epoch replay detection | `seal/pattern` | 171.4 ns | Epoch and principal binding costs ~33 ns over the 2-way seal (138.8 ns) |
+| Seal verification | `verify/pattern` | 129.2 ns | Recompute and compare |
+| Audit chaining | `audit/verify_chain` (10k) | 9.9 µs | ~1 ns per entry prev-link walk, no hashing |
+| Offline investigation | `audit/prove`, `audit/export` (10k) | ~200 µs | Memory-bound clones, ~20 ns per entry |
+| Receipt verification | `channel/verify_receipt` | 86.8 ns | Parsing plus recompute, same order as verify |
+| Route update workflow | `route_update/pattern` | 696.1 ns | Exact sum of the module costs (691 ns), cost-transparent composition |
+| Baseline contrast | `route_update/legacy` | 609.5 ns | The tagma-sec pattern adds ~87 ns per update, the price of replay detection |
+
+The route-update workflow is a cost-transparent composition: 696.1 ns equals the sum of its module calls (authorize 36.8, seal 171.4, verify 129.2, append 110.3, append 110.3, exchange 132.7), so the proxy and trait-object dispatch add no measurable overhead. Deny is ~12x cheaper than allow, so fail-closed rejection is cheap. Chain verification is ~1 ns per entry while prove and export are ~20 ns per entry and memory-bound, so offline investigation scales with evidence size rather than log size.
 
 ## Documentation
 
