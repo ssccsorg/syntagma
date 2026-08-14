@@ -1,5 +1,5 @@
 // ===========================================================================
-// Tagma hardware decoder — software reference benchmark
+// Tagma hardware decoder: software reference benchmark
 // ===========================================================================
 //
 // Software baseline for the hardware track (hw/, issue #48). The Verilog
@@ -7,14 +7,32 @@
 // Coord::to_axes; these benches measure the reference implementation in
 // software so the hardware numbers can be read against a host baseline.
 //
-// Hardware results (hw/docs/synthesis_report.md, branch 48-hw-verification):
-//   generic synthesis       478 cells   (ev stat -json schema, 0 registers)
-//   gate-level estimate     588 cells   (2-input library, abc -g)
-//   iCE40 synthesis         201 LUT4 + 41 SB_CARRY, 0 registers
-//   PnR (UP5K, Upduino 3.1) 254 ICESTORM_LC, 33 SB_IO, Fmax 16.35 MHz
-//   worst-case decode       61.17 ns    (critical path, icetime)
-//   exhaustive verification 11,172 / 11,172 (RTL and gate netlist, golden)
-//   naive shift-subtract    206..232 cells, Fmax 8.63 MHz (no 12 MHz closure)
+// Core results (measured; full report in
+// docs/devlogs/hw/2026-08-14-synthesis-report.md, branch 48-hw-verification):
+//
+// Verification:
+//   exhaustive RTL simulation    11,172 / 11,172  (formula mode)
+//   golden anchors               11,172 / 11,172  (Rust reference mode)
+//   gate-level netlist sim       11,172 / 11,172
+//   formal equivalence RTL/net   50 cells proven, all 2^16 inputs
+//
+// Synthesis:
+//   generic (ev stat -json)      478 cells, 0 registers
+//   gate-level estimate          588 cells (2-input library, abc -g)
+//   iCE40                        201 LUT4 + 41 SB_CARRY, 0 registers
+//
+// Design trade-off (naive vs multiply-shift):
+//   shift-subtract (naive)       206..232 cells, Fmax 8.63 MHz, 115.90 ns
+//   multiply-shift (demo)        478..588 cells, Fmax 16.35 MHz, 61.17 ns
+//   the ~300 gate claim holds for the naive structure; timing closure on
+//   a 12 MHz board costs about 2.5x gates
+//
+// PnR on UP5K (Upduino 3.1, 12 MHz board clock):
+//   ICESTORM_LC                  254 / 5280 (4%)
+//   SB_IO                        33 / 39 (84%)
+//   critical path                61.17 ns
+//   Fmax                         16.35 MHz, 12 MHz closes with margin
+//   logic levels                 29
 //
 // Software reference (this file, measured):
 //   hw/decode/all_11172        1.92 µs   (to_axes over the full space)
@@ -27,7 +45,9 @@
 // needs about 1.4 ns per decode on the benchmark host. The comparison is
 // architectural, not a claim of parity: the hardware number is a post
 // place-and-route critical path, the software number is a single-threaded
-// host measurement.
+// host measurement. The hardware value is energy, determinism, and
+// physical embedding, not per-op speed: the whole 11,172-entry space fits
+// in L1 cache, which the software already exploits at 0.38 ns per access.
 // ===========================================================================
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};

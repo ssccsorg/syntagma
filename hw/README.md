@@ -15,9 +15,9 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.35 MHz Fmax |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
-| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Report in `docs/` |
-| Yosys gate-level estimate (2-input gate library) | Report in `docs/` |
-| Yosys iCE40 synthesis report (LUT count) | Report in `docs/` |
+| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Report in `docs/devlogs/hw/` |
+| Yosys gate-level estimate (2-input gate library) | Report in `docs/devlogs/hw/` |
+| Yosys iCE40 synthesis report (LUT count) | Report in `docs/devlogs/hw/` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
 | FPGA board demo (physical) | Next, board required |
 | OpenROAD standard cell report (Sky130) | Next phase |
@@ -28,7 +28,6 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 - `synth/yosys/` Yosys synthesis scripts, PnR flow, and generated reports
 - `openram/` OpenRAM configuration for the chton segment store
 - `tools/` golden anchor consistency gate
-- `docs/` synthesis and verification reports
 
 ## Development plan
 
@@ -109,7 +108,7 @@ Deliverables:
 1. hw/rtl/tagma_decoder.v
 2. hw/rtl/tagma_decoder_tb.v with exhaustive validation of all 11,172 code points
 3. hw/synth/yosys/: generic, gate-level, and iCE40 synthesis scripts with reports
-4. hw/docs/synthesis_report.md with real tool output
+4. docs/devlogs/hw/2026-08-14-synthesis-report.md with real tool output
 5. hw/openram/chton_sram.py for the chton segment store (11,172 x 16-bit SRAM)
 6. hw/Makefile with sim/synth/check targets, wired into run.sh
 

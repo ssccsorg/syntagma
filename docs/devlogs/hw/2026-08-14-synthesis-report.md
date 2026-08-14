@@ -29,7 +29,7 @@ Two implementations of the same arithmetic were measured. The naive shift-subtra
 
 ## Generic synthesis (ev-compatible schema)
 
-Flow: `read_verilog -sv; hierarchy; proc; synth; stat -json`, identical to `ev/src/synth/backends/yosys.rs`. The JSON report (`synth/yosys/reports/generic_stat.json`) feeds directly into the `SynthesisMetrics` schema with `num_cells = 478`.
+Flow: `read_verilog -sv; hierarchy; proc; synth; stat -json`, identical to `ev/src/synth/backends/yosys.rs`. The JSON report (`hw/synth/yosys/reports/generic_stat.json`) feeds directly into the `SynthesisMetrics` schema with `num_cells = 478`.
 
 | Metric | Value |
 |--------|-------|
@@ -51,7 +51,7 @@ This is an estimate over a generic 2-input library, not a PDK standard cell libr
 
 ## iCE40 FPGA target
 
-Flow: `synth_ice40 -top tagma_decoder -json out/tagma_decoder_ice40.json`.
+Flow: `synth_ice40 -top tagma_decoder -json hw/synth/yosys/out/tagma_decoder_ice40.json`.
 
 | Resource | Count |
 |----------|-------|
@@ -61,7 +61,7 @@ Flow: `synth_ice40 -top tagma_decoder -json out/tagma_decoder_ice40.json`.
 
 ## Post-synthesis verification
 
-The synthesized netlist (`out/tagma_decoder_gates.v`) is verified on top of the RTL checks:
+The synthesized netlist (`hw/synth/yosys/out/tagma_decoder_gates.v`) is verified on top of the RTL checks:
 
 | Check | Result |
 |-------|--------|
@@ -73,7 +73,7 @@ Formal equivalence is stronger than simulation: `equiv_simple` and `equiv_induct
 
 ## FPGA place and route (demo target)
 
-Target: Upduino 3.1 (iCE40UP5K-SG48), 12 MHz onboard clock, registered demo top (`hw/rtl/tagma_demo_top.v`, constraints in `hw/synth/yosys/upduino31_demo.pcf`). Flow: `synth_demo.ys` -> `nextpnr-ice40` -> `icepack` -> `icetime` (`run_pnr.sh`).
+Target: Upduino 3.1 (iCE40UP5K-SG48), 12 MHz onboard clock, registered demo top (`hw/rtl/tagma_demo_top.v`, constraints in `hw/synth/yosys/upduino31_demo.pcf`). Flow: `hw/synth/yosys/synth_demo.ys` -> `nextpnr-ice40` -> `icepack` -> `icetime` (`hw/synth/yosys/run_pnr.sh`).
 
 | Metric | Value |
 |--------|-------|
