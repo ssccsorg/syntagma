@@ -8,6 +8,8 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 |------|-------|
 | `rtl/tagma_decoder.v` 3-axis combinational decoder | Implemented |
 | `rtl/tagma_decoder_tb.v` exhaustive testbench (11,172 code points) | Implemented, passing |
+| Golden-anchor cross-check against `tagma_core` (Rust reference) | Implemented, passing |
+| `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
 | Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Report in `docs/` |
 | Yosys gate-level estimate (2-input gate library) | Report in `docs/` |
 | Yosys iCE40 synthesis report (LUT count) | Report in `docs/` |
@@ -20,6 +22,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 - `rtl/` Verilog sources and testbench
 - `synth/yosys/` Yosys synthesis scripts and generated reports
 - `openram/` OpenRAM configuration for the chton segment store
+- `tools/` golden anchor consistency gate
 - `docs/` synthesis and verification reports
 
 ## Development plan
@@ -35,7 +38,9 @@ This phase runs on branch `48-hw-verification` (issue #48).
 
 ### Phase 2: Golden-anchor cross-validation against the reference engine
 
-The Phase 1 testbench recomputes the same formula it checks, which is self-referential. Phase 2 removes that risk by generating golden vectors from the reference coordinate engine in `sw/rust` and feeding them to the RTL testbench, following the golden-anchor pattern in `ssccs/poc/baremetal_riscv/sv` (`_golden_anchors.svh` plus `check_golden_anchors.py`). Deliverables: a golden vector file (offset, i, m, f) exported from the Rust core, a testbench mode that reads it, and a consistency gate that fails when RTL and reference diverge.
+The Phase 1 testbench recomputes the same formula it checks, which is self-referential. Phase 2 removes that risk: `sw/rust/core/examples/golden_export.rs` exports the full coordinate decomposition from the `tagma_core` reference engine (the `Coord::to_axes` path) into `rtl/golden_anchors.hex`, one packed 29-bit value per line (offset[28:15] i[14:10] m[9:5] f[4:0]). The testbench golden mode (`make sim-golden`) reads that file and checks the decoder against the reference vectors. `tools/check_golden_anchors.py` gates the file format and the decomposition contract, following the golden-anchor pattern in `ssccs/poc/baremetal_riscv/sv`.
+
+Delivered: golden exporter, golden testbench mode, Python consistency gate, all wired into `make check` and `run.sh`. The anchor file is a generated build artifact (`make golden-export`) regenerated before each golden simulation; the exporter is the committed source of truth, and the gate validates the generated file against the decomposition contract.
 
 ### Phase 3: FPGA board demo
 
