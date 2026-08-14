@@ -12,17 +12,19 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
 | Gate-level netlist simulation against golden anchors | Implemented, passing |
 | Formal equivalence: RTL vs gate netlist | Proven |
+| FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream + timing report |
+| Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
 | Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Report in `docs/` |
 | Yosys gate-level estimate (2-input gate library) | Report in `docs/` |
 | Yosys iCE40 synthesis report (LUT count) | Report in `docs/` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
-| FPGA board demo (iCE40/ECP5 or Artix-7) | Next phase |
+| FPGA board demo (physical) | Next, board required |
 | OpenROAD standard cell report (Sky130) | Next phase |
 
 ## Layout
 
 - `rtl/` Verilog sources and testbench
-- `synth/yosys/` Yosys synthesis scripts and generated reports
+- `synth/yosys/` Yosys synthesis scripts, PnR flow, and generated reports
 - `openram/` OpenRAM configuration for the chton segment store
 - `tools/` golden anchor consistency gate
 - `docs/` synthesis and verification reports
@@ -50,16 +52,31 @@ The synthesized netlist is verified on top of the RTL checks: the gate-level net
 
 ### Phase 3: FPGA board demo
 
-Synthesize the decoder with an FPGA top module (switches for the 16-bit code point, LEDs for i/m/f) and place and route with the open flow: Yosys to JSON, `nextpnr` to bitstream, `icepack` for iCE40. The demo target is a low-cost iCE40 or ECP5 board so the whole toolchain stays open source; an Artix-7 (Vivado) flow is the fallback. Deliverables: constraints file, bitstream, board bring-up notes, and a demo video.
+The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`synth/yosys/upduino31_demo.pcf`) are in place. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 177 ICESTORM_LC (3%), critical path 115.90 ns, Fmax 8.63 MHz; the design does not meet the 12 MHz board clock, which is the documented target for the next optimization (multiply-shift constant division). Remaining: physical board bring-up and demo video.
 
 ### Phase 4: chton SRAM and standard cell report
 
 Generate the chton segment store SRAM with OpenRAM (`openram/chton_sram.py`, SkyWater 130nm, 11,172 x 16-bit single port). Run the standard cell flow with OpenROAD: synthesis, placement and routing, timing and power report. Compare the reported gate count against the ~300 gate claim and publish the number.
 
+## Software reference baseline
+
+The decoder is also benchmarked in software against the hardware numbers. `sw/rust/benches/bench_hw.rs` follows the `bench.rs` convention (criterion, key results in comments): single decode 1.44 ns, full-space decode 1.92 µs, index-only baseline 0.457 µs, golden export 4.56 µs. Run with `cargo bench --manifest-path sw/rust/Cargo.toml --bench bench_hw`.
+
 ## Integration with existing SSCCS tooling
 
 - `ev/src/synth/backends/yosys.rs` is the canonical Yosys integration: subprocess invocation, `stat -json` parsing, `SynthesisMetrics` with `gate_count` and `cell_area`. The scripts in `synth/yosys/` follow the same flow, so the numbers are directly comparable and can be emitted as neXus `Fact` envelopes (`fact_type: synthesis_result`, `origin: ev/synthesis/yosys`) later.
 - `ssccs/poc/baremetal_riscv/sv` establishes the Verilator plus Makefile plus golden-anchor verification pattern. `hw/Makefile` mirrors that pattern, and Phase 2 adopts the golden-anchor gate.
+
+## Why 16-bit: the enabling conditions
+
+The whole hardware design rests on four independent conditions, of which BMP membership is one:
+
+1. The Hangul syllable block U+AC00..U+D7A3 sits in the Unicode BMP, so one syllable is one UTF-16 code unit, one `u16`.
+2. The Unicode Hangul syllable composition algorithm decomposes every syllable into initial 19 x medial 21 x final 28 axes. This property is independent of the BMP.
+3. The valid range is contiguous (0xAC00 + k for k in [0, 11172)), which makes the single-offset arithmetic possible.
+4. The Unicode stability policy keeps the block fixed, so the constants (0xAC00, 0xD7A3, 11172, 588, 28) are durable.
+
+The general Tagma mechanism does not require the BMP; multi-unit and astral cases use the N-dimensional machinery (`CoordPath`, `base11172`, `CoordSpace2`). Hangul is the cheapest demonstration of the method, which is why the decoder is small enough to fit the ~300 gate claim.
 
 ## References
 

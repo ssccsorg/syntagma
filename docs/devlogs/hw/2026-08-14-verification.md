@@ -31,6 +31,14 @@ The synthesized netlist is verified on top of the RTL checks:
 - `hw/synth/yosys/equiv.ys` plus the `gatesim` and `equiv` Makefile targets: the gate-level netlist (`out/tagma_decoder_gates.v`) is simulated against the golden anchors through Verilator, and formal equivalence between the RTL and the netlist is proven with `equiv_simple` and `equiv_induct` over all 2^16 inputs.
 - `make sim-trace` emits a VCD activity trace (`trace.vcd`) for later power estimation in the OpenROAD flow.
 
+### Phase 3: FPGA demo flow
+
+The demo top module (`hw/rtl/tagma_demo_top.v`) maps the 16-bit code point from switches to three LED groups and lights the onboard green LED for valid syllables, with outputs registered on the board clock. Constraints use real Upduino 3.1 pins (verified against the FPGAwars/icestudio reference PCF). The open flow runs end to end (`hw/synth/yosys/run_pnr.sh`): `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing. Measured on the UP5K: 177 ICESTORM_LC (3%), 33 SB_IO, critical path 115.90 ns, Fmax 8.63 MHz, 72 logic levels. The design does not meet the 12 MHz board clock; the shift-subtract divider depth is the documented optimization target (multiply-shift constant division). Physical board bring-up and the demo video remain.
+
+### Bench center
+
+`sw/rust/benches/bench_hw.rs` follows the `bench.rs` convention: criterion microbenchmarks with the key results documented in comments, measured on this host. It provides the software reference baseline for the hardware numbers: single decode 1.44 ns, full-space decode 1.92 µs, index-only baseline 0.457 µs, golden export 4.56 µs. Registered in `sw/rust/benches/Cargo.toml` and wired into `run.sh --bench`.
+
 ## Verification results
 
 | Check | Result |
@@ -43,6 +51,8 @@ The synthesized netlist is verified on top of the RTL checks:
 | Generic synthesis (`stat -json`, ev schema) | 206 cells, 0 registers |
 | Gate-level estimate (2-input library) | 232 cells |
 | iCE40 synthesis | 95 LUT4 + 66 SB_CARRY, 0 registers |
+| PnR (UP5K, Upduino 3.1 demo) | 177 ICESTORM_LC, Fmax 8.63 MHz, 115.90 ns critical path |
+| Software reference (bench_hw) | single 1.44 ns, all 1.92 µs, export 4.56 µs |
 
 The measured counts are below the ~300 gate claim, which means the claim holds and is conservative for this decoder structure. Timing closure and a real PDK standard cell number still need the OpenROAD flow.
 
@@ -52,7 +62,7 @@ The exhaustive test exposed that the last valid Hangul syllable is U+D7A3, not U
 
 ## What becomes possible after this work
 
-- Phase 3 (FPGA board demo): the synthesis numbers show the decoder fits any iCE40 device with about 95 LUT4s. The remaining work is a demo top module (switches for the 16-bit code point, LEDs for the three axes), a pin constraints file, and the `nextpnr` plus `icepack` place and route flow. Candidate boards with on-board RAM are the Upduino 3.1 (iCE40 UP5K, 8 MB PSRAM) and the ULX3S (ECP5, 32 MB SDRAM), which also cover the RAM-attached test device question.
+- Phase 3 (FPGA board demo): the demo flow now runs end to end on the Upduino 3.1 target (177 ICESTORM_LC, bitstream produced, timing report in `hw/docs/synthesis_report.md`). The measured Fmax is 8.63 MHz, below the 12 MHz board clock, so the documented next step is a shallower division structure (multiply-shift) or a slower clock, followed by physical board bring-up and the demo video. The 8 MB PSRAM on the Upduino also covers the RAM-attached test device question.
 - Phase 4 (standard cell report and chton propagation): OpenRAM generates the chton segment store SRAM from `hw/openram/chton_sram.py`; OpenROAD then produces the timing, area, and power numbers for a real PDK. That report is the artifact that finally substantiates the gate count on silicon rather than in a generic library.
 - ev and neXus integration: the generic synthesis report already uses the `stat -json` schema of `ev/src/synth/backends/yosys.rs`, so the numbers can be emitted as neXus `Fact` envelopes (`fact_type: synthesis_result`) without a schema change.
 - Cross-language verification: the golden anchor file is a language-neutral contract. The same file can gate a C++ implementation (`sw/cpp`) later, and the exporter pattern extends to any future implementation of the coordinate engine.
