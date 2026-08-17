@@ -20,7 +20,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | Yosys iCE40 synthesis report (LUT count) | Report in `docs/devlogs/hw/` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
 | FPGA board demo (physical) | Next, board required |
-| OpenROAD standard cell report (Sky130) | Setup, runs in CI (hw job) |
+| OpenROAD standard cell report (Sky130) | Implemented, measured locally + CI (hw job) |
 
 ## Layout
 
@@ -56,7 +56,12 @@ The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point,
 
 ### Phase 4: chton SRAM and standard cell report
 
-Generate the chton segment store SRAM with OpenRAM (`openram/chton_sram.py`, SkyWater 130nm, 11,172 x 16-bit single port). Run the standard cell flow with OpenROAD: synthesis, placement and routing, timing and power report. Compare the reported gate count against the ~300 gate claim and publish the number.
+The standard cell flow is complete: OpenROAD runs end to end for the
+registered demo top (area, timing, and power in the Phase 4 section
+below), and the pure decoder reports 388 Sky130 cells, 2826 um^2, against
+the ~300 gate claim of the whitepaper. Remaining: generate the chton
+segment store SRAM with OpenRAM (`openram/chton_sram.py`, SkyWater 130nm,
+11,172 x 16-bit single port), pending the OpenRAM PDK install.
 
 ## Software reference baseline
 
@@ -86,13 +91,38 @@ The hardware environment is packaged as a Docker image (`hw/Dockerfile`, ev-styl
 docker build -f hw/Dockerfile -t tagma-hw .
 ```
 
-The CI job `hw` in `.github/workflows/test.yml` builds the image on `hw/**` changes, so the gate runs on every push without depending on runner tooling.
+The CI job `hw` in `.github/workflows/test.yml` builds the image with a
+GitHub Actions cache (`type=gha`, scope `tagma-hw`) and triggers only on
+gate-relevant sources: `hw/rtl/**`, `hw/tools/**`, the Yosys scripts,
+`hw/Makefile`, `hw/Dockerfile`, `run.sh`, and workflow changes.
+`hw/openroad/**` changes run the standard cell flow without rebuilding the
+image. Documentation-only changes (`hw/README.md`, `hw/openram/**`, the
+generated reports) do not trigger CI.
 
 PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
 
 ## Phase 4: standard cell flow
 
-The Sky130 standard cell flow runs in CI through the `hw` job (`hw/openroad/run.sh` with the ORFS image), producing the area, timing, and power report for the registered demo top plus the pure decoder gate count via `yosys stat -liberty`. The flow runs on x86 and on Apple Silicon under Rosetta; the kepler-formal LEC step is disabled (see the devlog entry) because the bundled binary crashes on both. Results are uploaded as the `sky130-reports` artifact.
+The Sky130 standard cell flow runs end to end (`hw/openroad/run.sh` with the
+ORFS image): synth, floorplan, place, cts, route, finish. Two flow bugs were
+fixed during setup, documented in the derisking devlog: the clock constraint
+was a virtual clock (no source port), leaving the design without a clock
+tree, and the default-on kepler-formal LEC step crashes with an illegal
+instruction on the available CPUs, so it is disabled via `LEC_CHECK = 0`
+(the RTL-to-netlist equivalence is already proven by the yosys equiv gate).
+Measured for the registered demo top at the 12 MHz board-equivalent clock
+(83.33 ns):
+
+| Metric | Value |
+|--------|-------|
+| design area | 4631 um^2, 35% utilization |
+| critical path delay | 11.19 ns |
+| worst setup slack | +72.33 ns |
+| total power | 0.897 mW |
+| pure decoder | 388 cells, 2826 um^2 (`yosys stat -liberty`) |
+
+The flow runs on x86 and on Apple Silicon under Rosetta. Results are
+uploaded as the `sky130-reports` artifact.
 
 ## References
 
