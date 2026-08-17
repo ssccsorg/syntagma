@@ -40,7 +40,7 @@
 //   alloc_zeroed relies on the `None` niche being the all-zero bit pattern.
 //   This holds for Option<Box<T>>, Option<&T>, Option<NonNull<T>>, and
 //   primitives, but NOT for Option<Vec<T>> (which uses 0x8000... as None).
-//   tagma-kv wraps Vec<u8> as Box<[u8]> to maintain compatibility.
+//   tagma-map wraps Vec<u8> as Box<[u8]> to maintain compatibility.
 // ===========================================================================
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -1065,7 +1065,7 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// CoordCube spatial query benchmarks (CoordCube + CoordKV proximity)
+// CoordCube spatial query benchmarks (CoordCube + CoordMap proximity)
 //
 // CoordCube interpretation layer over CoordPath (ARMv8.4-A Firestorm, measured):
 //
@@ -1094,15 +1094,15 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   D=4 (625 paths) 1.887 µs
 //   Same N = same throughput: D*R determines cost, not D or R individually.
 //
-// KV proximity (CoordCubeKV, CoordKVN<2> tree store):
+// KV proximity (CoordCubeMap, CoordMapN<2> tree store):
 //   Sequential 9-path lookup         158 ns    baseline (manual loop)
 //   Cube proximity r=1 (dense 10K)   285 ns    +127 ns (Vec alloc 37 + push 74 + gen 16)
 //   Cube proximity r=2 (dense 10K)   626 ns
 //   Cube proximity r=1 (sparse 9)     48.5 ns   all paths exist, no Vec alloc
 //   Cube proximity r=1 (empty)        15.7 ns   pure path gen, zero lookups
 //   Cube proximity r=5 (dense 10K)   2.55 µs   121 paths
-//   DynCoordKV proximity r=1         161 ns
-//   DynCoordKV proximity r=2         290 ns
+//   DynCoordMap proximity r=1         161 ns
+//   DynCoordMap proximity r=2         290 ns
 //
 // Hierarchical (R=2, N=4):
 //   2-phase (Cube gen + manual filter)    547 ns
@@ -1145,9 +1145,9 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   dense_r2_proximity:     666 ns
 //   Dense vs tree backend makes no difference: Vec push dominates.
 //
-// DynCoordKV proximity:
-//   dynkv_sequential_9:     259 ns
-//   dynkv_proximity_r1:     161 ns   (1.6x faster than sequential)
+// DynCoordMap proximity:
+//   dynmap_sequential_9:     259 ns
+//   dynmap_proximity_r1:     161 ns   (1.6x faster than sequential)
 // ===========================================================================
 
 // Spatial/cubeproximity/radius_N
@@ -1522,18 +1522,18 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
 
 // Spatial/kvproximity/store_density
 //   End-to-end KV spatial query throughput with different store densities
-fn bench_kv_spatial_proximity(c: &mut Criterion) {
+fn bench_map_spatial_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
-    use tagma_kv::coord_gen::CoordKey;
-    use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::CoordKVKey;
+    use tagma_map::coord_cube_map::CoordCubeMap;
+    use tagma_map::coord_gen::CoordKey;
+    use tagma_map::coord_map_n::CoordMapN;
+    use tagma_map::CoordMapKey;
 
     let mut group = c.benchmark_group("Spatial/kvproximity");
 
     // Dense store: fill 100x100 region around center
-    let mut kv = CoordKVN::<2>::new();
+    let mut kv = CoordMapN::<2>::new();
     let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center);
     let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
@@ -1561,7 +1561,7 @@ fn bench_kv_spatial_proximity(c: &mut Criterion) {
     });
 
     // Sparse store: only a few scattered entries
-    let mut sparse_kv = CoordKVN::<2>::new();
+    let mut sparse_kv = CoordMapN::<2>::new();
     for p in [4950u16, 5000u16, 5050u16] {
         for q in [4950u16, 5000u16, 5050u16] {
             let key = CoordKey::new([p as u8, q as u8]);
@@ -1578,7 +1578,7 @@ fn bench_kv_spatial_proximity(c: &mut Criterion) {
     });
 
     // Empty store
-    let empty_kv: CoordKVN<2> = CoordKVN::new();
+    let empty_kv: CoordMapN<2> = CoordMapN::new();
     group.bench_function("empty_r1_proximity", |b| {
         b.iter(|| {
             let r = empty_kv.proximity::<2, 1>(&query_center, 1);
@@ -1709,15 +1709,15 @@ fn bench_coordcube_overhead(c: &mut Criterion) {
 fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
-    use tagma_kv::coord_gen::CoordKey;
-    use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::CoordKVKey;
+    use tagma_map::coord_cube_map::CoordCubeMap;
+    use tagma_map::coord_gen::CoordKey;
+    use tagma_map::coord_map_n::CoordMapN;
+    use tagma_map::CoordMapKey;
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
 
     // Dense tree store: 10K entries in a 100x100 region
-    let mut kv = CoordKVN::<2>::new();
+    let mut kv = CoordMapN::<2>::new();
     let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
     let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
@@ -1767,19 +1767,19 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     group.finish();
 }
 
-// Spatial/cubevspath/dynkv
-//   DynCoordKV + CoordCube: proximity query on variable-depth store
-//   Tests the DynCoordKV CoordCubeKV implementation.
-fn bench_coordcube_dynkv(c: &mut Criterion) {
+// Spatial/cubevspath/dynmap
+//   DynCoordMap + CoordCube: proximity query on variable-depth store
+//   Tests the DynCoordMap CoordCubeMap implementation.
+fn bench_coordcube_dynmap(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
-    use tagma_kv::dyn_coord_kv::DynCoordKV;
-    use tagma_kv::CoordKV;
+    use tagma_map::coord_cube_map::CoordCubeMap;
+    use tagma_map::dyn_coord_map::DynCoordMap;
+    use tagma_map::CoordMap;
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
 
-    // Fill DynCoordKV with short string keys (ByteWise → 2 Coords each)
-    let mut kv = DynCoordKV::new();
+    // Fill DynCoordMap with short string keys (ByteWise → 2 Coords each)
+    let mut kv = DynCoordMap::new();
     for b0 in 97u8..107u8 {
         // 'a'..'j'
         for b1 in 97u8..107u8 {
@@ -1793,14 +1793,14 @@ fn bench_coordcube_dynkv(c: &mut Criterion) {
         Coord::new(100).unwrap(), // "ad"
     ]);
 
-    group.bench_function("dynkv_proximity_r1", |b| {
+    group.bench_function("dynmap_proximity_r1", |b| {
         b.iter(|| {
             let r = kv.proximity::<2, 1>(&center_path, 1);
             black_box(r.len());
         })
     });
 
-    group.bench_function("dynkv_proximity_r2", |b| {
+    group.bench_function("dynmap_proximity_r2", |b| {
         b.iter(|| {
             let r = kv.proximity::<2, 1>(&center_path, 2);
             black_box(r.len());
@@ -1850,19 +1850,19 @@ fn bench_coordcube_path_baseline(c: &mut Criterion) {
 }
 
 // Spatial/cubekv2
-//   CoordCube proximity on CoordKV2 (dense array, 119 MB pre-zeroed).
+//   CoordCube proximity on CoordMap2 (dense array, 119 MB pre-zeroed).
 //   dense_r1_proximity:  282 ns  (vs tree 285 ns -- essentially identical)
 //   dense_r2_proximity:  666 ns  (vs tree 626 ns)
 //   Vec push dominates: lookup cost difference (0.38 vs 0.87 ns) is negligible.
 fn bench_coordcube_kv2_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
-    use tagma_kv::coord_gen::CoordKey;
-    use tagma_kv::{CoordKV2, CoordKVKey};
+    use tagma_map::coord_cube_map::CoordCubeMap;
+    use tagma_map::coord_gen::CoordKey;
+    use tagma_map::{CoordMap2, CoordMapKey};
 
     let mid = 5000u16;
-    let mut kv = CoordKV2::new();
+    let mut kv = CoordMap2::new();
     let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
         Coord::new(mid).unwrap(),
         Coord::new(mid).unwrap(),
@@ -1954,16 +1954,16 @@ fn bench_coordcube_compound(c: &mut Criterion) {
     group.finish();
 }
 
-// Spatial/cubevspath/dynkv_baseline
-//   Sequential lookups on DynCoordKV (no CoordCube), for comparison with DynCoordKV proximity.
-//   dynkv_sequential_9:  259 ns  (vs DynCoordKV proximity r=1: 161 ns)
-//   On DynCoordKV, proximity is 1.6x faster than sequential lookups.
-fn bench_coordcube_dynkv_baseline(c: &mut Criterion) {
+// Spatial/cubevspath/dynmap_baseline
+//   Sequential lookups on DynCoordMap (no CoordCube), for comparison with DynCoordMap proximity.
+//   dynmap_sequential_9:  259 ns  (vs DynCoordMap proximity r=1: 161 ns)
+//   On DynCoordMap, proximity is 1.6x faster than sequential lookups.
+fn bench_coordcube_dynmap_baseline(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
-    use tagma_kv::dyn_coord_kv::DynCoordKV;
-    use tagma_kv::CoordKV;
+    use tagma_map::dyn_coord_map::DynCoordMap;
+    use tagma_map::CoordMap;
 
-    let mut kv = DynCoordKV::new();
+    let mut kv = DynCoordMap::new();
     for b0 in 97u8..107u8 {
         for b1 in 97u8..107u8 {
             let key = format!("{}{}", b0 as char, b1 as char);
@@ -1993,7 +1993,7 @@ fn bench_coordcube_dynkv_baseline(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Spatial/cubevspath");
 
-    group.bench_function("dynkv_sequential_9", |b| {
+    group.bench_function("dynmap_sequential_9", |b| {
         b.iter(|| {
             let mut count = 0usize;
             for key in &neighbor_keys {
@@ -2009,19 +2009,19 @@ fn bench_coordcube_dynkv_baseline(c: &mut Criterion) {
 }
 
 // Spatial/kvproximity/r5
-//   CoordCube proximity at radius 5 on CoordKVN tree store (121 paths).
-fn bench_kv_spatial_proximity_r5(c: &mut Criterion) {
+//   CoordCube proximity at radius 5 on CoordMapN tree store (121 paths).
+fn bench_map_spatial_proximity_r5(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
-    use tagma_kv::coord_gen::CoordKey;
-    use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::CoordKVKey;
+    use tagma_map::coord_cube_map::CoordCubeMap;
+    use tagma_map::coord_gen::CoordKey;
+    use tagma_map::coord_map_n::CoordMapN;
+    use tagma_map::CoordMapKey;
 
     let mut group = c.benchmark_group("Spatial/kvproximity");
 
     // Dense store: fill 50x50 region around center
-    let mut kv = CoordKVN::<2>::new();
+    let mut kv = CoordMapN::<2>::new();
     let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
     let fill_ranges = [(4975u16, 5025u16), (4975u16, 5025u16)];
@@ -2085,10 +2085,10 @@ fn bench_coordcube_large_n_bbox(c: &mut Criterion) {
 fn bench_coordcube_large_n(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
-    use tagma_kv::coord_gen::CoordKey;
-    use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::CoordKVKey;
+    use tagma_map::coord_cube_map::CoordCubeMap;
+    use tagma_map::coord_gen::CoordKey;
+    use tagma_map::coord_map_n::CoordMapN;
+    use tagma_map::CoordMapKey;
 
     let mut group = c.benchmark_group("Spatial/cubelargen");
 
@@ -2105,7 +2105,7 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 
     // N=6, D=6, R=1: KV proximity r=0 on tree
     {
-        let mut kv = CoordKVN::<6>::new();
+        let mut kv = CoordMapN::<6>::new();
         let path = CoordPath::<6>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
@@ -2135,7 +2135,7 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 
     // N=12, D=12, R=1: KV proximity r=0 on tree
     {
-        let mut kv = CoordKVN::<12>::new();
+        let mut kv = CoordMapN::<12>::new();
         let path = CoordPath::<12>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
@@ -2165,7 +2165,7 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 
     // N=19, D=19, R=1: KV proximity r=0 on tree
     {
-        let mut kv = CoordKVN::<19>::new();
+        let mut kv = CoordMapN::<19>::new();
         let path = CoordPath::<19>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
@@ -2192,15 +2192,15 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 fn bench_coordcube_hierarchical(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
-    use tagma_kv::coord_cube_kv::CoordCubeKV;
-    use tagma_kv::coord_gen::CoordKey;
-    use tagma_kv::coord_kv_n::CoordKVN;
-    use tagma_kv::CoordKVKey;
+    use tagma_map::coord_cube_map::CoordCubeMap;
+    use tagma_map::coord_gen::CoordKey;
+    use tagma_map::coord_map_n::CoordMapN;
+    use tagma_map::CoordMapKey;
 
     let mut group = c.benchmark_group("Spatial/hierarchical");
 
     // Fill a 4-character store (D=2, R=2 → N=4)
-    let mut kv = CoordKVN::<4>::new();
+    let mut kv = CoordMapN::<4>::new();
     let center = CoordPath::<4>::new([
         Coord::new(5000).unwrap(),
         Coord::new(5000).unwrap(),
@@ -2571,16 +2571,16 @@ criterion_group!(
               bench_coordcube_bounding_box,
               bench_coordcube_dim_scaling,
               bench_coordcube_distance_metrics,
-              bench_kv_spatial_proximity,
+              bench_map_spatial_proximity,
               bench_coordcube_box_n_scaling,
               bench_coordcube_overhead,
               bench_coordcube_path_vs_cube,
-              bench_coordcube_dynkv,
+              bench_coordcube_dynmap,
               bench_coordcube_path_baseline,
               bench_coordcube_kv2_proximity,
               bench_coordcube_compound,
-              bench_coordcube_dynkv_baseline,
-              bench_kv_spatial_proximity_r5,
+              bench_coordcube_dynmap_baseline,
+              bench_map_spatial_proximity_r5,
               bench_coordcube_large_n_bbox,
               bench_coordcube_large_n,
               bench_coordcube_hierarchical,
@@ -2588,7 +2588,7 @@ criterion_group!(
 );
 
 // ===========================================================================
-// tagma-kv: 3-way comparison — static CoordSpace2 vs dynamic DynCoordSpace
+// tagma-map: 3-way comparison — static CoordSpace2 vs dynamic DynCoordSpace
 //            vs std HashMap for string-key KV workloads
 // ===========================================================================
 //
@@ -2614,39 +2614,39 @@ criterion_group!(
 //   kv/batch-get/hashmap           19.1  ns
 //
 // Wrapper single-op (ns):
-//   DynCoordKV/insert/single             49.4 ns
-//   CoordKV2/insert/single               18.2 ns
-//   CoordKVN<2>/insert/single            19.2 ns
+//   DynCoordMap/insert/single             49.4 ns
+//   CoordMap2/insert/single               18.2 ns
+//   CoordMapN<2>/insert/single            19.2 ns
 //   HashMap<String>/insert/single        44.7 ns
-//   DynCoordKV/get/single                42.4 ns
-//   CoordKV2/get/single                  21.5 ns
-//   CoordKVN<2>/get/single               21.8 ns
+//   DynCoordMap/get/single                42.4 ns
+//   CoordMap2/get/single                  21.5 ns
+//   CoordMapN<2>/get/single               21.8 ns
 //   HashMap<String>/get/single           24.0 ns
 //
 // Wrapper batch get (10k keys, total):
-//   DynCoordKV                          541 µs
-//   CoordKV2                           14.5 µs
-//   CoordKVN<2>                        14.7 µs
+//   DynCoordMap                          541 µs
+//   CoordMap2                           14.5 µs
+//   CoordMapN<2>                        14.7 µs
 //   HashMap<String>                    236 µs
 //
 // Scale workload (get, per-op ns):
 //              10k      1M      10M
-//   CoordKV2   22.0    21.4    22.1     (flat)
-//   CoordKVN<2> 22.7   21.9    22.1     (flat)
-//   DynCoordKV 55.8    57.4    60.6     (+7%)
+//   CoordMap2   22.0    21.4    22.1     (flat)
+//   CoordMapN<2> 22.7   21.9    22.1     (flat)
+//   DynCoordMap 55.8    57.4    60.6     (+7%)
 //   HashMap    21.9    24.2    26.5     (+21%)
 //
 // Scale workload (contains, per-op ns):
 //               10k      1M      10M
-//   CoordKV2   22.3    21.6    21.6     (flat)
-//   CoordKVN<2> 23.2   —        —
-//   DynCoordKV 54.7    —        —
+//   CoordMap2   22.3    21.6    21.6     (flat)
+//   CoordMapN<2> 23.2   —        —
+//   DynCoordMap 54.7    —        —
 //   HashMap    13.2    17.0    18.2     (+38%)
 //
 // Scale workload (insert, 65k keys):
-//   CoordKV2   227 ms   (119 MB alloc dominated)
-//   CoordKVN<2> 10.4 ms (65536 keys)
-//   DynCoordKV 416 ms   (65k trie nodes)
+//   CoordMap2   227 ms   (119 MB alloc dominated)
+//   CoordMapN<2> 10.4 ms (65536 keys)
+//   DynCoordMap 416 ms   (65k trie nodes)
 //   HashMap    9.2 ms
 // ===========================================================================
 
@@ -2671,11 +2671,11 @@ fn kv_boxed(v: &[u8]) -> Box<[u8]> {
 }
 
 use tagma_core::CoordPath;
-use tagma_kv::coord_gen::{ByteWise, CoordGen, Prefix};
+use tagma_map::coord_gen::{ByteWise, CoordGen, Prefix};
 
 // ── Single-operation microbenchmarks (pre-built containers) ────────────
 
-fn bench_kv_single_insert_static(c: &mut Criterion) {
+fn bench_map_single_insert_static(c: &mut Criterion) {
     let key = "k000";
     let path = Prefix::<2>.generate(key).unwrap();
     let cp = CoordPath::new([path[0], path[1]]);
@@ -2688,7 +2688,7 @@ fn bench_kv_single_insert_static(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_single_insert_dyn(c: &mut Criterion) {
+fn bench_map_single_insert_dyn(c: &mut Criterion) {
     let key = "k000";
     let path = ByteWise.generate(key).unwrap();
 
@@ -2700,7 +2700,7 @@ fn bench_kv_single_insert_dyn(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_single_insert_hashmap(c: &mut Criterion) {
+fn bench_map_single_insert_hashmap(c: &mut Criterion) {
     let key = "k000";
 
     c.bench_function("kv/hashmap/insert/single", |b| {
@@ -2712,7 +2712,7 @@ fn bench_kv_single_insert_hashmap(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_single_get_static(c: &mut Criterion) {
+fn bench_map_single_get_static(c: &mut Criterion) {
     let key = "k000";
     let path = Prefix::<2>.generate(key).unwrap();
     let cp = CoordPath::new([path[0], path[1]]);
@@ -2726,7 +2726,7 @@ fn bench_kv_single_get_static(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_single_get_dyn(c: &mut Criterion) {
+fn bench_map_single_get_dyn(c: &mut Criterion) {
     let key = "k000";
     let path = ByteWise.generate(key).unwrap();
     let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
@@ -2739,7 +2739,7 @@ fn bench_kv_single_get_dyn(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_single_get_hashmap(c: &mut Criterion) {
+fn bench_map_single_get_hashmap(c: &mut Criterion) {
     let key = "k000";
     let mut map: std::collections::HashMap<String, Box<[u8]>> = std::collections::HashMap::new();
     map.insert(key.to_string(), kv_boxed(&kv_value()));
@@ -2753,7 +2753,7 @@ fn bench_kv_single_get_hashmap(c: &mut Criterion) {
 
 // ── Batch insert: 1,000 short keys (4 bytes) ───────────────────────────
 
-fn bench_kv_batch_insert_static_short(c: &mut Criterion) {
+fn bench_map_batch_insert_static_short(c: &mut Criterion) {
     let keys: Vec<(CoordPath<2>, Box<[u8]>)> = kv_short_keys(1000)
         .iter()
         .map(|k| {
@@ -2774,7 +2774,7 @@ fn bench_kv_batch_insert_static_short(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_batch_insert_dyn_short(c: &mut Criterion) {
+fn bench_map_batch_insert_dyn_short(c: &mut Criterion) {
     let keys: Vec<(Vec<tagma_core::Coord>, Box<[u8]>)> = kv_short_keys(1000)
         .iter()
         .map(|k| {
@@ -2794,7 +2794,7 @@ fn bench_kv_batch_insert_dyn_short(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_batch_insert_hashmap_short(c: &mut Criterion) {
+fn bench_map_batch_insert_hashmap_short(c: &mut Criterion) {
     let keys: Vec<(String, Box<[u8]>)> = kv_short_keys(1000)
         .iter()
         .map(|k| (k.clone(), kv_boxed(&kv_value())))
@@ -2814,7 +2814,7 @@ fn bench_kv_batch_insert_hashmap_short(c: &mut Criterion) {
 
 // ── Batch insert: 1,000 medium keys (14 bytes) ─────────────────────────
 
-fn bench_kv_batch_insert_static_medium(c: &mut Criterion) {
+fn bench_map_batch_insert_static_medium(c: &mut Criterion) {
     let keys: Vec<(CoordPath<2>, Box<[u8]>)> = kv_medium_keys(1000)
         .iter()
         .map(|k| {
@@ -2835,7 +2835,7 @@ fn bench_kv_batch_insert_static_medium(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_batch_insert_dyn_medium(c: &mut Criterion) {
+fn bench_map_batch_insert_dyn_medium(c: &mut Criterion) {
     let keys: Vec<(Vec<tagma_core::Coord>, Box<[u8]>)> = kv_medium_keys(1000)
         .iter()
         .map(|k| {
@@ -2855,7 +2855,7 @@ fn bench_kv_batch_insert_dyn_medium(c: &mut Criterion) {
     });
 }
 
-fn bench_kv_batch_insert_hashmap_medium(c: &mut Criterion) {
+fn bench_map_batch_insert_hashmap_medium(c: &mut Criterion) {
     let keys: Vec<(String, Box<[u8]>)> = kv_medium_keys(1000)
         .iter()
         .map(|k| (k.clone(), kv_boxed(&kv_value())))
@@ -2875,7 +2875,7 @@ fn bench_kv_batch_insert_hashmap_medium(c: &mut Criterion) {
 
 // ── Batch get: all three variants in a single benchmark group ──────────
 
-fn bench_kv_batch_get_all(c: &mut Criterion) {
+fn bench_map_batch_get_all(c: &mut Criterion) {
     let short_keys = kv_short_keys(10_000);
     let mut group = c.benchmark_group("kv/batch-get/short_10k");
 
@@ -2940,12 +2940,12 @@ fn bench_kv_batch_get_all(c: &mut Criterion) {
 }
 
 // ===========================================================================
-// Wrapper-type benchmarks: DynCoordKV vs CoordKV2 vs CoordKVN vs HashMap
-// through the CoordKV trait API (insert/get via &str)
+// Wrapper-type benchmarks: DynCoordMap vs CoordMap2 vs CoordMapN vs HashMap
+// through the CoordMap trait API (insert/get via &str)
 // ===========================================================================
 
-use tagma_kv::coord_kv_n::CoordKVN;
-use tagma_kv::{CoordKV, CoordKV2, CoordKVKey, CoordKey, DynCoordKV};
+use tagma_map::coord_map_n::CoordMapN;
+use tagma_map::{CoordMap, CoordMap2, CoordMapKey, CoordKey, DynCoordMap};
 
 fn kv_2byte_keys(count: usize) -> Vec<String> {
     // 2-char alphanumeric keys: "00", "01", ... "zz" (1296 unique from 36^2)
@@ -2972,25 +2972,25 @@ fn kv_2byte_all() -> Vec<CoordKey<2>> {
     keys
 }
 
-fn bench_kv_wrapper_single_insert(c: &mut Criterion) {
-    let mut group = c.benchmark_group("tagma-kv-wrapper/insert/single");
+fn bench_map_wrapper_single_insert(c: &mut Criterion) {
+    let mut group = c.benchmark_group("tagma-map-wrapper/insert/single");
 
-    group.bench_function("DynCoordKV", |b| {
-        let mut kv = DynCoordKV::new();
+    group.bench_function("DynCoordMap", |b| {
+        let mut kv = DynCoordMap::new();
         b.iter(|| {
             black_box(kv.insert("k000", kv_value()));
         })
     });
 
-    group.bench_function("CoordKV2", |b| {
-        let mut kv = CoordKV2::new();
+    group.bench_function("CoordMap2", |b| {
+        let mut kv = CoordMap2::new();
         b.iter(|| {
             black_box(kv.insert("k0", kv_value()));
         })
     });
 
-    group.bench_function("CoordKVN<2>", |b| {
-        let mut kv = CoordKVN::<2>::new();
+    group.bench_function("CoordMapN<2>", |b| {
+        let mut kv = CoordMapN::<2>::new();
         b.iter(|| {
             black_box(kv.insert("k0", kv_value()));
         })
@@ -3008,27 +3008,27 @@ fn bench_kv_wrapper_single_insert(c: &mut Criterion) {
 
 // ── Single get ───────────────────────────────────────────────────────────
 
-fn bench_kv_wrapper_single_get(c: &mut Criterion) {
-    let mut group = c.benchmark_group("tagma-kv-wrapper/get/single");
+fn bench_map_wrapper_single_get(c: &mut Criterion) {
+    let mut group = c.benchmark_group("tagma-map-wrapper/get/single");
 
-    group.bench_function("DynCoordKV", |b| {
-        let mut kv = DynCoordKV::new();
+    group.bench_function("DynCoordMap", |b| {
+        let mut kv = DynCoordMap::new();
         kv.insert("k000", kv_value());
         b.iter(|| {
             black_box(kv.get("k000"));
         })
     });
 
-    group.bench_function("CoordKV2", |b| {
-        let mut kv = CoordKV2::new();
+    group.bench_function("CoordMap2", |b| {
+        let mut kv = CoordMap2::new();
         kv.insert("k0", kv_value());
         b.iter(|| {
             black_box(kv.get("k0"));
         })
     });
 
-    group.bench_function("CoordKVN<2>", |b| {
-        let mut kv = CoordKVN::<2>::new();
+    group.bench_function("CoordMapN<2>", |b| {
+        let mut kv = CoordMapN::<2>::new();
         kv.insert("k0", kv_value());
         b.iter(|| {
             black_box(kv.get("k0"));
@@ -3048,14 +3048,14 @@ fn bench_kv_wrapper_single_get(c: &mut Criterion) {
 
 // ── Batch get: 1,000 short keys, all five stores ───────────────────────
 
-fn bench_kv_wrapper_batch_get(c: &mut Criterion) {
+fn bench_map_wrapper_batch_get(c: &mut Criterion) {
     let short_keys = kv_short_keys(10_000);
     let byte2_keys = kv_2byte_keys(676);
     let val = kv_value();
-    let mut group = c.benchmark_group("tagma-kv-wrapper/batch-get/10k");
+    let mut group = c.benchmark_group("tagma-map-wrapper/batch-get/10k");
 
-    group.bench_function("DynCoordKV", |b| {
-        let mut kv = DynCoordKV::new();
+    group.bench_function("DynCoordMap", |b| {
+        let mut kv = DynCoordMap::new();
         for k in &short_keys {
             kv.insert(k, val.clone());
         }
@@ -3066,8 +3066,8 @@ fn bench_kv_wrapper_batch_get(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("CoordKV2", |b| {
-        let mut kv = CoordKV2::new();
+    group.bench_function("CoordMap2", |b| {
+        let mut kv = CoordMap2::new();
         for k in &byte2_keys {
             kv.insert(k, val.clone());
         }
@@ -3078,8 +3078,8 @@ fn bench_kv_wrapper_batch_get(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("CoordKVN<2>", |b| {
-        let mut kv = CoordKVN::<2>::new();
+    group.bench_function("CoordMapN<2>", |b| {
+        let mut kv = CoordMapN::<2>::new();
         for k in &byte2_keys {
             kv.insert(k, val.clone());
         }
@@ -3111,10 +3111,10 @@ fn bench_kv_wrapper_batch_get(c: &mut Criterion) {
 //   insert: unique_keys unique inserts
 //
 // Key count notes:
-//   - DynCoordKV/HashMap: uses kv_short_keys (up to 100k unique 6-char keys)
-//   - CoordKV2/CoordKVN<2>: str API limited to 1296 unique 2-char keys
+//   - DynCoordMap/HashMap: uses kv_short_keys (up to 100k unique 6-char keys)
+//   - CoordMap2/CoordMapN<2>: str API limited to 1296 unique 2-char keys
 //     (CoordKey<2> from str must be valid UTF-8, so only ASCII printable)
-//   - For scales above 1296 unique 2-char keys, CoordKV2/CoordKVN<2> fall
+//   - For scales above 1296 unique 2-char keys, CoordMap2/CoordMapN<2> fall
 //     back to by_coordkey API which accepts all 65536 byte pairs directly.
 
 const STR_2BYTE_UNIQUE: usize = 1296; // 36^2 alphanumeric 2-char keys
@@ -3130,13 +3130,13 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
     // Use by_coordkey API when n exceeds the str-usable key limit
     let use_coordkey_api = n > STR_2BYTE_UNIQUE;
 
-    // DynCoordKV
+    // DynCoordMap
     {
-        let mut kv = DynCoordKV::new();
+        let mut kv = DynCoordMap::new();
         for k in &keys {
             kv.insert(k, val.clone());
         }
-        group.bench_function("DynCoordKV/get", |b| {
+        group.bench_function("DynCoordMap/get", |b| {
             b.iter(|| {
                 for _ in 0..cycles {
                     for k in &keys {
@@ -3145,7 +3145,7 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                 }
             })
         });
-        group.bench_function("DynCoordKV/contains", |b| {
+        group.bench_function("DynCoordMap/contains", |b| {
             b.iter(|| {
                 for _ in 0..cycles {
                     for k in &keys {
@@ -3154,9 +3154,9 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                 }
             })
         });
-        group.bench_function("DynCoordKV/insert", |b| {
+        group.bench_function("DynCoordMap/insert", |b| {
             b.iter(|| {
-                let mut kv = DynCoordKV::new();
+                let mut kv = DynCoordMap::new();
                 for k in &keys {
                     kv.insert(k, val.clone());
                 }
@@ -3164,14 +3164,14 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
         });
     }
 
-    // CoordKV2 — str API for small scale, by_coordkey for 1M/10M
+    // CoordMap2 — str API for small scale, by_coordkey for 1M/10M
     {
         if !use_coordkey_api {
-            let mut kv = CoordKV2::new();
+            let mut kv = CoordMap2::new();
             for k in &k2_str {
                 kv.insert(k, val.clone());
             }
-            group.bench_function("CoordKV2/get", |b| {
+            group.bench_function("CoordMap2/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
@@ -3180,7 +3180,7 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKV2/contains", |b| {
+            group.bench_function("CoordMap2/contains", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
@@ -3189,20 +3189,20 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKV2/insert", |b| {
+            group.bench_function("CoordMap2/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordKV2::new();
+                    let mut kv = CoordMap2::new();
                     for k in &k2_str {
                         kv.insert(k, val.clone());
                     }
                 })
             });
         } else {
-            let mut kv = CoordKV2::new();
+            let mut kv = CoordMap2::new();
             for ck in &all_k2 {
                 kv.insert_by_coordkey(ck, val.clone());
             }
-            group.bench_function("CoordKV2/get", |b| {
+            group.bench_function("CoordMap2/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
@@ -3211,7 +3211,7 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKV2/contains", |b| {
+            group.bench_function("CoordMap2/contains", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
@@ -3220,9 +3220,9 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKV2/insert", |b| {
+            group.bench_function("CoordMap2/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordKV2::new();
+                    let mut kv = CoordMap2::new();
                     for ck in &all_k2 {
                         kv.insert_by_coordkey(ck, val.clone());
                     }
@@ -3231,14 +3231,14 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
         }
     }
 
-    // CoordKVN<2> — str API for small scale, by_coordkey for 1M/10M
+    // CoordMapN<2> — str API for small scale, by_coordkey for 1M/10M
     {
         if !use_coordkey_api {
-            let mut kv = CoordKVN::<2>::new();
+            let mut kv = CoordMapN::<2>::new();
             for k in &k2_str {
                 kv.insert(k, val.clone());
             }
-            group.bench_function("CoordKVN<2>/get", |b| {
+            group.bench_function("CoordMapN<2>/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
@@ -3247,7 +3247,7 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKVN<2>/contains", |b| {
+            group.bench_function("CoordMapN<2>/contains", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
@@ -3256,20 +3256,20 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKVN<2>/insert", |b| {
+            group.bench_function("CoordMapN<2>/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordKVN::<2>::new();
+                    let mut kv = CoordMapN::<2>::new();
                     for k in &k2_str {
                         kv.insert(k, val.clone());
                     }
                 })
             });
         } else {
-            let mut kv = CoordKVN::<2>::new();
+            let mut kv = CoordMapN::<2>::new();
             for ck in &all_k2 {
                 kv.insert_by_coordkey(ck, val.clone());
             }
-            group.bench_function("CoordKVN<2>/get", |b| {
+            group.bench_function("CoordMapN<2>/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
@@ -3278,7 +3278,7 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKVN<2>/contains", |b| {
+            group.bench_function("CoordMapN<2>/contains", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
@@ -3287,9 +3287,9 @@ fn kv_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                     }
                 })
             });
-            group.bench_function("CoordKVN<2>/insert", |b| {
+            group.bench_function("CoordMapN<2>/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordKVN::<2>::new();
+                    let mut kv = CoordMapN::<2>::new();
                     for ck in &all_k2 {
                         kv.insert_by_coordkey(ck, val.clone());
                     }
@@ -3349,13 +3349,13 @@ fn kv_workload_10m(c: &mut Criterion) {
 criterion_group!(
     name = kv;
     config = Criterion::default().sample_size(10);
-    targets = bench_kv_single_insert_static, bench_kv_single_insert_dyn, bench_kv_single_insert_hashmap,
-              bench_kv_single_get_static,    bench_kv_single_get_dyn,    bench_kv_single_get_hashmap,
-              bench_kv_batch_insert_static_short, bench_kv_batch_insert_dyn_short, bench_kv_batch_insert_hashmap_short,
-              bench_kv_batch_insert_static_medium, bench_kv_batch_insert_dyn_medium, bench_kv_batch_insert_hashmap_medium,
-              bench_kv_batch_get_all,
-              bench_kv_wrapper_single_insert, bench_kv_wrapper_single_get,
-              bench_kv_wrapper_batch_get,
+    targets = bench_map_single_insert_static, bench_map_single_insert_dyn, bench_map_single_insert_hashmap,
+              bench_map_single_get_static,    bench_map_single_get_dyn,    bench_map_single_get_hashmap,
+              bench_map_batch_insert_static_short, bench_map_batch_insert_dyn_short, bench_map_batch_insert_hashmap_short,
+              bench_map_batch_insert_static_medium, bench_map_batch_insert_dyn_medium, bench_map_batch_insert_hashmap_medium,
+              bench_map_batch_get_all,
+              bench_map_wrapper_single_insert, bench_map_wrapper_single_get,
+              bench_map_wrapper_batch_get,
               kv_workload_10k, kv_workload_1m, kv_workload_10m,
 );
 

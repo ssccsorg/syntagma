@@ -1,20 +1,20 @@
 use crate::coord_gen::CoordKey;
 
-/// Core operations for any [`CoordKV`] implementation.
+/// Core operations for any [`CoordMap`] implementation.
 ///
 /// Mirrors [`HashMap`](std::collections::HashMap) where applicable:
 /// `insert`, `get`, `remove`, `contains_key`, `len`, `is_empty`, `clear`.
 ///
-/// Fixed-key variants additionally implement [`CoordKVKey`] for
+/// Fixed-key variants additionally implement [`CoordMapKey`] for
 /// [`CoordKey`]-based access (`_by_coordkey` suffix).
 ///
 /// # Trait lego
 ///
 /// | Trait | Methods | Scope |
 /// |-------|---------|-------|
-/// | [`CoordKV`] | `insert`, `get`, `remove`, `contains_key` via `&str` | all KV types |
-/// | [`CoordKVKey<N>`] | `_by_coordkey` suffixed methods | fixed-key types only |
-pub trait CoordKV {
+/// | [`CoordMap`] | `insert`, `get`, `remove`, `contains_key` via `&str` | all KV types |
+/// | [`CoordMapKey<N>`] | `_by_coordkey` suffixed methods | fixed-key types only |
+pub trait CoordMap {
     /// Returns the number of stored entries.
     fn len(&self) -> usize;
 
@@ -46,8 +46,8 @@ pub trait CoordKV {
 
 /// [`CoordKey`]-based access for fixed-size-key KV stores.
 ///
-/// Requires [`CoordKV`] and adds `_by_coordkey` methods.
-pub trait CoordKVKey<const N: usize>: CoordKV {
+/// Requires [`CoordMap`] and adds `_by_coordkey` methods.
+pub trait CoordMapKey<const N: usize>: CoordMap {
     /// Inserts a key-value pair using a [`CoordKey<N>`].
     ///
     /// Returns the previous value if the key already existed.

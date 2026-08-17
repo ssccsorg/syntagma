@@ -1,9 +1,9 @@
-pub mod coord_cube_kv;
+pub mod coord_cube_map;
 pub mod coord_gen;
-pub mod coord_kv;
-pub mod coord_kv2;
-pub mod coord_kv_n;
-pub mod dyn_coord_kv;
+pub mod coord_map;
+pub mod coord_map2;
+pub mod coord_map_n;
+pub mod dyn_coord_map;
 
 use tagma_core::Coord;
 
@@ -12,13 +12,13 @@ pub use coord_gen::{
     ByteFold, ByteWise, CharWise, CoordGen, CoordKey, DefaultDynamic, GenError, Prefix,
 };
 
-// Re-exports from the coord_kv module (traits).
-pub use coord_kv::{CoordKV, CoordKVKey};
+// Re-exports from the coord_map module (traits).
+pub use coord_map::{CoordMap, CoordMapKey};
 
 // Re-exports from concrete KV modules.
-pub use coord_kv2::CoordKV2;
-pub use coord_kv_n::CoordKVN;
-pub use dyn_coord_kv::DynCoordKV;
+pub use coord_map2::CoordMap2;
+pub use coord_map_n::CoordMapN;
+pub use dyn_coord_map::DynCoordMap;
 
 // ---------------------------------------------------------------------------
 // String → CoordPath conversion (zero hash, zero collision)
