@@ -1,4 +1,4 @@
-// Generated artifacts
+# Generated artifacts
 obj_dir/
 synth/yosys/out/
 rtl/golden_anchors.hex

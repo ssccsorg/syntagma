@@ -59,7 +59,7 @@ The first PnR run measured 115.90 ns (8.63 MHz) with 72 logic levels: the shift-
 | Design trade-off | shift-subtract 206..232 cells / 8.63 MHz vs multiply-shift 478..588 cells / 16.35 MHz |
 | Software reference (bench_hw) | single 1.44 ns, all 1.92 µs, export 4.56 µs |
 
-The measured counts are below the ~300 gate claim, which means the claim holds and is conservative for this decoder structure. Timing closure and a real PDK standard cell number still need the OpenROAD flow.
+The ~300 gate claim holds for the naive shift-subtract structure (206 to 232 cells); the multiply-shift version used by the demo exceeds it (478 to 588 cells) as the cost of closing the 12 MHz board clock. Timing closure and a real PDK standard cell number still need the OpenROAD flow.
 
 ## A boundary correction found by exhaustive testing
 
