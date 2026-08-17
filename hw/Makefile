@@ -31,11 +31,17 @@ GOLDEN  = rtl/golden_anchors.hex
 # PASS/FAIL line.
 VERILATE = $(SIM) --binary --timing -Wall --top-module tagma_decoder_tb
 
+# Verilator redirects its build log into the object dir, which is a
+# generated (gitignored) directory: ensure it exists before any sim target
+# runs, including in a fresh checkout or Docker build.
+$(OBJ_DIR):
+	mkdir -p $@
+
 .PHONY: all sim sim-golden sim-trace golden-export golden-check gatesim equiv synth coverage report check clean
 
 all: check
 
-sim: $(RTL) $(TB)
+sim: $(RTL) $(TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_sim (formula mode) ---"
 	@$(VERILATE) $(TB) $(RTL) -o tb_sim \
 		> $(OBJ_DIR)/build_tb_sim.log 2> $(OBJ_DIR)/build_tb_sim.err \
@@ -45,7 +51,7 @@ sim: $(RTL) $(TB)
 	@rm -f $(OBJ_DIR)/build_tb_sim.err
 	@./$(OBJ_DIR)/tb_sim
 
-sim-golden: golden-export $(RTL) $(TB)
+sim-golden: golden-export $(RTL) $(TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_golden (golden anchors) ---"
 	@$(VERILATE) -DGOLDEN_CHECK $(TB) $(RTL) -o tb_golden \
 		> $(OBJ_DIR)/build_tb_golden.log 2> $(OBJ_DIR)/build_tb_golden.err \
@@ -55,7 +61,7 @@ sim-golden: golden-export $(RTL) $(TB)
 	@rm -f $(OBJ_DIR)/build_tb_golden.err
 	@cd rtl && ../$(OBJ_DIR)/tb_golden
 
-sim-trace: $(RTL) $(TB)
+sim-trace: $(RTL) $(TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_trace (VCD activity trace) ---"
 	@$(VERILATE) -DTRACE --trace $(TB) $(RTL) -o tb_trace \
 		> $(OBJ_DIR)/build_tb_trace.log 2> $(OBJ_DIR)/build_tb_trace.err \
@@ -72,7 +78,7 @@ golden-export:
 golden-check:
 	python3 tools/check_golden_anchors.py
 
-gatesim: golden-export synth
+gatesim: golden-export synth | $(OBJ_DIR)
 	@echo "--- verilator: tb_gatesim (gate netlist) ---"
 	@$(VERILATE) -Wno-UNUSEDSIGNAL -Wno-UNDRIVEN -Wno-TIMESCALEMOD -Wno-DECLFILENAME -DGOLDEN_CHECK synth/yosys/out/tagma_decoder_gates.v $(TB) -o tb_gatesim \
 		> $(OBJ_DIR)/build_tb_gatesim.log 2> $(OBJ_DIR)/build_tb_gatesim.err \
