@@ -6,8 +6,10 @@
 # for the registered demo top, and reports the pure decoder gate count
 # against the Sky130 liberty with yosys stat -liberty.
 #
-# The ORFS image is x86_64. On Apple Silicon it runs under Rosetta, which
-# may crash in some OpenROAD steps (illegal instruction). The intended
+# The ORFS image is x86_64. The flow runs on x86 natively and on Apple
+# Silicon under Rosetta; the kepler-formal LEC step is disabled in the
+# design config because the bundled binary crashes on both (see the
+# derisking devlog). The intended
 # execution environment is x86_64 CI (the hw job in
 # .github/workflows/test.yml); run locally on x86 hardware or CI.
 #

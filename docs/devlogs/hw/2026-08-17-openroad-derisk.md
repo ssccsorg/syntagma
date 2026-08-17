@@ -1,6 +1,6 @@
 # OpenROAD Sky130 flow derisking for the hw CI job
 
-Status report for issue #48 on branch `48-hw-verification`. This entry records the local verification of the ORFS (OpenROAD Flow Scripts) setup before the first native run on the x86 hw CI job, and the fixes that came out of it. The full flow cannot run on Apple Silicon: the OpenROAD binary crashes with an illegal instruction in the CTS step under Rosetta, so everything up to placement was exercised locally and the remaining stages are delegated to the x86 runner.
+Status report for issue #48 on branch `48-hw-verification`. This entry records the local verification of the ORFS (OpenROAD Flow Scripts) setup for the hw CI job, and the fixes that came out of it. Two flow bugs were found and fixed: a virtual clock definition that left the design without a clock tree, and a default-on LEC step whose bundled tool crashes on the available CPUs. After the fixes the full flow runs end to end, including locally on Apple Silicon under Rosetta.
 
 ## ORFS layout correction
 
@@ -15,6 +15,41 @@ export SDC_FILE      = $(DESIGN_HOME)/sky130hd/tagma_demo/constraint.sdc
 `hw/openroad/run.sh` mounts the live RTL from `hw/rtl` onto `flow/designs/src/tagma_demo` and the config directory onto `flow/designs`, so the run always uses the current RTL with no committed copies to drift. The old `constraints.sdc` (plural) was replaced by `constraint.sdc` (singular), matching the ORFS convention.
 
 The SDC follows the shipped examples: `set_input_delay` applies to `[all_inputs -no_clocks]` so the clock port is not treated as a data input.
+
+## Virtual clock: CTS found no clock nets
+
+The first constraint file created the clock without a source port:
+
+```tcl
+create_clock -period 83.33 -name clk
+```
+
+Without a source object this is a virtual clock. Timing analysis accepts it, but TritonCTS reports `No clock nets have been found` and builds no tree, which surfaced as a downstream crash. The fix follows the shipped examples:
+
+```tcl
+create_clock -period 83.33 -name clk [get_ports clk]
+```
+
+After the fix the CTS log shows `Net "clk" found for clock "clk"` with 16 sinks and a built H-tree.
+
+## The kepler-formal LEC crash
+
+The CTS stage still aborted after repair timing with `Error: cts.tcl, 83 child killed: illegal instruction`. The same error appeared under Rosetta and on the x86 CI runner, so it was not an emulation issue. Wrapping the stage in a Tcl catch exposed the full stack: the flow runs a logic equivalence check (LEC) after repair timing, and the bundled `kepler-formal` binary dies with SIGILL:
+
+```text
+child killed: illegal instruction
+    while executing
+"exec /OpenROAD-flow-scripts/tools/install/kepler-formal/bin/kepler-formal --config ./objects/sky130hd/tagma_demo/base/4_rsz_lec_test.yml"
+    invoked from within
+"run_lec_test 4_rsz 4_before_rsz_lec.v 4_after_rsz_lec.v"
+    (file "cts.tcl" line 71)
+```
+
+ORFS enables LEC by default when the image ships kepler-formal (`settings.mk`: `LEC_CHECK ?= $(if $(wildcard $(KEPLER_FORMAL_EXE)),1,0)`). The binary crashes on the CPUs available here (Apple Silicon Rosetta and the GitHub Actions x86 runner). The tagma config disables the in-flow LEC check, since the RTL-to-netlist equivalence is already proven by the yosys equiv gate in `hw/`:
+
+```makefile
+export LEC_CHECK = 0
+```
 
 ## The yosys abc extraction gap
 
@@ -40,25 +75,25 @@ export CORE_ASPECT_RATIO = 1
 export CORE_MARGIN = 2
 ```
 
-## Local verification boundary
+## Full flow result
 
-Stages verified locally under Rosetta with a fresh volume (exactly what CI starts from):
+With the clock and LEC fixes, the complete ORFS flow runs end to end: synth, floorplan, place, cts, route, finish. The run also completes on Apple Silicon under Rosetta; no x86-only stage remains. Measured for the registered demo top (12 MHz board-equivalent clock, 83.33 ns):
 
-| Stage | Result |
-|-------|--------|
-| synth (`1_synth`) | pass, design area 4001 um^2 after synthesis |
-| floorplan (`2_floorplan` incl. PDN) | pass, 4222 um^2, 32% utilization |
-| place (`3_place` detailed) | pass, 4552 um^2, 35% utilization, 0 violations |
-| cts (`4_cts`) | crash, `child killed: illegal instruction`, the known Rosetta limit |
-| route and finish | not attempted locally, x86 only |
+| Metric | Value |
+|--------|-------|
+| design area | 4631 um^2, 35% utilization |
+| critical path delay | 11.19 ns (code[11] to m[4] register) |
+| worst setup slack | +72.33 ns |
+| total power | 0.897 mW (sequential 3.3%, combinational 95.5%, clock 1.2%) |
+| pure decoder area | 2826.46 um^2, 388 cells (yosys stat -liberty) |
 
 ## PDK availability
 
-The ORFS image ships the sky130hd platform files including the liberty at `platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib`, and the flow Makefile has no pdk download target. A fresh volume run completes synthesis without network access, so the earlier risk of a PDK auto-fetch is cleared: the only remaining CI-specific risk is the native execution of the CTS onward stages on the x86 runner.
+The ORFS image ships the sky130hd platform files including the liberty at `platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib`, and the flow Makefile has no pdk download target. A fresh volume run completes the flow without network access.
 
 ## Reproduction
 
 ```bash
 docker volume rm tagma_orfs_flow   # optional, fresh start
-bash hw/openroad/run.sh            # full flow; run on x86 hardware or the hw CI job
+bash hw/openroad/run.sh            # full flow; runs on x86, Apple Silicon, or the hw CI job
 ```
