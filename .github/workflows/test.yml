@@ -6,6 +6,7 @@ on:
     paths:
       - "sw/rust/**"
       - "sw/cpp/**"
+      - "hw/**"
       - "run.sh"
       - ".github/workflows/*.yml"
       - "!sw/rust/**/*.md"
@@ -83,3 +84,19 @@ jobs:
           workspaces: sw/rust
       - name: Build API docs
         run: bash run.sh --doc
+
+  hw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: hw_filter
+        with:
+          filters: |
+            hw:
+              - 'hw/**'
+              - '.github/workflows/*.yml'
+              - 'run.sh'
+      - name: Build hardware verification image (runs sim, golden, gatesim, equiv, synth, PnR)
+        if: steps.hw_filter.outputs.hw == 'true'
+        run: docker build -f hw/Dockerfile -t tagma-hw .

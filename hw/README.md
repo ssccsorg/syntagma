@@ -78,6 +78,18 @@ The whole hardware design rests on four independent conditions, of which BMP mem
 
 The general Tagma mechanism does not require the BMP; multi-unit and astral cases use the N-dimensional machinery (`CoordPath`, `base11172`, `CoordSpace2`). Hangul is the cheapest demonstration of the method, which is why the decoder is small enough to fit the ~300 gate claim.
 
+## CI packaging
+
+The hardware environment is packaged as a Docker image (`hw/Dockerfile`, ev-style): the toolchain (Verilator, Yosys, nextpnr-ice40 from Ubuntu 24.04, icestorm built from source, Rust) plus the full verification gate as build-time smoke tests. Build from the repository root:
+
+```bash
+docker build -f hw/Dockerfile -t tagma-hw .
+```
+
+The CI job `hw` in `.github/workflows/test.yml` builds the image on `hw/**` changes, so the gate runs on every push without depending on runner tooling.
+
+PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
+
 ## References
 
 - Tagma whitepaper: https://doi.org/10.5281/zenodo.21302508
