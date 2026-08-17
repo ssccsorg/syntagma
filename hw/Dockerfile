@@ -17,10 +17,12 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Packaged toolchain: Verilator, Yosys, nextpnr-ice40, Python, build tools.
+# cmake is required by the C++ core in sw/cpp, which run.sh --check builds.
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     curl \
+    cmake \
     python3 \
     yosys \
     verilator \
@@ -50,9 +52,12 @@ RUN verilator --version && yosys --version \
 
 WORKDIR /workspace
 
-# Build-time: run the hardware verification gate.
+# Build-time: run the full project verification (fmt, clippy, build, test,
+# C++ core, and the hardware gate via check_hw), the demo PnR flow, and
+# the explicit coverage summary.
 COPY . .
-RUN make -C hw check
+RUN bash run.sh --check
 RUN bash hw/synth/yosys/run_pnr.sh
+RUN make -C hw coverage
 
 ENTRYPOINT ["bash"]

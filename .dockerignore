@@ -1,6 +1,7 @@
 .git
 **/target
 **/obj_dir
+**/build
 hw/synth/yosys/out
 hw/rtl/golden_anchors.hex
 hw/rtl/trace.vcd
