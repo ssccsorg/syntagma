@@ -25,3 +25,10 @@ export CLOCK_PERIOD  = 83.33
 export CORE_UTILIZATION = 30
 export CORE_ASPECT_RATIO = 1
 export CORE_MARGIN = 2
+
+# LEC is enabled by default when the ORFS image ships kepler-formal, which
+# crashes with an illegal instruction on the available CPUs (Apple Silicon
+# Rosetta and the x86 CI runner). The RTL-to-netlist equivalence is already
+# proven by the yosys equiv gate in hw/, so the in-flow LEC check is
+# redundant here and is disabled.
+export LEC_CHECK = 0

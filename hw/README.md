@@ -92,7 +92,7 @@ PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured
 
 ## Phase 4: standard cell flow
 
-The Sky130 standard cell flow runs in CI through the `hw` job (`hw/openroad/run.sh` with the ORFS image), producing the area, timing, and power report for the registered demo top plus the pure decoder gate count via `yosys stat -liberty`. The ORFS image is x86_64; on Apple Silicon Rosetta crashes in CTS (illegal instruction), so the flow runs natively on the x86 CI runner. Results are uploaded as the `sky130-reports` artifact.
+The Sky130 standard cell flow runs in CI through the `hw` job (`hw/openroad/run.sh` with the ORFS image), producing the area, timing, and power report for the registered demo top plus the pure decoder gate count via `yosys stat -liberty`. The flow runs on x86 and on Apple Silicon under Rosetta; the kepler-formal LEC step is disabled (see the devlog entry) because the bundled binary crashes on both. Results are uploaded as the `sky130-reports` artifact.
 
 ## References
 
