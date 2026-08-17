@@ -99,7 +99,7 @@ Direct comparison on the same 10K-entry CoordMapN<2> store:
 
 **Insight**: CoordCube proximity overhead is dominated by Vec allocation and push, not by coordinate arithmetic. On short-lived queries, this overhead is significant (+80%). On sparse stores where most generated paths are absent, CoordCube proximity short-circuits faster than sequential lookups because BoundingBoxIter::next() returns None immediately for out-of-bounds, while sequential lookup must query the tree for each key.
 
-### 9. KV proximity at scale
+### 9. Map proximity at scale
 
 | Scenario | Store | Query | Time | Found |
 |----------|-------|-------|------|-------|
@@ -111,16 +111,16 @@ Direct comparison on the same 10K-entry CoordMapN<2> store:
 | DynCoordMap 100 entries | DynCoordMap | r=1 | 161 ns | 9 |
 | DynCoordMap 100 entries | DynCoordMap | r=2 | 290 ns | 25 |
 | Hierarchical R=2, r=1 (2-phase) | CoordMapN<4> | r=1 | 547 ns | -- |
-| Hierarchical R=2, r=1 (direct KV) | CoordMapN<4> | r=1 | 639 ns | -- |
+| Hierarchical R=2, r=1 (direct map) | CoordMapN<4> | r=1 | 639 ns | -- |
 
-**Hierarchical insight**: CoordCube prox r=1 followed by manual lookup (547 ns) is slightly faster than direct KV proximity (639 ns) on R=2 stores, because CoordCube generates candidate paths without considering multi-char dimension boundaries, and the manual post-filter weeds out false positives.
+**Hierarchical insight**: CoordCube prox r=1 followed by manual lookup (547 ns) is slightly faster than direct map proximity (639 ns) on R=2 stores, because CoordCube generates candidate paths without considering multi-char dimension boundaries, and the manual post-filter weeds out false positives.
 
 ### 10. Large N
 
 | Configuration | Time | Notes |
 |---------------|------|-------|
 | N=12 path gen r=0 | 17.5 ns | 12D proximity with radius 0 (single path) |
-| N=12 KV proximity r=0 | 118.6 ns | path gen + tree lookup |
+| N=12 map proximity r=0 | 118.6 ns | path gen + tree lookup |
 | N=19 path gen r=0 | ~18 ns (projected) | Similar to N=12 since path gen is O(1) at r=0 |
 
 ## Proposed Charts
@@ -187,7 +187,7 @@ Annotate: "144x faster: single bitwise AND vs 11,172 iterations"
 File: fig-bench-coordcube-largen.qmd
 
 N=12 path gen r=0: 17.5 ns
-N=12 KV prox r=0: 119 ns
+N=12 map prox r=0: 119 ns
 N=6 bbox 3^6: 1.70 us
 
 ## Distance Metrics -- DEFERRED

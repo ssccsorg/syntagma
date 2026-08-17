@@ -48,4 +48,4 @@ HashMap insert at 9.2 ms is faster because the table allocates incrementally. Bu
 
 The scale-invariance of CoordSpace2 is not a feature — it is a consequence of the addressing model. Array indexing is O(1) with respect to both the number of stored entries and the number of access operations. Hash table lookup is O(1) amortized with respect to entries but O(accesses) with respect to cache pressure. The two are the same at small scale; they diverge as the working set exceeds cache capacity.
 
-For Tagma-KV, the practical implication is that the performance observed at 1k is the performance at any scale. No tuning, no capacity planning, no load factor monitoring. The 22 ns get latency at 1k is the same 22 ns at 10M — and will be the same at 1B, limited only by the DRAM bandwidth of the array.
+For Tagma Map, the practical implication is that the performance observed at 1k is the performance at any scale. No tuning, no capacity planning, no load factor monitoring. The 22 ns get latency at 1k is the same 22 ns at 10M — and will be the same at 1B, limited only by the DRAM bandwidth of the array.
