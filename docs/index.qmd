@@ -3,7 +3,7 @@ title: "Tagma Project"
 subtitle: "Master Document"
 date: 2026-07
 date-format: "MMMM, YYYY"
-version-prefix: tagma-wp-0.1
+version-prefix: tagma_wp
 version-mark: true
 bibliography: ./_include/reference.bib
 csl: ./_include/ieee.csl
