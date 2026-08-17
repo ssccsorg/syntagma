@@ -8,7 +8,7 @@
 #
 # The ORFS image is x86_64. On Apple Silicon it runs under Rosetta, which
 # may crash in some OpenROAD steps (illegal instruction). The intended
-# execution environment is x86_64 CI (the p4 job in
+# execution environment is x86_64 CI (the hw job in
 # .github/workflows/test.yml); run locally on x86 hardware or CI.
 #
 # Usage:

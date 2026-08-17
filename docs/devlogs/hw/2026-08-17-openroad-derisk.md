@@ -1,6 +1,6 @@
-# OpenROAD Sky130 flow derisking for the p4 CI job
+# OpenROAD Sky130 flow derisking for the hw CI job
 
-Status report for issue #48 on branch `48-hw-verification`. This entry records the local verification of the ORFS (OpenROAD Flow Scripts) setup before the first native run on the x86 p4 CI job, and the fixes that came out of it. The full flow cannot run on Apple Silicon: the OpenROAD binary crashes with an illegal instruction in the CTS step under Rosetta, so everything up to placement was exercised locally and the remaining stages are delegated to the x86 runner.
+Status report for issue #48 on branch `48-hw-verification`. This entry records the local verification of the ORFS (OpenROAD Flow Scripts) setup before the first native run on the x86 hw CI job, and the fixes that came out of it. The full flow cannot run on Apple Silicon: the OpenROAD binary crashes with an illegal instruction in the CTS step under Rosetta, so everything up to placement was exercised locally and the remaining stages are delegated to the x86 runner.
 
 ## ORFS layout correction
 
@@ -54,11 +54,11 @@ Stages verified locally under Rosetta with a fresh volume (exactly what CI start
 
 ## PDK availability
 
-The ORFS image ships the sky130hd platform files including the liberty at `platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib`, and the flow Makefile has no pdk download target. A fresh volume run completes synthesis without network access, so the earlier p4 risk of a PDK auto-fetch is cleared: the only remaining p4-specific risk is the native execution of the CTS onward stages on the x86 runner.
+The ORFS image ships the sky130hd platform files including the liberty at `platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib`, and the flow Makefile has no pdk download target. A fresh volume run completes synthesis without network access, so the earlier risk of a PDK auto-fetch is cleared: the only remaining CI-specific risk is the native execution of the CTS onward stages on the x86 runner.
 
 ## Reproduction
 
 ```bash
 docker volume rm tagma_orfs_flow   # optional, fresh start
-bash hw/openroad/run.sh            # full flow; run on x86 hardware or the p4 CI job
+bash hw/openroad/run.sh            # full flow; run on x86 hardware or the hw CI job
 ```
