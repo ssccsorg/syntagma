@@ -1,11 +1,11 @@
 #pragma once
 
-// DynCoordKV: a hash-free, collision-free string KV store backed by
+// DynCoordMap: a hash-free, collision-free string map backed by
 // DynCoordSpace with ByteWise coordinate generation. Supports any
 // non-empty string key; lookup is O(key length). Mirrors the Rust
-// DynCoordKV in sw/rust/kv/src/dyn_coord_kv.rs.
+// DynCoordMap in sw/rust/map/src/dyn_coord_map.rs.
 
-#include "tagma_kv/coord_gen.h"
+#include "tagma_map/coord_gen.h"
 
 #include "tagma_core/coord_path.h"
 #include "tagma_core/dyn_coord_space.h"
@@ -16,13 +16,13 @@
 #include <utility>
 #include <vector>
 
-namespace tagma_kv {
+namespace tagma_map {
 
-class DynCoordKV {
+class DynCoordMap {
 public:
   using Value = std::vector<uint8_t>;
 
-  DynCoordKV() = default;
+  DynCoordMap() = default;
 
   // The number of stored entries.
   std::size_t len() const { return len_; }
@@ -80,7 +80,7 @@ public:
   // All (key, value) pairs in depth-first coordinate-ascending order.
   // Keys are reconstructed from the stored byte-wise path. The value
   // pointers stay valid until the next mutation of the store. Mirrors
-  // the Rust DynCoordKV::iter.
+  // the Rust DynCoordMap::iter.
   std::vector<std::pair<std::string, const Value*>> iter() const {
     std::vector<std::pair<std::string, const Value*>> out;
     for (const auto& entry : space_.entries()) {
@@ -99,4 +99,4 @@ private:
   std::size_t len_ = 0;
 };
 
-}  // namespace tagma_kv
+}  // namespace tagma_map

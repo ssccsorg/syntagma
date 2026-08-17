@@ -2,7 +2,7 @@ use tagma_core::Coord;
 use tagma_core::DynCoordSpace;
 
 use crate::string_to_coord_path;
-use crate::CoordKV;
+use crate::CoordMap;
 
 // ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -22,9 +22,9 @@ fn coords_to_key_bytes(coords: &[Coord]) -> Vec<u8> {
     coords.iter().map(|c| c.index() as u8).collect()
 }
 
-// ── DynCoordKV ────────────────────────────────────────────────────────────
+// ── DynCoordMap ────────────────────────────────────────────────────────────
 
-/// A hash-free, collision-free string KV store backed by [`DynCoordSpace`]
+/// A hash-free, collision-free string map backed by [`DynCoordSpace`]
 /// with [`ByteWise`](crate::ByteWise) coordinate generation.
 ///
 /// Supports any non-empty string key.  Lookup cost is O(len(key)).
@@ -33,27 +33,27 @@ fn coords_to_key_bytes(coords: &[Coord]) -> Vec<u8> {
 ///
 /// | Trait | Methods |
 /// |-------|---------|
-/// | [`CoordKV`] | `insert`, `get`, `remove`, `contains_key` via `&str` |
+/// | [`CoordMap`] | `insert`, `get`, `remove`, `contains_key` via `&str` |
 ///
 /// # Example
 ///
 /// ```
-/// use tagma_kv::CoordKV;
-/// use tagma_kv::dyn_coord_kv::DynCoordKV;
+/// use tagma_map::CoordMap;
+/// use tagma_map::dyn_coord_map::DynCoordMap;
 ///
-/// let mut kv = DynCoordKV::new();
-/// kv.insert("hello", b"world".to_vec());
-/// assert_eq!(kv.get("hello"), Some(b"world".to_vec()));
+/// let mut map = DynCoordMap::new();
+/// map.insert("hello", b"world".to_vec());
+/// assert_eq!(map.get("hello"), Some(b"world".to_vec()));
 /// ```
-pub struct DynCoordKV {
+pub struct DynCoordMap {
     space: DynCoordSpace<Box<[u8]>>,
     len: usize,
 }
 
-impl DynCoordKV {
+impl DynCoordMap {
     /// Creates an empty dynamic-mode store.
     pub fn new() -> Self {
-        DynCoordKV {
+        DynCoordMap {
             space: DynCoordSpace::new(),
             len: 0,
         }
@@ -73,14 +73,14 @@ impl DynCoordKV {
     /// Keys are reconstructed from the stored Coord path: each Coord is
     /// converted back to the original byte value.  Order is
     /// depth-first, coordinate-ascending.
-    pub fn iter(&self) -> DynCoordKVIter<'_> {
-        DynCoordKVIter {
+    pub fn iter(&self) -> DynCoordMapIter<'_> {
+        DynCoordMapIter {
             inner: self.space.iter(),
         }
     }
 }
 
-impl CoordKV for DynCoordKV {
+impl CoordMap for DynCoordMap {
     fn len(&self) -> usize {
         self.len
     }
@@ -129,7 +129,7 @@ impl CoordKV for DynCoordKV {
     }
 }
 
-impl Default for DynCoordKV {
+impl Default for DynCoordMap {
     fn default() -> Self {
         Self::new()
     }
@@ -137,12 +137,12 @@ impl Default for DynCoordKV {
 
 // ── Iterator ──────────────────────────────────────────────────────────────
 
-/// An iterator over [`DynCoordKV`] entries, yielding `(key_bytes, value)`.
-pub struct DynCoordKVIter<'a> {
+/// An iterator over [`DynCoordMap`] entries, yielding `(key_bytes, value)`.
+pub struct DynCoordMapIter<'a> {
     inner: tagma_core::DynIter<'a, Box<[u8]>>,
 }
 
-impl<'a> Iterator for DynCoordKVIter<'a> {
+impl<'a> Iterator for DynCoordMapIter<'a> {
     type Item = (Vec<u8>, &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {

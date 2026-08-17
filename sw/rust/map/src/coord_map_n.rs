@@ -1,7 +1,7 @@
 use tagma_core::CoordSpaceN;
 
 use crate::coord_gen::CoordKey;
-use crate::{CoordKV, CoordKVKey};
+use crate::{CoordMap, CoordMapKey};
 
 // ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -25,9 +25,9 @@ fn path_to_key_bytes<const N: usize>(path: &tagma_core::CoordPath<N>) -> [u8; N]
     key
 }
 
-// ── CoordKVN ──────────────────────────────────────────────────────────────
+// ── CoordMapN ──────────────────────────────────────────────────────────────
 
-/// A fixed-N-byte-key KV store backed by [`CoordSpaceN`] — the sparse
+/// A fixed-N-byte-key map backed by [`CoordSpaceN`] — the sparse
 /// tree for any depth `N`.
 ///
 /// Keys must be exactly `N` bytes.  Lookup cost is O(N) via tree traversal.
@@ -36,28 +36,28 @@ fn path_to_key_bytes<const N: usize>(path: &tagma_core::CoordPath<N>) -> [u8; N]
 ///
 /// | Trait | Methods |
 /// |-------|---------|
-/// | [`CoordKV`] | `insert`, `get`, `remove`, `contains_key` via `&str` |
-/// | [`CoordKVKey<N>`] | `insert_by_coordkey`, `get_by_coordkey`, `remove_by_coordkey`, `contains_key_by_coordkey` via `CoordKey<N>` |
+/// | [`CoordMap`] | `insert`, `get`, `remove`, `contains_key` via `&str` |
+/// | [`CoordMapKey<N>`] | `insert_by_coordkey`, `get_by_coordkey`, `remove_by_coordkey`, `contains_key_by_coordkey` via `CoordKey<N>` |
 ///
 /// # Example
 ///
 /// ```
-/// use tagma_kv::{CoordKV, CoordKVKey};
-/// use tagma_kv::coord_kv_n::CoordKVN;
+/// use tagma_map::{CoordMap, CoordMapKey};
+/// use tagma_map::coord_map_n::CoordMapN;
 ///
-/// let mut kv = CoordKVN::<3>::new();
-/// kv.insert("foo", b"bar".to_vec());
-/// assert_eq!(kv.get("foo"), Some(b"bar".to_vec()));
+/// let mut map = CoordMapN::<3>::new();
+/// map.insert("foo", b"bar".to_vec());
+/// assert_eq!(map.get("foo"), Some(b"bar".to_vec()));
 /// ```
-pub struct CoordKVN<const N: usize> {
+pub struct CoordMapN<const N: usize> {
     space: CoordSpaceN<N, Box<[u8]>>,
     len: usize,
 }
 
-impl<const N: usize> CoordKVN<N> {
+impl<const N: usize> CoordMapN<N> {
     /// Creates an empty N-byte-key store.
     pub fn new() -> Self {
-        CoordKVN {
+        CoordMapN {
             space: CoordSpaceN::new(),
             len: 0,
         }
@@ -65,15 +65,15 @@ impl<const N: usize> CoordKVN<N> {
 
     /// Returns an iterator over `(key_bytes, value)` pairs in
     /// ascending coordinate order.
-    pub fn iter(&self) -> CoordKVNIter<'_, N> {
-        CoordKVNIter {
+    pub fn iter(&self) -> CoordMapNIter<'_, N> {
+        CoordMapNIter {
             inner: self.space.iter_tree(),
             _phantom: core::marker::PhantomData,
         }
     }
 }
 
-impl<const N: usize> CoordKV for CoordKVN<N> {
+impl<const N: usize> CoordMap for CoordMapN<N> {
     fn len(&self) -> usize {
         self.len
     }
@@ -110,7 +110,7 @@ impl<const N: usize> CoordKV for CoordKVN<N> {
     }
 }
 
-impl<const N: usize> CoordKVKey<N> for CoordKVN<N> {
+impl<const N: usize> CoordMapKey<N> for CoordMapN<N> {
     fn insert_by_coordkey(&mut self, key: &CoordKey<N>, value: Vec<u8>) -> Option<Vec<u8>> {
         let path = key.to_coord_path();
         let prev = self.space.place_path(&path, vec_to_box(value));
@@ -135,7 +135,7 @@ impl<const N: usize> CoordKVKey<N> for CoordKVN<N> {
     }
 }
 
-impl<const N: usize> Default for CoordKVN<N> {
+impl<const N: usize> Default for CoordMapN<N> {
     fn default() -> Self {
         Self::new()
     }
@@ -143,13 +143,13 @@ impl<const N: usize> Default for CoordKVN<N> {
 
 // ── Iterator ──────────────────────────────────────────────────────────────
 
-/// An iterator over [`CoordKVN<N>`] entries, yielding `(key_bytes, value)`.
-pub struct CoordKVNIter<'a, const N: usize> {
+/// An iterator over [`CoordMapN<N>`] entries, yielding `(key_bytes, value)`.
+pub struct CoordMapNIter<'a, const N: usize> {
     inner: tagma_core::coord_space_n::TreeIter<'a, N, Box<[u8]>>,
     _phantom: core::marker::PhantomData<[u8; N]>,
 }
 
-impl<'a, const N: usize> Iterator for CoordKVNIter<'a, N> {
+impl<'a, const N: usize> Iterator for CoordMapNIter<'a, N> {
     type Item = ([u8; N], &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {

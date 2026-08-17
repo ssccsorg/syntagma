@@ -1,7 +1,7 @@
 use tagma_core::CoordSpace2;
 
 use crate::coord_gen::CoordKey;
-use crate::{CoordKV, CoordKVKey};
+use crate::{CoordMap, CoordMapKey};
 
 // ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -17,9 +17,9 @@ fn box_to_vec_owned(v: Box<[u8]>) -> Vec<u8> {
     v.into_vec()
 }
 
-// ── CoordKV2 ──────────────────────────────────────────────────────────────
+// ── CoordMap2 ──────────────────────────────────────────────────────────────
 
-/// A 2-byte-key KV store backed by [`CoordSpace2`] — the dense,
+/// A 2-byte-key map backed by [`CoordSpace2`] — the dense,
 /// single-allocation array (119 MB).  Lookup cost is O(1).
 ///
 /// Keys must be exactly 2 bytes.
@@ -28,36 +28,36 @@ fn box_to_vec_owned(v: Box<[u8]>) -> Vec<u8> {
 ///
 /// | Trait | Methods |
 /// |-------|---------|
-/// | [`CoordKV`] | `insert`, `get`, `remove`, `contains_key` via `&str` |
-/// | [`CoordKVKey<2>`] | `insert_by_coordkey`, `get_by_coordkey`, `remove_by_coordkey`, `contains_key_by_coordkey` via `CoordKey<2>` |
+/// | [`CoordMap`] | `insert`, `get`, `remove`, `contains_key` via `&str` |
+/// | [`CoordMapKey<2>`] | `insert_by_coordkey`, `get_by_coordkey`, `remove_by_coordkey`, `contains_key_by_coordkey` via `CoordKey<2>` |
 ///
 /// # Example
 ///
 /// ```
-/// use tagma_kv::{CoordKV, CoordKV2, CoordKVKey};
+/// use tagma_map::{CoordMap, CoordMap2, CoordMapKey};
 ///
-/// let mut kv = CoordKV2::new();
-/// kv.insert("hi", b"world".to_vec());
-/// assert_eq!(kv.get("hi"), Some(b"world".to_vec()));
+/// let mut map = CoordMap2::new();
+/// map.insert("hi", b"world".to_vec());
+/// assert_eq!(map.get("hi"), Some(b"world".to_vec()));
 /// ```
-pub struct CoordKV2 {
+pub struct CoordMap2 {
     space: CoordSpace2<Box<[u8]>>,
     len: usize,
 }
 
-impl CoordKV2 {
+impl CoordMap2 {
     /// Creates an empty 2-byte-key store.
     ///
     /// Allocates 119 MB of zeroed memory (lazy-committed by the OS).
     pub fn new() -> Self {
-        CoordKV2 {
+        CoordMap2 {
             space: CoordSpace2::new(),
             len: 0,
         }
     }
 }
 
-impl CoordKV for CoordKV2 {
+impl CoordMap for CoordMap2 {
     fn len(&self) -> usize {
         self.len
     }
@@ -94,7 +94,7 @@ impl CoordKV for CoordKV2 {
     }
 }
 
-impl CoordKVKey<2> for CoordKV2 {
+impl CoordMapKey<2> for CoordMap2 {
     fn insert_by_coordkey(&mut self, key: &CoordKey<2>, value: Vec<u8>) -> Option<Vec<u8>> {
         let path = key.to_coord_path();
         let prev = self.space.place_path(&path, vec_to_box(value));
@@ -119,7 +119,7 @@ impl CoordKVKey<2> for CoordKV2 {
     }
 }
 
-impl Default for CoordKV2 {
+impl Default for CoordMap2 {
     fn default() -> Self {
         Self::new()
     }

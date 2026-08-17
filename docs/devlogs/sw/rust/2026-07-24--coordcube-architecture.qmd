@@ -90,7 +90,7 @@ Throughput **increases with radius** — fixed setup cost (~8.6 ns) amortizes.
 
 All cheaper than a single array lookup — register-only, no memory access.
 
-### KV Proximity (end-to-end, CoordCubeKV trait)
+### Map Proximity (end-to-end, CoordCubeMap trait)
 
 | Store | Found | Time | Melem/s |
 |------|-------|------|---------|
@@ -106,9 +106,9 @@ Tree lookup scales O(N): N=1 (0.39 ns) to N=19 (58.6 ns). The tree exists becaus
 dense arrays are infeasible at large N (N=3 → 15 TB). CoordCube mitigates this by
 generating multiple paths at once via adjacency-driven throughput.
 
-## The HashlessKV Connection
+## The HashlessMap Connection
 
-HashlessKV uses CoordPath for base KV (22.5 ns get) and CoordCube as a hidden
+HashlessMap uses CoordPath for base map (22.5 ns get) and CoordCube as a hidden
 differentiator: spatial queries no hash-based KV can replicate.
 
 ## The neXus IO Connection

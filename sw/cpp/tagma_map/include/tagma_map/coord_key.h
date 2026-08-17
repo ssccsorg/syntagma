@@ -2,7 +2,7 @@
 
 // CoordKey: a fixed-size byte-array key that maps injectively to a
 // CoordPath of the same length N. Mirrors the Rust CoordKey<N> in
-// sw/rust/kv/src/coord_gen.rs.
+// sw/rust/map/src/coord_gen.rs.
 
 #include "tagma_core/coord.h"
 #include "tagma_core/coord_path.h"
@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace tagma_kv {
+namespace tagma_map {
 
 template <int N>
 class CoordKey {
@@ -72,4 +72,4 @@ private:
   std::array<uint8_t, N> bytes_;
 };
 
-}  // namespace tagma_kv
+}  // namespace tagma_map

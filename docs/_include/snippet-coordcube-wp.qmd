@@ -19,7 +19,7 @@ CoordCube provides three families of spatial operations, all implemented as pure
 
 **Distance metrics.** Hamming distance counts differing character positions; Manhattan distance sums per-dimension linear values; Euclidean distance (normalised) computes the geometric distance in D-dimensional space. All three metrics cost ~320 ps per call — below a single array lookup (390 ps) — because they operate entirely on registers with no memory access.
 
-**Storage-backed queries.** The `CoordCubeKV` extension combines CoordCube region generation with CoordSpace tree lookups: generate all paths in a spatial region, then look up each path in the KV store. End-to-end throughput ranges from 31 Melem/s (dense store, 10K entries) to 584 Melem/s (empty store, no matches).
+**Storage-backed queries.** The `CoordCubeMap` extension combines CoordCube region generation with CoordSpace tree lookups: generate all paths in a spatial region, then look up each path in the map. End-to-end throughput ranges from 31 Melem/s (dense store, 10K entries) to 584 Melem/s (empty store, no matches).
 
 ### Relationship to CoordPath
 

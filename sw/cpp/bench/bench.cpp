@@ -18,9 +18,9 @@
 #include "tagma_core/coord_space_m.h"
 #include "tagma_core/coord_space_n.h"
 #include "tagma_geo/spatial.h"
-#include "tagma_kv/coord_cube_kv.h"
-#include "tagma_kv/coord_kv_n.h"
-#include "tagma_kv/dyn_coord_kv.h"
+#include "tagma_map/coord_cube_map.h"
+#include "tagma_map/coord_map_n.h"
+#include "tagma_map/dyn_coord_map.h"
 
 #include <algorithm>
 #include <array>
@@ -344,89 +344,89 @@ void bench_cube_distances() {
   });
 }
 
-// ── tagma_kv ───────────────────────────────────────────────────────
+// ── tagma_map ───────────────────────────────────────────────────────
 
-void bench_kv_single_insert_static() {
-  bench("kv static single insert", 100, 3, [&] {
-    tagma_kv::CoordKVN<2> kv;
-    kv.insert("hi", std::vector<uint8_t>(1, 1));
-    g_sink += kv.len();
+void bench_map_single_insert_static() {
+  bench("map static single insert", 100, 3, [&] {
+    tagma_map::CoordMapN<2> map;
+    map.insert("hi", std::vector<uint8_t>(1, 1));
+    g_sink += map.len();
   });
 }
 
-void bench_kv_single_get_static() {
+void bench_map_single_get_static() {
   // Vary the key per call so the lookup cannot be hoisted out of the
   // timed loop.
-  tagma_kv::CoordKVN<2> kv;
+  tagma_map::CoordMapN<2> map;
   std::vector<std::string> keys;
   keys.reserve(100);
   for (int i = 0; i < 100; ++i) {
     const std::string key{static_cast<char>((i * 3) % 256),
                           static_cast<char>((i * 5) % 256)};
     keys.push_back(key);
-    kv.insert(key, std::vector<uint8_t>(1, 1));
+    map.insert(key, std::vector<uint8_t>(1, 1));
   }
   std::size_t cursor = 0;
-  bench("kv static single get", 100000, 3, [&] {
+  bench("map static single get", 100000, 3, [&] {
     cursor = (cursor + 1) % keys.size();
-    const auto value = kv.get(keys[cursor]);
+    const auto value = map.get(keys[cursor]);
     if (value) g_sink += (*value)[0];  // read the heap buffer
   });
 }
 
-void bench_kv_single_insert_dyn() {
-  bench("kv dyn single insert", 100, 3, [&] {
-    tagma_kv::DynCoordKV kv;
-    kv.insert("hello", std::vector<uint8_t>(1, 1));
-    g_sink += kv.len();
+void bench_map_single_insert_dyn() {
+  bench("map dyn single insert", 100, 3, [&] {
+    tagma_map::DynCoordMap map;
+    map.insert("hello", std::vector<uint8_t>(1, 1));
+    g_sink += map.len();
   });
 }
 
-void bench_kv_single_get_dyn() {
-  tagma_kv::DynCoordKV kv;
+void bench_map_single_get_dyn() {
+  tagma_map::DynCoordMap map;
   std::vector<std::string> keys;
   keys.reserve(100);
   for (int i = 0; i < 100; ++i) {
     const std::string key = "key" + std::to_string(i);
     keys.push_back(key);
-    kv.insert(key, std::vector<uint8_t>(1, 1));
+    map.insert(key, std::vector<uint8_t>(1, 1));
   }
   std::size_t cursor = 0;
-  bench("kv dyn single get", 100000, 3, [&] {
+  bench("map dyn single get", 100000, 3, [&] {
     cursor = (cursor + 1) % keys.size();
-    const auto value = kv.get(keys[cursor]);
+    const auto value = map.get(keys[cursor]);
     if (value) g_sink += (*value)[0];  // read the heap buffer
   });
 }
 
-void bench_kv_batch_insert_2k() {
+void bench_map_batch_insert_2k() {
   std::vector<std::string> keys;
   keys.reserve(2048);
   for (int i = 0; i < 2048; ++i) {
     keys.push_back(std::string{static_cast<char>(i % 256),
                                static_cast<char>((i / 256) % 256)});
   }
-  bench("kv static batch insert 2k", 1, 5, [&] {
-    tagma_kv::CoordKVN<2> kv;
-    for (const auto& key : keys) kv.insert(key, std::vector<uint8_t>(1, 1));
-    g_sink += kv.len();
+  bench("map static batch insert 2k", 1, 5, [&] {
+    tagma_map::CoordMapN<2> map;
+    for (const auto& key : keys) map.insert(key, std::vector<uint8_t>(1, 1));
+    g_sink += map.len();
   });
 }
 
-void bench_kv_spatial_proximity() {
-  tagma_kv::CoordKVN<2> kv;
+void bench_map_spatial_proximity() {
+  tagma_map::CoordMapN<2> map;
   for (int i = 0; i < 1000; ++i) {
     const std::string key{static_cast<char>((i * 7) % 256),
                           static_cast<char>((i * 13) % 256)};
-    kv.insert(key, std::vector<uint8_t>(1, 1));
+    map.insert(key, std::vector<uint8_t>(1, 1));
   }
   // Vary the query center per call so the query cannot be hoisted.
   const auto centers = paths_2d(50);
   std::size_t cursor = 0;
-  bench("kv spatial proximity r2 (1k entries)", 100, 3, [&] {
+  bench("map spatial proximity r2 (1k entries)", 100, 3, [&] {
     cursor = (cursor + 1) % centers.size();
     const auto results =
-        tagma_kv::proximity<2, 2, 1>(kv, centers[cursor], 2);
+        tagma_map::proximity<2, 2, 1>(map, centers[cursor], 2);
     g_sink += results.size();
   });
 }
@@ -479,12 +479,12 @@ int main(int argc, char** argv) {
   bench_cube_bounding_box();
   bench_cube_proximity_hamming();
   bench_cube_distances();
-  bench_kv_single_insert_static();
-  bench_kv_single_get_static();
-  bench_kv_single_insert_dyn();
-  bench_kv_single_get_dyn();
-  bench_kv_batch_insert_2k();
-  bench_kv_spatial_proximity();
+  bench_map_single_insert_static();
+  bench_map_single_get_static();
+  bench_map_single_insert_dyn();
+  bench_map_single_get_dyn();
+  bench_map_batch_insert_2k();
+  bench_map_spatial_proximity();
 
   std::printf("\nsink: %zu\n", g_sink);
 

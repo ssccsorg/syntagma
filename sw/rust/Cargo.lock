@@ -587,7 +587,7 @@ dependencies = [
  "rand",
  "tagma-core",
  "tagma-geo",
- "tagma-kv",
+ "tagma-map",
  "tagma-sec",
 ]
 
@@ -606,7 +606,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tagma-kv"
+name = "tagma-map"
 version = "0.1.0"
 dependencies = [
  "tagma-core",

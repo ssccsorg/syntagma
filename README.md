@@ -10,14 +10,14 @@ Tagma is a primitive where the address is the coordinate -- not a flat pointer, 
 synTagma (system)
   └─ Coordination layer (protocol, topology, distributed resolver)
   └─ tagma-sec (security primitives: authority, integrity, audit, channel)
-  └─ tagma-kv (hashless KV + CoordCubeKV spatial queries)
+  └─ tagma-map (hashless map + CoordCubeMap spatial queries)
   └─ tagma-geo (CoordCube interpretation layer, spatial ops, distance metrics)
   └─ Tagma core primitive (Coord, CoordPath, CoordSet, CoordSetN, CoordCube, CoordSpace)
 ```
 
 - Tagma -- the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding, verified exhaustively in hardware against the Rust reference (`hw/README.md`). The atomic identity primitive.
 - tagma-geo -- spatial operations built on CoordCube: proximity (L∞ Chebyshev radius), bounding box enumeration, Hamming distance, Euclidean distance (approximate), Manhattan distance. Depends only on tagma-core.
-- tagma-kv -- native CoordSpace KV: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Integrates `tagma-geo` via `CoordCubeKV` for zero-cost spatial queries on KV data. Zero extra cost for spatial indexing.
+- tagma-map -- native CoordSpace map: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Integrates `tagma-geo` via `CoordCubeMap` for zero-cost spatial queries on map data. Zero extra cost for spatial indexing.
 - tagma-sec -- security primitives for coordination traffic: authority (CoordPath Exact/Prefix scope authorization), integrity (epoch-bound seals), audit (chained evidence log with inclusion proofs), channel (non-repudiation receipts). Depends on tagma-core. Defined in `docs/spec/tagma-sec.md`.
 - synTagma coordination layer -- recursive coordinate space expansion, physical topology mapping, distributed routing, and consistency protocol. Defined in the [synTagma](https://docs.ssccs.org/projects/syntagma).
 
@@ -71,17 +71,17 @@ Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero cli
 | BoundingBoxIter\<N\> | Iterator over all CoordPath\<N\> in a hyper-rectangle. Mixed-radix enumeration. `count_paths()` for O(1) cardinality | `geo/src/spatial.rs` |
 | HammingFilter\<N\> | Iterator adapter over CoordPath\<N\>; yields only paths within a Hamming distance of a center | `geo/src/spatial.rs` |
 
-### tagma-kv: hashless string-key store (requires alloc)
+### tagma-map: hashless string-key map (requires alloc)
 
 | Type | Description | File |
 |------|-------------|------|
-| CoordKey\<N\> | Fixed N-byte key, type-level length enforcement. Injective to CoordPath | `kvsrc/coord_gen.rs` |
-| DynCoordKV | Dynamic KV, ByteWise strategy, all-length strings | `kvsrc/dyn_coord_kv.rs` |
-| CoordKV2 | Fixed 2-byte dense KV, CoordSpace2 (119 MB), O(1) lookup | `kvsrc/coord_kv2.rs` |
-| CoordKVN\<N\> | Fixed N-byte tree KV, CoordSpaceN, sparse | `kvsrc/coord_kv_n.rs` |
-| CoordKV trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `kvsrc/coord_kv.rs` |
-| CoordKVKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `kvsrc/coord_kv.rs` |
-| CoordCubeKV\<N\> trait | Spatial queries on KV stores: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordKV2, CoordKVN\<N\>, DynCoordKV | `kvsrc/spatial.rs` |
+| CoordKey\<N\> | Fixed N-byte key, type-level length enforcement. Injective to CoordPath | `map/src/coord_gen.rs` |
+| DynCoordMap | Dynamic map, ByteWise strategy, all-length strings | `map/src/dyn_coord_map.rs` |
+| CoordMap2 | Fixed 2-byte dense map, CoordSpace2 (119 MB), O(1) lookup | `map/src/coord_map2.rs` |
+| CoordMapN\<N\> | Fixed N-byte tree map, CoordSpaceN, sparse | `map/src/coord_map_n.rs` |
+| CoordMap trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `map/src/coord_map.rs` |
+| CoordMapKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `map/src/coord_map.rs` |
+| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap | `map/src/spatial.rs` |
 
 ### tagma-sec: security primitives (requires alloc)
 
@@ -174,55 +174,55 @@ let box_paths: Vec<_> = center.bounding_box(&ranges).collect();
 assert_eq!(box_paths.len(), 10000);
 ```
 
-### tagma-kv usage
+### tagma-map usage
 
 ```rust
-use tagma_kv::{CoordKV, CoordKV2, CoordKVKey, DynCoordKV};
-use tagma_kv::coord_gen::CoordKey;
+use tagma_map::{CoordMap, CoordMap2, CoordMapKey, DynCoordMap};
+use tagma_map::coord_gen::CoordKey;
 
-// Dynamic KV: any non-empty string key
-let mut kv = DynCoordKV::new();
-kv.insert("hello", b"world".to_vec());
-assert_eq!(kv.get("hello"), Some(b"world".to_vec()));
+// Dynamic map: any non-empty string key
+let mut map = DynCoordMap::new();
+map.insert("hello", b"world".to_vec());
+assert_eq!(map.get("hello"), Some(b"world".to_vec()));
 
-// Fixed 2-byte dense KV: 119 MB, O(1), collision-free
-let mut kv = CoordKV2::new();
-kv.insert("hi", b"value".to_vec());
-assert_eq!(kv.get("hi"), Some(b"value".to_vec()));
+// Fixed 2-byte dense map: 119 MB, O(1), collision-free
+let mut map = CoordMap2::new();
+map.insert("hi", b"value".to_vec());
+assert_eq!(map.get("hi"), Some(b"value".to_vec()));
 
 // Same store, CoordKey-based access
 let key = CoordKey::new(*b"hi");
-assert_eq!(kv.get_by_coordkey(&key), Some(b"value".to_vec()));
+assert_eq!(map.get_by_coordkey(&key), Some(b"value".to_vec()));
 
 // Compile-time key length enforcement
 const KEY: CoordKey<2> = CoordKey::from_str_const("hi");
 
 // Contains key, remove, all HashMap-compatible
-assert!(kv.contains_key("hi"));
-kv.remove("hi");
+assert!(map.contains_key("hi"));
+map.remove("hi");
 ```
 
-### CoordCubeKV: spatial queries on KV stores
+### CoordCubeMap: spatial queries on maps
 
 ```rust
-use tagma_kv::{CoordKV, CoordKVN, CoordKVKey};
-use tagma_kv::coord_gen::CoordKey;
-use tagma_kv::spatial::CoordCubeKV;
+use tagma_map::{CoordMap, CoordMapN, CoordMapKey};
+use tagma_map::coord_gen::CoordKey;
+use tagma_map::spatial::CoordCubeMap;
 use tagma_core::{Coord, CoordCube, CoordPath};
 use tagma_geo::SpatialOps;
 
 // Fill a store with 10,000 entries in a 100x100 region
-let mut kv = CoordKVN::<2>::new();
+let mut map = CoordMapN::<2>::new();
 let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
     Coord::new(5000).unwrap(), Coord::new(5000).unwrap(),
 ]));
 for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
-    kv.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
+    map.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
 }
 
 // Spatial proximity query: find all entries within L∞ radius 1 of center
 let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
-let nearby: Vec<_> = kv.proximity::<2, 1>(&center, 1);
+let nearby: Vec<_> = map.proximity::<2, 1>(&center, 1);
 // Returns 9 entries (3x3 grid)
 assert_eq!(nearby.len(), 9);
 ```
@@ -262,7 +262,7 @@ assert!(stack.channel.verify_receipt(&res.receipt));
 | CoordSpaceM (mmap dense, N≥3) | ❌ | ❌ | ✅ |
 | DynCoordSpace (runtime trie) | ❌ | ✅ | ❌ |
 | tagma-geo (spatial ops, metrics) | ❌ | ✅ | ❌ |
-| tagma-kv (string-key KV, HashMap API) | ❌ | ✅ | ❌ |
+| tagma-map (string-key map, HashMap API) | ❌ | ✅ | ❌ |
 | tagma-sec (security primitives, route-update workflow) | ❌ | ✅ | ❌ |
 
 ## How Tagma works
@@ -356,29 +356,29 @@ N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2
 
 Values are from runtime-generated coordinates (PRNG) to prevent compile-time constant folding. The 3.2 ps shown in earlier runs was an artifact of pre-computation.
 
-## Benchmark: CoordCube + CoordKV proximity (ARMv8.4-A Firestorm)
+## Benchmark: CoordCube + CoordMap proximity (ARMv8.4-A Firestorm)
 
-End-to-end spatial queries combining CoordCube path generation with KV store lookup:
+End-to-end spatial queries combining CoordCube path generation with map store lookup:
 
 | Scenario | Store type | Query | Latency | Found |
 |----------|-----------|-------|---------|-------|
-| Sequential (9 manual lookups) | CoordKVN\<2\> | Tree+Path | 158 ns | 9 |
-| CoordCube proximity r=1 | CoordKVN\<2\> | Tree+Cube | 285 ns | 9 |
-| CoordCube proximity r=2 | CoordKVN\<2\> | Tree+Cube | 626 ns | 25 |
-| CoordCube proximity r=5 | CoordKVN\<2\> | Tree+Cube | 2.55 µs | 121 |
-| CoordCube proximity r=1 | CoordKV2 (dense) | Dense+Cube | 282 ns | 9 |
-| CoordCube proximity r=1 | DynCoordKV | Cube | 161 ns | 9 |
-| CoordCube proximity r=2 | DynCoordKV | Cube | 290 ns | 25 |
-| CoordCube proximity r=1 | CoordKVN\<2\> sparse | Cube | 48.5 ns | 9 |
-| CoordCube proximity r=1 | CoordKVN\<2\> empty | Cube | 15.7 ns | 0 |
-| Sequential (9 lookups) | DynCoordKV | Baseline | 259 ns | 9 |
+| Sequential (9 manual lookups) | CoordMapN\<2\> | Tree+Path | 158 ns | 9 |
+| CoordCube proximity r=1 | CoordMapN\<2\> | Tree+Cube | 285 ns | 9 |
+| CoordCube proximity r=2 | CoordMapN\<2\> | Tree+Cube | 626 ns | 25 |
+| CoordCube proximity r=5 | CoordMapN\<2\> | Tree+Cube | 2.55 µs | 121 |
+| CoordCube proximity r=1 | CoordMap2 (dense) | Dense+Cube | 282 ns | 9 |
+| CoordCube proximity r=1 | DynCoordMap | Cube | 161 ns | 9 |
+| CoordCube proximity r=2 | DynCoordMap | Cube | 290 ns | 25 |
+| CoordCube proximity r=1 | CoordMapN\<2\> sparse | Cube | 48.5 ns | 9 |
+| CoordCube proximity r=1 | CoordMapN\<2\> empty | Cube | 15.7 ns | 0 |
+| Sequential (9 lookups) | DynCoordMap | Baseline | 259 ns | 9 |
 
 Breakdown of the 127 ns overhead (Tree+Path 158 ns -> Tree+Cube 285 ns):
 - Vec allocation: 37 ns
 - Vec::push x9: 74 ns
 - Path generation: 16 ns
 
-Key insight: On tree stores, the extra overhead is dominated by Vec allocation and push, not coordinate arithmetic. Dense vs tree backend makes almost no difference (282 ns vs 285 ns) because Vec push dominates. On sparse stores, CoordCube is up to 3.3x faster than sequential lookups because it avoids tree lookups for nonexistent paths. On DynCoordKV, proximity is 1.6x faster than sequential (161 vs 259 ns) due to higher per-lookup cost.
+Key insight: On tree stores, the extra overhead is dominated by Vec allocation and push, not coordinate arithmetic. Dense vs tree backend makes almost no difference (282 ns vs 285 ns) because Vec push dominates. On sparse stores, CoordCube is up to 3.3x faster than sequential lookups because it avoids tree lookups for nonexistent paths. On DynCoordMap, proximity is 1.6x faster than sequential (161 vs 259 ns) due to higher per-lookup cost.
 
 ## Benchmark: Compound axis query via CoordSet (N=1 bit array, pre-computed)
 
@@ -403,39 +403,39 @@ Set operations on 500-element sets with 250-element overlap. CoordSetN\<2\> uses
 
 CoordSetN union/intersection/difference are tree traversal operations (not bitwise AND), which makes them slower than HashSet at N=2. The advantage of CoordSetN appears at higher dimensions where HashSet keys grow linearly with N while the tree structure stays compact.
 
-## Benchmark: tagma-kv vs HashMap (ARMv8.4-A Firestorm)
+## Benchmark: tagma-map vs HashMap (ARMv8.4-A Firestorm)
 
-tagma-kv is a hashless KV store: it converts `&str` to Coord sequences instead of hashing them. The critical question is whether this conversion is faster than SipHash-2-4.
+tagma-map is a hashless map store: it converts `&str` to Coord sequences instead of hashing them. The critical question is whether this conversion is faster than SipHash-2-4.
 
 ### Single operation
 
 | Variant | Insert | Get | Contains |
 |---------|--------|-----|----------|
-| **CoordKV2** (fixed 2B) | **18.7 ns** | **22.1 ns** | **21.7 ns** |
-| CoordKVN\<2\> (fixed 2B) | 18.9 ns | 21.7 ns | 21.7 ns |
-| DynCoordKV (variable) | 49.4 ns | 42.4 ns | 42.4 ns |
+| **CoordMap2** (fixed 2B) | **18.7 ns** | **22.1 ns** | **21.7 ns** |
+| CoordMapN\<2\> (fixed 2B) | 18.9 ns | 21.7 ns | 21.7 ns |
+| DynCoordMap (variable) | 49.4 ns | 42.4 ns | 42.4 ns |
 | **HashMap\<String\>** | 44.9 ns | 23.8 ns | 13.0 ns |
 
-CoordKV2 get is 1.08x faster than HashMap. The difference (21.67 ns) is the str-to-CoordKey conversion cost plus Vec clone; the slot load itself is 0.39 ns.
+CoordMap2 get is 1.08x faster than HashMap. The difference (21.67 ns) is the str-to-CoordKey conversion cost plus Vec clone; the slot load itself is 0.39 ns.
 
 ### Three-scale workload (get, per-op ns)
 
 | Variant | 10k ops | 1M ops | 10M ops | Trend |
 |---------|---------|--------|---------|-------|
-| **CoordKV2** | **22.0 ns** | **21.4 ns** | **21.5 ns** | **flat** |
-| CoordKVN\<2\> | 22.7 ns | 21.9 ns | 22.1 ns | flat |
-| DynCoordKV | 55.8 ns | 57.4 ns | 60.6 ns | +7% |
+| **CoordMap2** | **22.0 ns** | **21.4 ns** | **21.5 ns** | **flat** |
+| CoordMapN\<2\> | 22.7 ns | 21.9 ns | 22.1 ns | flat |
+| DynCoordMap | 55.8 ns | 57.4 ns | 60.6 ns | +7% |
 | **HashMap\<String\>** | 21.9 ns | 24.2 ns | 23.8 ns | **+19%** |
 
-CoordKV2 latency is scale-invariant: 22.0 ns at 10k, 21.5 ns at 10M. HashMap per-op cost rises 19% from 10k to 10M as the working set exceeds cache capacity.
+CoordMap2 latency is scale-invariant: 22.0 ns at 10k, 21.5 ns at 10M. HashMap per-op cost rises 19% from 10k to 10M as the working set exceeds cache capacity.
 
 ### Contains key (per-op ns)
 
 | Variant | 10k ops | 1M ops | 10M ops |
 |---------|---------|--------|---------|
-| CoordKV2 | 22.3 ns | 21.6 ns | 21.6 ns |
-| CoordKVN\<2\> | 23.2 ns | -- | -- |
-| DynCoordKV | 54.7 ns | -- | -- |
+| CoordMap2 | 22.3 ns | 21.6 ns | 21.6 ns |
+| CoordMapN\<2\> | 23.2 ns | -- | -- |
+| DynCoordMap | 54.7 ns | -- | -- |
 | HashMap | 13.2 ns | 19.9 ns | 19.9 ns |
 
 HashMap's bool-return advantage is erased by cache pressure at scale.
@@ -472,7 +472,7 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 - [Hardware verification](hw/README.md) -- RTL decoder, exhaustive verification (11,172 vectors, formal equivalence), FPGA PnR, Sky130 standard cell report
 - [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
 - [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
-- [Rustdoc (tagma-kv)](https://docs.ssccs.org/projects/syntagma/tagma/kv/) -- CoordKV, CoordKV2, CoordKVN, DynCoordKV, CoordCubeKV, CoordKey
+- [Rustdoc (tagma-map)](https://docs.ssccs.org/projects/syntagma/tagma/map/) -- CoordMap, CoordMap2, CoordMapN, DynCoordMap, CoordCubeMap, CoordKey
 - [Rustdoc (tagma-sec)](https://docs.ssccs.org/projects/syntagma/tagma/sec/) -- SecStack, Authority, Integrity, Audit, Channel
 
 ## License

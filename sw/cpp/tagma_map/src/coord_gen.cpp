@@ -1,6 +1,6 @@
-#include "tagma_kv/coord_gen.h"
+#include "tagma_map/coord_gen.h"
 
-namespace tagma_kv {
+namespace tagma_map {
 
 std::optional<std::vector<uint32_t>> utf8_decode(const std::string& text) {
   std::vector<uint32_t> out;
@@ -42,4 +42,4 @@ std::optional<std::vector<uint32_t>> utf8_decode(const std::string& text) {
   return out;
 }
 
-}  // namespace tagma_kv
+}  // namespace tagma_map

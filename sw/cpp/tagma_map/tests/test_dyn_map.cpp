@@ -1,9 +1,9 @@
-// Verifies DynCoordSpace (variable-depth tree) and DynCoordKV (dynamic
-// string-key store). The checks mirror the Rust dyn_coord_space and
-// dyn_coord_kv semantics.
+// Verifies DynCoordSpace (variable-depth tree) and DynCoordMap (dynamic
+// string-key map). The checks mirror the Rust dyn_coord_space and
+// dyn_coord_map semantics.
 
-#include <tagma_kv/dyn_coord_kv.h>
-#include <tagma_kv/coord_gen.h>
+#include <tagma_map/dyn_coord_map.h>
+#include <tagma_map/coord_gen.h>
 
 #include <tagma_core/coord.h>
 #include <tagma_core/dyn_coord_space.h>
@@ -78,49 +78,49 @@ void test_dyn_coord_space() {
   check(space.entry_count() == 0, "dyn clear");
 }
 
-void test_dyn_coord_kv() {
-  using tagma_kv::DynCoordKV;
-  DynCoordKV kv;
-  check(kv.is_empty() && kv.len() == 0, "dynkv initially empty");
+void test_dyn_coord_map() {
+  using tagma_map::DynCoordMap;
+  DynCoordMap map;
+  check(map.is_empty() && map.len() == 0, "dynmap initially empty");
 
-  check(kv.insert("hello", bytes("world")) == std::nullopt, "dynkv insert");
-  check(kv.len() == 1, "dynkv length");
-  check(kv.get("hello") == std::optional<std::vector<uint8_t>>(bytes("world")),
-        "dynkv get");
-  check(kv.contains_key("hello"), "dynkv contains");
+  check(map.insert("hello", bytes("world")) == std::nullopt, "dynmap insert");
+  check(map.len() == 1, "dynmap length");
+  check(map.get("hello") == std::optional<std::vector<uint8_t>>(bytes("world")),
+        "dynmap get");
+  check(map.contains_key("hello"), "dynmap contains");
 
-  check(kv.insert("hello", bytes("earth")) ==
+  check(map.insert("hello", bytes("earth")) ==
             std::optional<std::vector<uint8_t>>(bytes("world")),
-        "dynkv replace returns previous");
-  check(kv.len() == 1, "dynkv length after replace");
+        "dynmap replace returns previous");
+  check(map.len() == 1, "dynmap length after replace");
 
-  check(kv.insert("한글", bytes("v")) == std::nullopt, "dynkv unicode key");
-  check(kv.get("한글") == std::optional<std::vector<uint8_t>>(bytes("v")),
-        "dynkv unicode get");
-  check(kv.len() == 2, "dynkv length with unicode");
+  check(map.insert("한글", bytes("v")) == std::nullopt, "dynmap unicode key");
+  check(map.get("한글") == std::optional<std::vector<uint8_t>>(bytes("v")),
+        "dynmap unicode get");
+  check(map.len() == 2, "dynmap length with unicode");
 
-  check(kv.insert("", bytes("x")) == std::nullopt, "dynkv empty key rejected");
-  check(kv.get("") == std::nullopt, "dynkv empty get");
+  check(map.insert("", bytes("x")) == std::nullopt, "dynmap empty key rejected");
+  check(map.get("") == std::nullopt, "dynmap empty get");
 
-  check(kv.remove("hello") ==
+  check(map.remove("hello") ==
             std::optional<std::vector<uint8_t>>(bytes("earth")),
-        "dynkv remove");
-  check(kv.get("hello") == std::nullopt, "dynkv removed get");
-  check(kv.len() == 1, "dynkv length after remove");
+        "dynmap remove");
+  check(map.get("hello") == std::nullopt, "dynmap removed get");
+  check(map.len() == 1, "dynmap length after remove");
 
-  kv.clear();
-  check(kv.is_empty() && kv.len() == 0, "dynkv clear");
+  map.clear();
+  check(map.is_empty() && map.len() == 0, "dynmap clear");
 }
 
 void test_dyn_iter() {
-  using tagma_kv::DynCoordKV;
-  const DynCoordKV empty;
+  using tagma_map::DynCoordMap;
+  const DynCoordMap empty;
   check(empty.iter().empty(), "dyn iter empty");
 
-  DynCoordKV kv;
-  kv.insert("abc", bytes("123"));
-  kv.insert("def", bytes("456"));
-  const auto entries = kv.iter();
+  DynCoordMap map;
+  map.insert("abc", bytes("123"));
+  map.insert("def", bytes("456"));
+  const auto entries = map.iter();
   check(entries.size() == 2, "dyn iter size");
   check(entries[0].first == "abc" && *entries[0].second == bytes("123"),
         "dyn iter first in ascending order");
@@ -136,20 +136,20 @@ void test_dyn_long_key_roundtrip() {
   for (int i = 0; i < 64; ++i) {
     long_key.push_back(static_cast<char>(i));
   }
-  tagma_kv::DynCoordKV kv;
-  check(kv.insert(long_key, bytes("v")) == std::nullopt,
+  tagma_map::DynCoordMap map;
+  check(map.insert(long_key, bytes("v")) == std::nullopt,
         "dyn long key insert");
-  check(kv.get(long_key) ==
+  check(map.get(long_key) ==
             std::optional<std::vector<uint8_t>>(bytes("v")),
         "dyn long key get");
-  check(kv.len() == 1, "dyn long key len");
+  check(map.len() == 1, "dyn long key len");
 }
 
 }  // namespace
 
 int main() {
   test_dyn_coord_space();
-  test_dyn_coord_kv();
+  test_dyn_coord_map();
   test_dyn_iter();
   test_dyn_long_key_roundtrip();
 
@@ -157,6 +157,6 @@ int main() {
     std::fprintf(stderr, "%d check(s) failed\n", failures);
     return 1;
   }
-  std::printf("tagma_kv dyn: all checks passed\n");
+  std::printf("tagma_map dyn: all checks passed\n");
   return 0;
 }

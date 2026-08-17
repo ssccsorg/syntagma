@@ -67,7 +67,7 @@ pub trait CoordGen {
 ///
 /// Path length equals `key.len()` (in bytes, not characters).
 ///
-/// This is the default strategy used by [`CoordKV`](crate::CoordKV).
+/// This is the default strategy used by [`CoordMap`](crate::CoordMap).
 ///
 /// # Why `&str` is the hardest case
 ///
@@ -81,7 +81,7 @@ pub trait CoordGen {
 ///
 /// If the hardest case is already solved, the rest follows.
 ///
-/// [`CoordKV`]: crate::CoordKV
+/// [`CoordMap`]: crate::CoordMap
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ByteWise;
 
@@ -289,7 +289,7 @@ pub type DefaultDynamic = ByteWise;
 /// **Compile time** (preferred, zero-cost):
 ///
 /// ```
-/// use tagma_kv::coord_gen::CoordKey;
+/// use tagma_map::coord_gen::CoordKey;
 ///
 /// const KEY: CoordKey<2> = CoordKey::from_str_const("hi");  // OK
 /// // const BAD: CoordKey<2> = CoordKey::from_str_const("hello"); // compile error
@@ -298,7 +298,7 @@ pub type DefaultDynamic = ByteWise;
 /// **Runtime** (convenient for dynamic input):
 ///
 /// ```
-/// use tagma_kv::coord_gen::CoordKey;
+/// use tagma_map::coord_gen::CoordKey;
 ///
 /// let key: CoordKey<2> = "hi".parse().unwrap();    // fallible via FromStr
 /// let key: CoordKey<2> = "hi".into();               // infallible, panics on mismatch
@@ -317,7 +317,7 @@ pub type DefaultDynamic = ByteWise;
 /// - Heap allocation for owned forms (`String`)
 /// - SipHash-2-4 must process every byte
 ///
-/// Tagma KV converts `&str` to `Coord` faster than SipHash hashes it (22.5 ns vs
+/// Tagma Map converts `&str` to `Coord` faster than SipHash hashes it (22.5 ns vs
 /// 23.8 ns on ARMv8.4-A Firestorm for 2-byte keys).  If the hardest case is already faster,
 /// then **every more constrained key type** — fixed integers, UUIDs, byte arrays,
 /// enums, timestamps — is trivially faster by an even larger margin.  The
@@ -340,7 +340,7 @@ pub type DefaultDynamic = ByteWise;
 ///
 /// ```
 /// use tagma_core::CoordSpace2;
-/// use tagma_kv::coord_gen::CoordKey;
+/// use tagma_map::coord_gen::CoordKey;
 ///
 /// let key = CoordKey::new(*b"hi");
 /// let path = key.to_coord_path();
@@ -469,14 +469,14 @@ impl<const N: usize> CoordKey<N> {
     /// # Example
     ///
     /// ```
-    /// use tagma_kv::coord_gen::CoordKey;
+    /// use tagma_map::coord_gen::CoordKey;
     ///
     /// const KEY: CoordKey<2> = CoordKey::from_str_const("hi");
     /// assert_eq!(KEY.as_bytes(), b"hi");
     /// ```
     ///
     /// ```compile_fail
-    /// use tagma_kv::coord_gen::CoordKey;
+    /// use tagma_map::coord_gen::CoordKey;
     /// const BAD: CoordKey<2> = CoordKey::from_str_const("hello"); // compile error
     /// ```
     #[inline]

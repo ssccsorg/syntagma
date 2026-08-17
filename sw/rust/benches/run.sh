@@ -16,8 +16,8 @@ echo ""
 echo "=== Running spatial benchmarks ==="
 cargo bench --bench bench -- spatial 2>&1 | tee "$RESULT_DIR/output-${TIMESTAMP}.txt" || true
 
-echo "=== Running kv benchmarks (may take several minutes) ==="
-cargo bench --bench bench -- kv 2>&1 | tee -a "$RESULT_DIR/output-${TIMESTAMP}.txt" || true
+echo "=== Running map benchmarks (may take several minutes) ==="
+cargo bench --bench bench -- map 2>&1 | tee -a "$RESULT_DIR/output-${TIMESTAMP}.txt" || true
 
 echo "=== Running set benchmarks ==="
 cargo bench --bench bench -- set 2>&1 | tee -a "$RESULT_DIR/output-${TIMESTAMP}.txt" || true
