@@ -20,7 +20,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | Yosys iCE40 synthesis report (LUT count) | Report in `docs/devlogs/hw/` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
 | FPGA board demo (physical) | Next, board required |
-| OpenROAD standard cell report (Sky130) | Next phase |
+| OpenROAD standard cell report (Sky130) | Setup, runs in CI (`p4` job) |
 
 ## Layout
 
@@ -89,6 +89,10 @@ docker build -f hw/Dockerfile -t tagma-hw .
 The CI job `hw` in `.github/workflows/test.yml` builds the image on `hw/**` changes, so the gate runs on every push without depending on runner tooling.
 
 PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
+
+## Phase 4: standard cell flow
+
+The Sky130 standard cell flow runs in CI through the `p4` job (`hw/openroad/run.sh` with the ORFS image), producing the area, timing, and power report for the registered demo top plus the pure decoder gate count via `yosys stat -liberty`. The ORFS image is x86_64; on Apple Silicon Rosetta crashes in CTS (illegal instruction), so the flow runs natively on the x86 CI runner. Results are uploaded as the `sky130-reports` artifact.
 
 ## References
 

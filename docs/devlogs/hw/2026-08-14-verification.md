@@ -39,6 +39,12 @@ The demo top module (`hw/rtl/tagma_demo_top.v`) maps the 16-bit code point from 
 
 The first PnR run measured 115.90 ns (8.63 MHz) with 72 logic levels: the shift-subtract divider depth missed the 12 MHz board clock. The decoder was reimplemented with multiply-shift constant division, exact over the valid domain (`(q4 * 9363) >> 16` for division by 28, `(j * 781) >> 14` for division by 21). The full verification suite re-passed unchanged (exhaustive, golden, gate-level, formal equivalence), confirming the two networks are functionally identical. Measured after optimization: 255 ICESTORM_LC (4%), 33 logic levels, 59.55 ns, Fmax 16.79 MHz, which closes the 12 MHz clock with margin. The gate count rose from 206 to 478 cells (generic schema) as the cost of timing closure. Physical board bring-up and the demo video remain.
 
+### Phase 4: OpenROAD standard cell flow
+
+The Sky130 standard cell flow is set up under `hw/openroad/` with ORFS, the official OpenROAD Flow Scripts image. The registered demo top is the design target so the report maps one to one to the FPGA demo; the pure decoder gate count is reported separately with `yosys stat -liberty` against the Sky130 cell library. The flow runs in the `p4` CI job on the x86 runner and uploads the reports as an artifact.
+
+Local finding: the ORFS image is x86_64 only. On Apple Silicon under Rosetta the flow reaches placement and then crashes in CTS with an illegal instruction, an OpenROAD emulation limitation. Phase 4 therefore executes natively in CI rather than on the ARM host. The first CI run fetches the Sky130 PDK automatically.
+
 ### Bench center
 
 `sw/rust/benches/bench_hw.rs` follows the `bench.rs` convention: criterion microbenchmarks with the key results documented in comments, measured on this host. It provides the software reference baseline for the hardware numbers: single decode 1.44 ns, full-space decode 1.92 µs, index-only baseline 0.457 µs, golden export 4.56 µs. Registered in `sw/rust/benches/Cargo.toml` and wired into `run.sh --bench`.

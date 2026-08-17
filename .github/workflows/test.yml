@@ -100,3 +100,24 @@ jobs:
       - name: Build hardware verification image (runs sim, golden, gatesim, equiv, synth, PnR)
         if: steps.hw_filter.outputs.hw == 'true'
         run: docker build -f hw/Dockerfile -t tagma-hw .
+
+  p4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: p4_filter
+        with:
+          filters: |
+            p4:
+              - 'hw/openroad/**'
+              - '.github/workflows/*.yml'
+      - name: Run Sky130 standard cell flow (ORFS)
+        if: steps.p4_filter.outputs.p4 == 'true'
+        run: bash hw/openroad/run.sh
+      - name: Upload Sky130 reports
+        if: steps.p4_filter.outputs.p4 == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky130-reports
+          path: hw/openroad/results

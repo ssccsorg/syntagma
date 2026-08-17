@@ -4,3 +4,4 @@ synth/yosys/out/
 rtl/golden_anchors.hex
 rtl/trace.vcd
 synth/yosys/reports/pnr.log
+openroad/results/
