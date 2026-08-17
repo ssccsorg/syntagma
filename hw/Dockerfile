@@ -8,9 +8,10 @@
 # Build (context must be the repository root):
 #   docker build -f hw/Dockerfile -t tagma-hw .
 #
-# The build runs the full hardware gate:
-#   make -C hw check                       (sim, golden, gatesim, equiv, synth)
-#   bash hw/synth/yosys/run_pnr.sh         (PnR, bitstream, icetime report)
+# The build runs the full project verification as build-time smoke tests:
+#   bash run.sh --check              (fmt, clippy, build, test, C++ core, hw gate)
+#   bash hw/synth/yosys/run_pnr.sh   (PnR, bitstream, icetime report)
+#   make -C hw coverage              (3 channels x 11,172 + formal equivalence)
 
 FROM ubuntu:24.04
 
