@@ -1140,7 +1140,7 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   CoordCube API overhead (count vs manual): ~3-10 ns per query
 //   Vec alloc+push overhead (collect vs count): ~76-130 ns per query
 //
-// KV2 proximity (dense array, 119 MB):
+// Map2 proximity (dense array, 119 MB):
 //   dense_r1_proximity:     282 ns   (vs tree 285 ns -- identical)
 //   dense_r2_proximity:     666 ns
 //   Dense vs tree backend makes no difference: Vec push dominates.

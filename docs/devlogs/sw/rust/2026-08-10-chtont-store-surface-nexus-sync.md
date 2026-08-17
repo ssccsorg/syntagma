@@ -21,7 +21,7 @@ Current reality against that vision: the file and digital storage layer is compl
 | Item | Scope | Implementation | Verification | State |
 |------|-------|----------------|--------------|-------|
 | chton #6 | store surface in chton: EntityStore family, Cell2, CoordMapStoreIo | merged to chton main (`e3ec990`): `store`, `cell`, `io` modules | chton `run.sh --check` green, 11 tests, wasm32 clean | issue open |
-| nexus #172 phase 1 | CoordMapStore and CoordMapStoreIo adoption, drop local CoordKvIo | merged to nexus main (`c14e8b22`, `0218797c`) | green | issue open |
+| nexus #172 phase 1 | CoordMapStore and CoordMapStoreIo adoption, drop local CoordMapIo | merged to nexus main (`c14e8b22`, `0218797c`) | green | issue open |
 | nexus #172 phase 2 | EntityStore family absorbed, re-export from chton, drop tagma-map from nex-fih | merged to nexus main (`aa9794fb`), 9 files, +46/-835, `entity_store.rs` removed | 225 tests, clippy `-D warnings`, wasm32, fmt, `run.sh` exit 0 | issue open |
 
 Both issues remain open even though the work is on main. Neither went through a pull request; the commits were pushed directly to main.
