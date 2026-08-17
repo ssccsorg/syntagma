@@ -6,7 +6,15 @@ on:
     paths:
       - "sw/rust/**"
       - "sw/cpp/**"
-      - "hw/**"
+      - "hw/rtl/**"
+      - "hw/tools/**"
+      - "hw/synth/yosys/*.ys"
+      - "hw/synth/yosys/run.sh"
+      - "hw/synth/yosys/run_pnr.sh"
+      - "hw/synth/yosys/upduino31_demo.pcf"
+      - "hw/openroad/**"
+      - "hw/Makefile"
+      - "hw/Dockerfile"
       - "run.sh"
       - ".github/workflows/*.yml"
       - "!sw/rust/**/*.md"
@@ -93,18 +101,35 @@ jobs:
         id: hw_filter
         with:
           filters: |
-            hw:
-              - 'hw/**'
-              - '.github/workflows/*.yml'
+            hw_gate:
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
               - 'run.sh'
+              - '.github/workflows/*.yml'
+            orfs:
+              - 'hw/openroad/**'
+              - '.github/workflows/*.yml'
       - name: Build hardware verification image (runs sim, golden, gatesim, equiv, synth, PnR)
-        if: steps.hw_filter.outputs.hw == 'true'
-        run: docker build -f hw/Dockerfile -t tagma-hw .
+        if: steps.hw_filter.outputs.hw_gate == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: hw/Dockerfile
+          push: false
+          tags: tagma-hw:latest
+          cache-from: type=gha,scope=tagma-hw
+          cache-to: type=gha,mode=max,scope=tagma-hw
       - name: Run Sky130 standard cell flow (ORFS)
-        if: steps.hw_filter.outputs.hw == 'true'
+        if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
         run: bash hw/openroad/run.sh
       - name: Upload Sky130 reports
-        if: steps.hw_filter.outputs.hw == 'true'
+        if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: sky130-reports
