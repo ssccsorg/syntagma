@@ -27,7 +27,7 @@ fn path_to_key_bytes<const N: usize>(path: &tagma_core::CoordPath<N>) -> [u8; N]
 
 // ── CoordMapN ──────────────────────────────────────────────────────────────
 
-/// A fixed-N-byte-key KV store backed by [`CoordSpaceN`] — the sparse
+/// A fixed-N-byte-key map backed by [`CoordSpaceN`] — the sparse
 /// tree for any depth `N`.
 ///
 /// Keys must be exactly `N` bytes.  Lookup cost is O(N) via tree traversal.

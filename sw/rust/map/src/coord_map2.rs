@@ -19,7 +19,7 @@ fn box_to_vec_owned(v: Box<[u8]>) -> Vec<u8> {
 
 // ── CoordMap2 ──────────────────────────────────────────────────────────────
 
-/// A 2-byte-key KV store backed by [`CoordSpace2`] — the dense,
+/// A 2-byte-key map backed by [`CoordSpace2`] — the dense,
 /// single-allocation array (119 MB).  Lookup cost is O(1).
 ///
 /// Keys must be exactly 2 bytes.

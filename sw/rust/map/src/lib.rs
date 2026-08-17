@@ -15,7 +15,7 @@ pub use coord_gen::{
 // Re-exports from the coord_map module (traits).
 pub use coord_map::{CoordMap, CoordMapKey};
 
-// Re-exports from concrete KV modules.
+// Re-exports from concrete map modules.
 pub use coord_map2::CoordMap2;
 pub use coord_map_n::CoordMapN;
 pub use dyn_coord_map::DynCoordMap;

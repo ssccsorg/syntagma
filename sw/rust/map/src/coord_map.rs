@@ -12,7 +12,7 @@ use crate::coord_gen::CoordKey;
 ///
 /// | Trait | Methods | Scope |
 /// |-------|---------|-------|
-/// | [`CoordMap`] | `insert`, `get`, `remove`, `contains_key` via `&str` | all KV types |
+/// | [`CoordMap`] | `insert`, `get`, `remove`, `contains_key` via `&str` | all map types |
 /// | [`CoordMapKey<N>`] | `_by_coordkey` suffixed methods | fixed-key types only |
 pub trait CoordMap {
     /// Returns the number of stored entries.
@@ -44,7 +44,7 @@ pub trait CoordMap {
     }
 }
 
-/// [`CoordKey`]-based access for fixed-size-key KV stores.
+/// [`CoordKey`]-based access for fixed-size-key maps.
 ///
 /// Requires [`CoordMap`] and adds `_by_coordkey` methods.
 pub trait CoordMapKey<const N: usize>: CoordMap {

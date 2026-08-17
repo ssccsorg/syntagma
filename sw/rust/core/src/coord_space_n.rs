@@ -17,7 +17,7 @@ use alloc::vec::Vec;
 ///
 /// | `N`  | Identifier space | Typical use |
 /// |------|-----------------|-------------|
-/// | 2    | 1.25 × 10⁸     | Small KV |
+/// | 2    | 1.25 × 10⁸     | Small map |
 /// | 6    | 1.94 × 10²⁴    | UUID-scale |
 /// | 12   | 2.41 × 10⁶⁷    | Between UUID and SHA-256 |
 /// | 19   | 1.94 × 10⁷⁷    | SHA-256-scale (2²⁵⁶) |
@@ -852,10 +852,10 @@ impl<V> core::ops::IndexMut<Coord> for CoordSpaceN<1, V> {
 /// For no_alloc (dense zeroed array), use `CoordSpace`.
 pub type CoordSpaceN1<V> = CoordSpaceN<1, V>;
 
-/// 2-character:  1.25 × 10⁸ identifiers — small KV.
+/// 2-character:  1.25 × 10⁸ identifiers — small map.
 pub type CoordSpaceN2<V> = CoordSpaceN<2, V>;
 
-/// 3-character:  1.39 × 10¹² identifiers — medium KV.
+/// 3-character:  1.39 × 10¹² identifiers — medium map.
 pub type CoordSpaceN3<V> = CoordSpaceN<3, V>;
 
 /// 6-character:  1.94 × 10²⁴ identifiers — UUID-scale.

@@ -133,7 +133,7 @@ impl<const N: usize> CoordCubeMap<N> for DynCoordMap {
     }
 }
 
-// ── Helpers: get_by_coordpath for KV types ────────────────────────────────
+// ── Helpers: get_by_coordpath for map types ────────────────────────────────
 
 /// Internal helper: look up a `CoordPath<2>` in `CoordMap2`.
 trait CoordPathLookup<const N: usize> {
@@ -284,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn spatial_kv_empty_store_returns_empty() {
+    fn spatial_map_empty_store_returns_empty() {
         let kv: CoordMapN<2> = CoordMapN::new();
         let ranges = [(0u16, 100u16), (0u16, 100u16)];
         let results = kv.bounding_box_range(&ranges);

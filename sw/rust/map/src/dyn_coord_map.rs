@@ -24,7 +24,7 @@ fn coords_to_key_bytes(coords: &[Coord]) -> Vec<u8> {
 
 // ── DynCoordMap ────────────────────────────────────────────────────────────
 
-/// A hash-free, collision-free string KV store backed by [`DynCoordSpace`]
+/// A hash-free, collision-free string map backed by [`DynCoordSpace`]
 /// with [`ByteWise`](crate::ByteWise) coordinate generation.
 ///
 /// Supports any non-empty string key.  Lookup cost is O(len(key)).
