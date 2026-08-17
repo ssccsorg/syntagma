@@ -15,7 +15,7 @@ synTagma (system)
   └─ Tagma core primitive (Coord, CoordPath, CoordSet, CoordSetN, CoordCube, CoordSpace)
 ```
 
-- Tagma -- the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding. The atomic identity primitive.
+- Tagma -- the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding, verified exhaustively in hardware against the Rust reference (`hw/README.md`). The atomic identity primitive.
 - tagma-geo -- spatial operations built on CoordCube: proximity (L∞ Chebyshev radius), bounding box enumeration, Hamming distance, Euclidean distance (approximate), Manhattan distance. Depends only on tagma-core.
 - tagma-map -- native CoordSpace map: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Integrates `tagma-geo` via `CoordCubeMap` for zero-cost spatial queries on map data. Zero extra cost for spatial indexing.
 - tagma-sec -- security primitives for coordination traffic: authority (CoordPath Exact/Prefix scope authorization), integrity (epoch-bound seals), audit (chained evidence log with inclusion proofs), channel (non-repudiation receipts). Depends on tagma-core. Defined in `docs/spec/tagma-sec.md`.
@@ -469,6 +469,7 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 - [Tagma-ID](https://docs.ssccs.org/projects/syntagma/tagma/id) -- Content-addressable identity without hash functions
 - [Specification](docs/spec/coord-space.md) -- Language-independent Tagma coordinate space definition
 - [Specification (tagma-sec)](docs/spec/tagma-sec.md) -- Security layer: authority, integrity, audit, channel, hybrid confidentiality
+- [Hardware verification](hw/README.md) -- RTL decoder, exhaustive verification (11,172 vectors, formal equivalence), FPGA PnR, Sky130 standard cell report
 - [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
 - [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
 - [Rustdoc (tagma-map)](https://docs.ssccs.org/projects/syntagma/tagma/map/) -- CoordMap, CoordMap2, CoordMapN, DynCoordMap, CoordCubeMap, CoordKey
