@@ -7,7 +7,9 @@
 // registered on the board clock so the one-cycle latency and the timing
 // closure are measurable with a real clock.
 //
-// Pin mapping: hw/synth/yosys/upduino31_demo.pcf
+// The onboard LED is negative logic (write 0 to light), so led_valid
+// carries the inverted validity signal. Pin mapping:
+// hw/synth/yosys/upduino31_demo.pcf
 
 module tagma_demo_top (
     input  wire        clk,
@@ -15,11 +17,12 @@ module tagma_demo_top (
     output reg  [4:0]  i,
     output reg  [4:0]  m,
     output reg  [4:0]  f,
-    output reg         valid
+    output wire        led_valid
 );
     wire [4:0] i_c;
     wire [4:0] m_c;
     wire [4:0] f_c;
+    reg  valid;  // internal validity flag, drives the negative-logic LED
 
     tagma_decoder dec (
         .code(code),
@@ -34,4 +37,7 @@ module tagma_demo_top (
         f     <= f_c;
         valid <= (code >= 16'hAC00) && (code <= 16'hD7A3);
     end
+
+    // Negative-logic LED: light it when the code point is valid.
+    assign led_valid = ~valid;
 endmodule

@@ -21,10 +21,10 @@ Two implementations of the same arithmetic were measured. The naive shift-subtra
 | generic cells (ev schema) | 206 | 478 |
 | gate-level estimate | 232 | 588 |
 | iCE40 LUT4 + SB_CARRY | 95 + 66 | 201 + 41 |
-| PnR ICESTORM_LC | 177 | 254 |
-| logic levels | 72 | 29 |
-| critical path (UP5K) | 115.90 ns | 61.17 ns |
-| Fmax | 8.63 MHz | 16.35 MHz |
+| PnR ICESTORM_LC | 177 | 255 |
+| logic levels | 72 | 33 |
+| critical path (UP5K) | 115.90 ns | 59.55 ns |
+| Fmax | 8.63 MHz | 16.79 MHz |
 | meets 12 MHz board clock | no | yes |
 
 ## Generic synthesis (ev-compatible schema)
@@ -77,14 +77,14 @@ Target: Upduino 3.1 (iCE40UP5K-SG48), 12 MHz onboard clock, registered demo top 
 
 | Metric | Value |
 |--------|-------|
-| ICESTORM_LC | 254 / 5280 (4%) |
+| ICESTORM_LC | 255 / 5280 (4%) |
 | SB_IO | 33 / 39 (84%) |
 | SB_GB | 1 / 8 |
-| critical path (icetime) | 61.17 ns |
-| Fmax | 16.35 MHz |
-| logic levels | 29 |
+| critical path (icetime) | 59.55 ns |
+| Fmax | 16.79 MHz |
+| logic levels | 33 |
 
-The multiply-shift network closes the 12 MHz board clock with margin (16.35 MHz measured). The bitstream is generated and the design is ready for board bring-up.
+The multiply-shift network closes the 12 MHz board clock with margin (16.79 MHz measured). The bitstream is generated and the design is ready for board bring-up.
 
 ## Software reference baseline
 

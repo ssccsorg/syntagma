@@ -5,6 +5,13 @@
 #
 # Flow: Yosys (synth_demo.ys) -> nextpnr-ice40 -> icepack -> icetime.
 #
+# Environment note: icetime needs the iCE40 chipdb files discoverable.
+# On macOS Homebrew, the icestorm chipdb lives under
+#   $(brew --prefix icestorm)/share/icestorm/chipdb
+# while icetime looks under share/icebox; a symlink may be required:
+#   ln -s $(brew --prefix icestorm)/share/icestorm/chipdb \
+#         $(brew --prefix)/share/icebox
+#
 # Usage:
 #   ./run_pnr.sh
 

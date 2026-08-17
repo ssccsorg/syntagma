@@ -29,8 +29,8 @@ check_cpp() {
 
 check_hw() {
     echo "--- hw: RTL simulation + synthesis ---"
-    if ! command -v verilator >/dev/null 2>&1 || ! command -v yosys >/dev/null 2>&1; then
-        echo "  skipped (verilator and/or yosys not installed)"
+    if ! command -v verilator >/dev/null 2>&1 || ! command -v yosys >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+        echo "  skipped (verilator, yosys, and/or python3 not installed)"
         return 0
     fi
     make -C hw check

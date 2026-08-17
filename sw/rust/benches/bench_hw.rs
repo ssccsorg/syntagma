@@ -23,16 +23,16 @@
 //
 // Design trade-off (naive vs multiply-shift):
 //   shift-subtract (naive)       206..232 cells, Fmax 8.63 MHz, 115.90 ns
-//   multiply-shift (demo)        478..588 cells, Fmax 16.35 MHz, 61.17 ns
+//   multiply-shift (demo)        478..588 cells, Fmax 16.79 MHz, 59.55 ns
 //   the ~300 gate claim holds for the naive structure; timing closure on
 //   a 12 MHz board costs about 2.5x gates
 //
 // PnR on UP5K (Upduino 3.1, 12 MHz board clock):
-//   ICESTORM_LC                  254 / 5280 (4%)
+//   ICESTORM_LC                  255 / 5280 (4%)
 //   SB_IO                        33 / 39 (84%)
-//   critical path                61.17 ns
-//   Fmax                         16.35 MHz, 12 MHz closes with margin
-//   logic levels                 29
+//   critical path                59.55 ns
+//   Fmax                         16.79 MHz, 12 MHz closes with margin
+//   logic levels                 33
 //
 // Software reference (this file, measured):
 //   hw/decode/all_11172        1.92 µs   (to_axes over the full space)
@@ -40,7 +40,7 @@
 //   hw/decode/index_all_11172  0.457 µs  (baseline: raw index extraction)
 //   hw/golden/export_11172     4.56 µs   (make golden-export path)
 //
-// Reading: the worst-case hardware decode (61.17 ns at 16.35 MHz on the
+// Reading: the worst-case hardware decode (59.55 ns at 16.79 MHz on the
 // UP5K) uses a multiply-shift division network; the software reference
 // needs about 1.4 ns per decode on the benchmark host. The comparison is
 // architectural, not a claim of parity: the hardware number is a post

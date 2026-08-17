@@ -9,7 +9,8 @@
 #   i[4:0]      -> 5 GPIO pins (LED group)
 #   m[4:0]      -> 5 GPIO pins (LED group)
 #   f[4:0]      -> 5 GPIO pins (LED group)
-#   valid       -> onboard green LED (negative logic, write 0 to light)
+#   led_valid   -> onboard green LED (negative logic: 0 lights the LED;
+#                  driven by ~valid, so it lights on valid code points)
 
 set_io --warn-no-port clk 20
 
@@ -51,4 +52,4 @@ set_io --warn-no-port f[2] 46
 set_io --warn-no-port f[3] 48
 set_io --warn-no-port f[4] 44
 
-set_io --warn-no-port valid 39
+set_io --warn-no-port led_valid 39

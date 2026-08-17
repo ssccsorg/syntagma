@@ -37,7 +37,7 @@ The demo top module (`hw/rtl/tagma_demo_top.v`) maps the 16-bit code point from 
 
 ### Decoder optimization (multiply-shift)
 
-The first PnR run measured 115.90 ns (8.63 MHz) with 72 logic levels: the shift-subtract divider depth missed the 12 MHz board clock. The decoder was reimplemented with multiply-shift constant division, exact over the valid domain (`(q4 * 9363) >> 16` for division by 28, `(j * 781) >> 14` for division by 21). The full verification suite re-passed unchanged (exhaustive, golden, gate-level, formal equivalence), confirming the two networks are functionally identical. Measured after optimization: 254 ICESTORM_LC (4%), 29 logic levels, 61.17 ns, Fmax 16.35 MHz, which closes the 12 MHz clock with margin. The gate count rose from 206 to 478 cells (generic schema) as the cost of timing closure. Physical board bring-up and the demo video remain.
+The first PnR run measured 115.90 ns (8.63 MHz) with 72 logic levels: the shift-subtract divider depth missed the 12 MHz board clock. The decoder was reimplemented with multiply-shift constant division, exact over the valid domain (`(q4 * 9363) >> 16` for division by 28, `(j * 781) >> 14` for division by 21). The full verification suite re-passed unchanged (exhaustive, golden, gate-level, formal equivalence), confirming the two networks are functionally identical. Measured after optimization: 255 ICESTORM_LC (4%), 33 logic levels, 59.55 ns, Fmax 16.79 MHz, which closes the 12 MHz clock with margin. The gate count rose from 206 to 478 cells (generic schema) as the cost of timing closure. Physical board bring-up and the demo video remain.
 
 ### Bench center
 
@@ -55,8 +55,8 @@ The first PnR run measured 115.90 ns (8.63 MHz) with 72 logic levels: the shift-
 | Generic synthesis (`stat -json`, ev schema) | 478 cells, 0 registers |
 | Gate-level estimate (2-input library) | 588 cells |
 | iCE40 synthesis | 201 LUT4 + 41 SB_CARRY, 0 registers |
-| PnR (UP5K, Upduino 3.1 demo) | 254 ICESTORM_LC, Fmax 16.35 MHz, 61.17 ns critical path |
-| Design trade-off | shift-subtract 206..232 cells / 8.63 MHz vs multiply-shift 478..588 cells / 16.35 MHz |
+| PnR (UP5K, Upduino 3.1 demo) | 255 ICESTORM_LC, Fmax 16.79 MHz, 59.55 ns critical path |
+| Design trade-off | shift-subtract 206..232 cells / 8.63 MHz vs multiply-shift 478..588 cells / 16.79 MHz |
 | Software reference (bench_hw) | single 1.44 ns, all 1.92 µs, export 4.56 µs |
 
 The ~300 gate claim holds for the naive shift-subtract structure (206 to 232 cells); the multiply-shift version used by the demo exceeds it (478 to 588 cells) as the cost of closing the 12 MHz board clock. Timing closure and a real PDK standard cell number still need the OpenROAD flow.
@@ -67,7 +67,7 @@ The exhaustive test exposed that the last valid Hangul syllable is U+D7A3, not U
 
 ## What becomes possible after this work
 
-- Phase 3 (FPGA board demo): the demo flow runs end to end on the Upduino 3.1 target and the decoder now closes the 12 MHz board clock (254 ICESTORM_LC, Fmax 16.35 MHz, bitstream produced). The remaining step is physical board bring-up and the demo video. The 8 MB PSRAM on the Upduino also covers the RAM-attached test device question.
+- Phase 3 (FPGA board demo): the demo flow runs end to end on the Upduino 3.1 target and the decoder now closes the 12 MHz board clock (255 ICESTORM_LC, Fmax 16.79 MHz, bitstream produced). The remaining step is physical board bring-up and the demo video. The 8 MB PSRAM on the Upduino also covers the RAM-attached test device question.
 - Phase 4 (standard cell report and chton propagation): OpenRAM generates the chton segment store SRAM from `hw/openram/chton_sram.py`; OpenROAD then produces the timing, area, and power numbers for a real PDK. That report is the artifact that finally substantiates the gate count on silicon rather than in a generic library.
 - ev and neXus integration: the generic synthesis report already uses the `stat -json` schema of `ev/src/synth/backends/yosys.rs`, so the numbers can be emitted as neXus `Fact` envelopes (`fact_type: synthesis_result`) without a schema change.
 - Cross-language verification: the golden anchor file is a language-neutral contract. The same file can gate a C++ implementation (`sw/cpp`) later, and the exporter pattern extends to any future implementation of the coordinate engine.
