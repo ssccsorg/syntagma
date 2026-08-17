@@ -27,6 +27,15 @@ check_cpp() {
     ctest --test-dir "$CPP_BUILD" --output-on-failure
 }
 
+check_hw() {
+    echo "--- hw: RTL simulation + synthesis ---"
+    if ! command -v verilator >/dev/null 2>&1 || ! command -v yosys >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+        echo "  skipped (verilator, yosys, and/or python3 not installed)"
+        return 0
+    fi
+    make -C hw check
+}
+
 check_checks() {
     (cd sw/rust && cargo fmt --check)
     # default feature set (alloc): tree, dense, set types
@@ -47,6 +56,7 @@ check_checks() {
     (cd sw/rust && cargo build --release --no-default-features)
     (cd sw/rust && cargo test --release --no-default-features)
     check_cpp
+    check_hw
 }
 
 build_and_test() {
@@ -79,7 +89,7 @@ case "${1:-}" in
     --bench|bench)
         build_and_test
         echo "--- running core benchmarks ---"
-        (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge" 2>&1 | tail -20)
+        (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge|hw" 2>&1 | tail -20)
         ;;
     --doc|doc)
         build_docs

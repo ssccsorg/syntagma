@@ -1,0 +1,22 @@
+# Formal equivalence: RTL vs synthesized gate netlist.
+#
+# Proves that the synthesized structure (out/tagma_decoder_gates.v) is
+# logically identical to the RTL over all 2^16 possible inputs. This is
+# stronger than simulation, which only samples the input space.
+
+# gold: RTL reference
+read_verilog -sv ../../rtl/tagma_decoder.v
+proc
+opt
+rename tagma_decoder gold_decoder
+
+# gate: synthesized netlist from synth_gates.ys
+read_verilog -sv out/tagma_decoder_gates.v
+proc
+opt
+rename tagma_decoder gate_decoder
+
+equiv_make gold_decoder gate_decoder equiv
+equiv_simple -seq 4 equiv
+equiv_induct -seq 4 equiv
+equiv_status -assert equiv

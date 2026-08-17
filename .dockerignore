@@ -1,0 +1,11 @@
+.git
+**/target
+**/obj_dir
+**/build
+hw/synth/yosys/out
+hw/openroad/results
+hw/rtl/golden_anchors.hex
+hw/rtl/trace.vcd
+hw/synth/yosys/reports/pnr.log
+**/_jupyter_cache
+**/.rumdl_cache

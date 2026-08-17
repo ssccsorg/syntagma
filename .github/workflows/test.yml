@@ -6,13 +6,28 @@ on:
     paths:
       - "sw/rust/**"
       - "sw/cpp/**"
+      - "hw/rtl/**"
+      - "hw/tools/**"
+      - "hw/synth/yosys/*.ys"
+      - "hw/synth/yosys/run.sh"
+      - "hw/synth/yosys/run_pnr.sh"
+      - "hw/synth/yosys/upduino31_demo.pcf"
+      - "hw/openroad/**"
+      - "hw/Makefile"
+      - "hw/Dockerfile"
       - "run.sh"
       - ".github/workflows/*.yml"
-      - "!sw/rust/**/*.md"
+      - "!**/*.md"
       - "!**/*.qmd"
   pull_request:
     branches: ["main"]
   workflow_dispatch:
+
+# Only one run per branch or PR at a time: a new push cancels the previous
+# run, so documentation-only commits do not pile up parallel CI executions.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -20,11 +35,34 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
 
+# Source paths that the Rust/C++/hardware pipelines actually consume.
+# Documentation-only changes (README.md, docs/**, generated reports) are
+# excluded so they never trigger the heavy jobs.
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: src_filter
+        with:
+          filters: |
+            src:
+              - 'sw/rust/**'
+              - 'sw/cpp/**'
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/openroad/**'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!**/*.md'
+              - '!**/*.qmd'
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -32,6 +70,7 @@ jobs:
         with:
           workspaces: sw/rust
       - name: Full pipeline (fmt, clippy, build, test, no_alloc, c++ core)
+        if: steps.src_filter.outputs.src == 'true'
         run: bash run.sh --check
 
   cpp:
@@ -66,20 +105,114 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: bench_filter
+        with:
+          filters: |
+            src:
+              - 'sw/rust/**'
+              - 'sw/cpp/**'
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/openroad/**'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!**/*.md'
+              - '!**/*.qmd'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sw/rust
       - name: Build + test + core benchmarks
+        if: steps.bench_filter.outputs.src == 'true'
         run: bash run.sh --bench
 
   doc:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: doc_filter
+        with:
+          filters: |
+            src:
+              - 'sw/rust/**'
+              - 'sw/cpp/**'
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/openroad/**'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!**/*.md'
+              - '!**/*.qmd'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sw/rust
       - name: Build API docs
+        if: steps.doc_filter.outputs.src == 'true'
         run: bash run.sh --doc
+
+  hw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      # Conservative triggers: the docker gate runs only when the image or
+      # the sources it consumes change (RTL, tools, yosys scripts, Makefile,
+      # run.sh, workflow). The ORFS step runs when the standard cell flow
+      # sources change. README.md, hw/openram draft config, and generated
+      # reports never trigger this job. On pull requests the filter compares
+      # the PR head against the base, so the gate validates the final PR
+      # state whenever the PR touches these paths.
+      - uses: dorny/paths-filter@v3
+        id: hw_filter
+        with:
+          filters: |
+            hw_gate:
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!**/*.md'
+            orfs:
+              - 'hw/openroad/**'
+              - '.github/workflows/*.yml'
+              - '!**/*.md'
+      - uses: docker/setup-buildx-action@v3
+      - name: Build hardware verification image (runs sim, golden, gatesim, equiv, synth, PnR)
+        if: steps.hw_filter.outputs.hw_gate == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: hw/Dockerfile
+          push: false
+          tags: tagma-hw:latest
+          cache-from: type=gha,scope=tagma-hw
+          cache-to: type=gha,mode=max,scope=tagma-hw
+      - name: Run Sky130 standard cell flow (ORFS)
+        if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
+        run: bash hw/openroad/run.sh
+      - name: Upload Sky130 reports
+        if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky130-reports
+          path: hw/openroad/results
