@@ -1,11 +1,11 @@
 #pragma once
 
-// CoordKVN: a fixed N-byte-key hashless store over the CoordSpaceN tree.
-// Mirrors the Rust CoordKVN<N> in sw/rust/kv/src/coord_kv_n.rs. The
-// CoordKV and CoordKVKey trait surfaces map to the method set below
+// CoordMapN: a fixed N-byte-key hashless map over the CoordSpaceN tree.
+// Mirrors the Rust CoordMapN<N> in sw/rust/map/src/coord_map_n.rs. The
+// CoordMap and CoordMapKey trait surfaces map to the method set below
 // (insert/get/remove/contains_key via &str and via CoordKey<N>).
 
-#include "tagma_kv/coord_key.h"
+#include "tagma_map/coord_key.h"
 
 #include "tagma_core/coord_space_n.h"
 
@@ -14,14 +14,14 @@
 #include <string>
 #include <vector>
 
-namespace tagma_kv {
+namespace tagma_map {
 
 template <int N>
-class CoordKVN {
+class CoordMapN {
 public:
   using Value = std::vector<uint8_t>;
 
-  CoordKVN() = default;
+  CoordMapN() = default;
 
   // The number of stored entries.
   std::size_t len() const { return len_; }
@@ -45,7 +45,7 @@ public:
   }
 
   // Retrieves a value by key. Returns nullopt when the key length is not N
-  // or the key is absent, mirroring the Rust reference (CoordKV::get
+  // or the key is absent, mirroring the Rust reference (CoordMap::get
   // guards on key.len() != N).
   std::optional<Value> get(const std::string& key) const {
     if (key.size() != static_cast<std::size_t>(N)) return std::nullopt;
@@ -91,7 +91,7 @@ public:
   }
 
   // Looks up a value by a CoordPath, converting internally. Used by the
-  // spatial queries in coord_cube_kv.h.
+  // spatial queries in coord_cube_map.h.
   std::optional<Value> get_by_coord_path(
       const tagma::CoordPath<N>& path) const {
     const Value* value = space_.at_path(path);
@@ -100,7 +100,7 @@ public:
 
   // All (key bytes, value) pairs in ascending coordinate order. The value
   // pointers stay valid until the next mutation of the store. Mirrors the
-  // Rust CoordKVN::iter.
+  // Rust CoordMapN::iter.
   std::vector<std::pair<std::array<uint8_t, N>, const Value*>> iter() const {
     std::vector<std::pair<std::array<uint8_t, N>, const Value*>> out;
     for (const auto& entry : space_.entries()) {
@@ -118,4 +118,4 @@ private:
   std::size_t len_ = 0;
 };
 
-}  // namespace tagma_kv
+}  // namespace tagma_map

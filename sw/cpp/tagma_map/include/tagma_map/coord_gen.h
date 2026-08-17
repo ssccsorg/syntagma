@@ -1,7 +1,7 @@
 #pragma once
 
-// tagma_kv: hashless string-key store, the C++ port of the Rust tagma-kv
-// crate (sw/rust/kv). This header mirrors coord_gen.rs: string to
+// tagma_map: hashless string-key map, the C++ port of the Rust tagma-map
+// crate (sw/rust/map). This header mirrors coord_gen.rs: string to
 // CoordPath conversion strategies with zero hash and zero collision.
 
 #include "tagma_core/coord.h"
@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-namespace tagma_kv {
+namespace tagma_map {
 
 // Generation failure, mirroring the Rust GenError. Empty keys are rejected
 // by every strategy; length mismatches are reported by CoordKey.
@@ -152,4 +152,4 @@ inline std::optional<std::vector<tagma::Coord>> string_to_coord_path(
   return ByteWise::generate(key);
 }
 
-}  // namespace tagma_kv
+}  // namespace tagma_map

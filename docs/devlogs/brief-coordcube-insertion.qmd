@@ -26,7 +26,7 @@ This dual view enables two complementary access channels:
 | 2 | CoordCube | Proximity generation (r=5) | 353 Melem/s |
 | 2 | CoordCube | Bounding box enumeration | 289-699 Melem/s |
 | 2 | CoordCube | Distance metrics (hamming, euclidean, manhattan) | ~320 ps |
-| 1+2 | CoordCubeKV | Storage-backed proximity query | 31-584 Melem/s |
+| 1+2 | CoordCubeMap | Storage-backed proximity query | 31-584 Melem/s |
 
 {{< include ../_include/bench/fig-bench-2ch.qmd >}}
 
@@ -58,7 +58,7 @@ locate vs region enumeration.
 {{< include ../_include/bench/fig-bench-cubescaling.qmd >}}
 
 **KV proximity queries separate generation from lookup.** The
-`CoordCubeKV` trait generates paths via CoordCube then looks up each
+`CoordCubeMap` trait generates paths via CoordCube then looks up each
 path in the CoordSpace tree. Path generation accounts for only 5% of
 total time (15 ns); the remaining 95% is tree traversal (196 ns for
 9 lookups at 21.8 ns each) and Vec push (74 ns). For sparse stores

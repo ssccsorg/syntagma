@@ -177,8 +177,8 @@ assert_eq!(box_paths.len(), 10000);
 ### tagma-map usage
 
 ```rust
-use tagma_kv::{CoordMap, CoordMap2, CoordMapKey, DynCoordMap};
-use tagma_kv::coord_gen::CoordKey;
+use tagma_map::{CoordMap, CoordMap2, CoordMapKey, DynCoordMap};
+use tagma_map::coord_gen::CoordKey;
 
 // Dynamic map: any non-empty string key
 let mut kv = DynCoordMap::new();
@@ -205,9 +205,9 @@ kv.remove("hi");
 ### CoordCubeMap: spatial queries on maps
 
 ```rust
-use tagma_kv::{CoordMap, CoordMapN, CoordMapKey};
-use tagma_kv::coord_gen::CoordKey;
-use tagma_kv::spatial::CoordCubeMap;
+use tagma_map::{CoordMap, CoordMapN, CoordMapKey};
+use tagma_map::coord_gen::CoordKey;
+use tagma_map::spatial::CoordCubeMap;
 use tagma_core::{Coord, CoordCube, CoordPath};
 use tagma_geo::SpatialOps;
 

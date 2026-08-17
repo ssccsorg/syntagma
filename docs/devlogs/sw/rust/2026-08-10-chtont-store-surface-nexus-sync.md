@@ -20,9 +20,9 @@ Current reality against that vision: the file and digital storage layer is compl
 
 | Item | Scope | Implementation | Verification | State |
 |------|-------|----------------|--------------|-------|
-| chton #6 | store surface in chton: EntityStore family, Cell2, CoordKVStoreIo | merged to chton main (`e3ec990`): `store`, `cell`, `io` modules | chton `run.sh --check` green, 11 tests, wasm32 clean | issue open |
-| nexus #172 phase 1 | CoordKVStore and CoordKVStoreIo adoption, drop local CoordKvIo | merged to nexus main (`c14e8b22`, `0218797c`) | green | issue open |
-| nexus #172 phase 2 | EntityStore family absorbed, re-export from chton, drop tagma-kv from nex-fih | merged to nexus main (`aa9794fb`), 9 files, +46/-835, `entity_store.rs` removed | 225 tests, clippy `-D warnings`, wasm32, fmt, `run.sh` exit 0 | issue open |
+| chton #6 | store surface in chton: EntityStore family, Cell2, CoordMapStoreIo | merged to chton main (`e3ec990`): `store`, `cell`, `io` modules | chton `run.sh --check` green, 11 tests, wasm32 clean | issue open |
+| nexus #172 phase 1 | CoordMapStore and CoordMapStoreIo adoption, drop local CoordKvIo | merged to nexus main (`c14e8b22`, `0218797c`) | green | issue open |
+| nexus #172 phase 2 | EntityStore family absorbed, re-export from chton, drop tagma-map from nex-fih | merged to nexus main (`aa9794fb`), 9 files, +46/-835, `entity_store.rs` removed | 225 tests, clippy `-D warnings`, wasm32, fmt, `run.sh` exit 0 | issue open |
 
 Both issues remain open even though the work is on main. Neither went through a pull request; the commits were pushed directly to main.
 
@@ -32,9 +32,9 @@ Running `bash run.sh` on 2026-08-09 exposed two independent failures.
 
 ### Stale lockfiles after the refactor
 
-The workspace lockfiles for `nex/`, `apps/nex-api`, `apps/nex-calc-fihcontract`, and `apps/nex-spinwasi-ssccsdocs` pinned chton at `4bf4d72`, a commit that predates the `cell` and `store` modules. The nexus source had already been migrated to the new chton surface (`chton::cell`, `chton::store`, `chton::kv::CoordKVStore`, `chton::io::CoordKVStoreIo`), so the wasm check of `nex-fih` and the gateway build of `nex-api` failed to compile. The root lockfile already pinned the newer chton (`e3ec990`), which is why the native workspace check passed while the sub-workspaces failed.
+The workspace lockfiles for `nex/`, `apps/nex-api`, `apps/nex-calc-fihcontract`, and `apps/nex-spinwasi-ssccsdocs` pinned chton at `4bf4d72`, a commit that predates the `cell` and `store` modules. The nexus source had already been migrated to the new chton surface (`chton::cell`, `chton::store`, `chton::kv::CoordMapStore`, `chton::io::CoordMapStoreIo`), so the wasm check of `nex-fih` and the gateway build of `nex-api` failed to compile. The root lockfile already pinned the newer chton (`e3ec990`), which is why the native workspace check passed while the sub-workspaces failed.
 
-The fix was to run `cargo update -p chton -p tagma-core -p tagma-geo -p tagma-kv` in every affected workspace so all lockfiles agree on chton `e3ec990` and syntagma `6b5e448`.
+The fix was to run `cargo update -p chton -p tagma-core -p tagma-geo -p tagma-map` in every affected workspace so all lockfiles agree on chton `e3ec990` and syntagma `6b5e448`.
 
 ### The verify_nexd socket race
 
@@ -58,7 +58,7 @@ The decision was to keep SHA-256 (option A). Two notes qualify this decision. FI
 
 ## Residual items
 
-- `nex/process/tests/coord_kv_proximity.rs` (phase 2 scenario from issue #166) still imports `tagma_kv::CoordKV` and `CoordCubeKV` as a dev-dependency. The issue #172 verification criterion "nexus no longer depends on tagma-kv" is therefore not strictly satisfied, although the library code is clean.
+- `nex/process/tests/coord_map_proximity.rs` (phase 2 scenario from issue #166) still imports `tagma_map::CoordMap` and `CoordCubeMap` as a dev-dependency. The issue #172 verification criterion "nexus no longer depends on tagma-map" is therefore not strictly satisfied, although the library code is clean.
 - Issues #172 and #6 are open with no pull request trail, so the review history for the shared foundation changes is absent.
 - Data written under the ByteWise mapping is not readable under the SHA-256 mapping. The pre-1.0 status makes the impact negligible, but no migration plan exists.
 
@@ -67,11 +67,11 @@ The decision was to keep SHA-256 (option A). Two notes qualify this decision. FI
 - Floating git dependencies mean a breaking change on chton main breaks every consumer at the same time. The consumer base is currently a single project (nexus), which keeps the blast radius small, but the risk grows with each new adopter.
 - Direct-to-main commits on the shared foundation crate bypass review. Both issue #6 and issue #172 work entered main this way.
 - Consumer adoption is at zero for rem, es (exaspec), and ev (exaverif); a grep for chton references in those repositories returns nothing.
-- The distance from the current code to the signal layer and to the commercial product is large. The nearest commercial output is the CoordKVStore plus FileIo surface already present.
+- The distance from the current code to the signal layer and to the commercial product is large. The nearest commercial output is the CoordMapStore plus FileIo surface already present.
 
 ## Recommendations
 
-- Close nexus #172 after deciding the disposition of `coord_kv_proximity.rs`: keep it with a documented dev-dependency exception, or drop it since chton already carries a spatial proximity test (`search_json.rs`).
+- Close nexus #172 after deciding the disposition of `coord_map_proximity.rs`: keep it with a documented dev-dependency exception, or drop it since chton already carries a spatial proximity test (`search_json.rs`).
 - Record the SHA-256 mapping contract (no truncation, no padding, collision probability) on chton issue #6 before closing it.
 - Confirm that chton main enforces its `run.sh` gate before pushes. If not, at least keep the issue-to-commit link and verification record visible.
 - Treat the signal layer and the commercial KV product as separate tracks. The commercial KV is the nearer output; the signal layer follows the tagma-signal plan.

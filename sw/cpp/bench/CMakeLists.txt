@@ -20,12 +20,12 @@ endif()
 if(NOT TARGET tagma_geo)
     add_subdirectory(../tagma_geo tagma_geo_build)
 endif()
-if(NOT TARGET tagma_kv)
-    add_subdirectory(../tagma_kv tagma_kv_build)
+if(NOT TARGET tagma_map)
+    add_subdirectory(../tagma_map tagma_map_build)
 endif()
 
 # The suite uses CoordSpaceM (mmap); the superproject adds this
 # subdirectory only on Unix, mirroring the Rust mmap feature gate.
 add_executable(tagma_bench bench.cpp)
-target_link_libraries(tagma_bench PRIVATE tagma_kv tagma_geo tagma_core)
+target_link_libraries(tagma_bench PRIVATE tagma_map tagma_geo tagma_core)
 target_compile_options(tagma_bench PRIVATE -Wall -Wextra)

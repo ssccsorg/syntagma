@@ -79,17 +79,17 @@ These should be in the low-ns range once fixed (Manhattan sum of absolute diffs 
 
 **Insight**: CoordSet pre-computed per-axis bit sets answer compound axis queries with a single bitwise AND (1.4 KB). HashMap must scan all 11,172 entries every time.
 
-### 8. CoordCube vs CoordPath on KV store (KEY COMPARISON)
+### 8. CoordCube vs CoordPath on the map store (KEY COMPARISON)
 
-Direct comparison on the same 10K-entry CoordKVN<2> store:
+Direct comparison on the same 10K-entry CoordMapN<2> store:
 
 | Method | Time | Paths generated | Per-path cost | Overhead vs baseline |
 |--------|------|----------------|---------------|---------------------|
 | Sequential path lookup (baseline) | 158 ns | 9 (manual) | 17.6 ns/lookup | -- |
 | CoordCube proximity r=1 | 285 ns | 9 | 31.7 ns/lookup | +127 ns (80%) |
 | CoordCube proximity r=2 | 626 ns | 25 | 25.0 ns/lookup | +468 ns (296%) |
-| DynCoordKV proximity r=1 | 161 ns | 9 | 17.9 ns/lookup | +3 ns (2%) |
-| DynCoordKV proximity r=2 | 290 ns | 25 | 11.6 ns/lookup | +132 ns (84%) |
+| DynCoordMap proximity r=1 | 161 ns | 9 | 17.9 ns/lookup | +3 ns (2%) |
+| DynCoordMap proximity r=2 | 290 ns | 25 | 11.6 ns/lookup | +132 ns (84%) |
 
 **Breakdown of the +127 ns overhead in Tree+Cube r=1**:
 - Path generation via CoordCube: ~16 ns (measured: cube_from_path ~1 ns + iteration overhead ~15 ns)
@@ -103,15 +103,15 @@ Direct comparison on the same 10K-entry CoordKVN<2> store:
 
 | Scenario | Store | Query | Time | Found |
 |----------|-------|-------|------|-------|
-| Dense 10K entries | CoordKVN<2> | r=1 | 285 ns | 9 |
-| Dense 10K entries | CoordKVN<2> | r=2 | 626 ns | 25 |
-| Dense 10K entries | CoordKVN<2> | r=5 | 2.55 us | 121 |
-| Sparse 9 entries | CoordKVN<2> | r=1 | 48.5 ns | 9 |
-| Empty store | CoordKVN<2> | r=1 | 15.7 ns | 0 |
-| DynCoordKV 100 entries | DynCoordKV | r=1 | 161 ns | 9 |
-| DynCoordKV 100 entries | DynCoordKV | r=2 | 290 ns | 25 |
-| Hierarchical R=2, r=1 (2-phase) | CoordKVN<4> | r=1 | 547 ns | -- |
-| Hierarchical R=2, r=1 (direct KV) | CoordKVN<4> | r=1 | 639 ns | -- |
+| Dense 10K entries | CoordMapN<2> | r=1 | 285 ns | 9 |
+| Dense 10K entries | CoordMapN<2> | r=2 | 626 ns | 25 |
+| Dense 10K entries | CoordMapN<2> | r=5 | 2.55 us | 121 |
+| Sparse 9 entries | CoordMapN<2> | r=1 | 48.5 ns | 9 |
+| Empty store | CoordMapN<2> | r=1 | 15.7 ns | 0 |
+| DynCoordMap 100 entries | DynCoordMap | r=1 | 161 ns | 9 |
+| DynCoordMap 100 entries | DynCoordMap | r=2 | 290 ns | 25 |
+| Hierarchical R=2, r=1 (2-phase) | CoordMapN<4> | r=1 | 547 ns | -- |
+| Hierarchical R=2, r=1 (direct KV) | CoordMapN<4> | r=1 | 639 ns | -- |
 
 **Hierarchical insight**: CoordCube prox r=1 followed by manual lookup (547 ns) is slightly faster than direct KV proximity (639 ns) on R=2 stores, because CoordCube generates candidate paths without considering multi-char dimension boundaries, and the manual post-filter weeds out false positives.
 
