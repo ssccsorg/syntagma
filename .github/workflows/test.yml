@@ -23,17 +23,46 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+# Only one run per branch or PR at a time: a new push cancels the previous
+# run, so documentation-only commits do not pile up parallel CI executions.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 env:
   CARGO_TERM_COLOR: always
 
+# Source paths that the Rust/C++/hardware pipelines actually consume.
+# Documentation-only changes (README.md, docs/**, generated reports) are
+# excluded so they never trigger the heavy jobs.
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: src_filter
+        with:
+          filters: |
+            src:
+              - 'sw/rust/**'
+              - 'sw/cpp/**'
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/openroad/**'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!sw/rust/**/*.md'
+              - '!**/*.qmd'
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -41,6 +70,7 @@ jobs:
         with:
           workspaces: sw/rust
       - name: Full pipeline (fmt, clippy, build, test, no_alloc, c++ core)
+        if: steps.src_filter.outputs.src == 'true'
         run: bash run.sh --check
 
   cpp:
@@ -75,28 +105,77 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: bench_filter
+        with:
+          filters: |
+            src:
+              - 'sw/rust/**'
+              - 'sw/cpp/**'
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/openroad/**'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!sw/rust/**/*.md'
+              - '!**/*.qmd'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sw/rust
       - name: Build + test + core benchmarks
+        if: steps.bench_filter.outputs.src == 'true'
         run: bash run.sh --bench
 
   doc:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: doc_filter
+        with:
+          filters: |
+            src:
+              - 'sw/rust/**'
+              - 'sw/cpp/**'
+              - 'hw/rtl/**'
+              - 'hw/tools/**'
+              - 'hw/synth/yosys/*.ys'
+              - 'hw/synth/yosys/run.sh'
+              - 'hw/synth/yosys/run_pnr.sh'
+              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/openroad/**'
+              - 'hw/Makefile'
+              - 'hw/Dockerfile'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!sw/rust/**/*.md'
+              - '!**/*.qmd'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sw/rust
       - name: Build API docs
+        if: steps.doc_filter.outputs.src == 'true'
         run: bash run.sh --doc
 
   hw:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      # Conservative triggers: the docker gate runs only when the image or
+      # the sources it consumes change (RTL, tools, yosys scripts, Makefile,
+      # run.sh, workflow). The ORFS step runs when the standard cell flow
+      # sources change. README.md, hw/openram draft config, and generated
+      # reports never trigger this job. On pull requests the filter compares
+      # the PR head against the base, so the gate validates the final PR
+      # state whenever the PR touches these paths.
       - uses: dorny/paths-filter@v3
         id: hw_filter
         with:
