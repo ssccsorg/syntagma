@@ -25,12 +25,12 @@ DESIGN_CONFIG=designs/sky130hd/tagma_demo/config.mk
 mkdir -p results
 
 echo "--- ORFS: Sky130hd standard cell flow for tagma_demo_top ---"
-# The design src is mounted from hw/rtl so the ORFS run always uses the
-# current RTL (no committed copies to drift).
+# The design RTL is mounted from hw/rtl into the ORFS src tree so the run
+# always uses the current RTL (no committed copies to drift).
 docker run --rm --platform linux/amd64 \
     -v "${VOL}:/OpenROAD-flow-scripts/flow" \
     -v "$(pwd)/designs:/OpenROAD-flow-scripts/flow/designs" \
-    -v "$(pwd)/../rtl:/OpenROAD-flow-scripts/flow/designs/sky130hd/tagma_demo/src" \
+    -v "$(pwd)/../rtl:/OpenROAD-flow-scripts/flow/designs/src/tagma_demo" \
     "${IMG}" bash -c "cd ${FLOW} && make DESIGN_CONFIG=${DESIGN_CONFIG}" \
     2>&1 | tee results/orfs.log | tail -25
 
@@ -43,12 +43,15 @@ docker run --rm --platform linux/amd64 \
 echo "--- yosys: PDK gate count for the pure decoder ---"
 docker run --rm --platform linux/amd64 \
     -v "${VOL}:/OpenROAD-flow-scripts/flow" \
-    -v "$(pwd)/../rtl:/OpenROAD-flow-scripts/flow/designs/sky130hd/tagma_demo/src" \
+    -v "$(pwd)/../rtl:/OpenROAD-flow-scripts/flow/designs/src/tagma_demo" \
     "${IMG}" bash -c '
         LIB=$(find /OpenROAD-flow-scripts/flow -name "sky130_fd_sc_hd__tt_025C_1v80.lib" | head -1)
         test -n "$LIB" || { echo "liberty not found after flow"; exit 1; }
-        yosys -p "read_verilog /OpenROAD-flow-scripts/flow/designs/sky130hd/tagma_demo/src/tagma_decoder.v;
-                  hierarchy -top tagma_decoder; proc; opt;
+        # synth before abc: the standalone yosys abc pass extracts nothing
+        # from a raw \$mul netlist (proc; opt leaves the multiplier cells
+        # unmappable), while the passes inside synth prepare them.
+        yosys -p "read_verilog /OpenROAD-flow-scripts/flow/designs/src/tagma_demo/tagma_decoder.v;
+                  synth -top tagma_decoder;
                   read_liberty -lib $LIB; abc -liberty $LIB; opt;
                   stat -liberty $LIB"
     ' 2>&1 | tee results/sky130_decoder_stat.txt | tail -25
