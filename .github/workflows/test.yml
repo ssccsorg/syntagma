@@ -115,6 +115,7 @@ jobs:
             orfs:
               - 'hw/openroad/**'
               - '.github/workflows/*.yml'
+      - uses: docker/setup-buildx-action@v3
       - name: Build hardware verification image (runs sim, golden, gatesim, equiv, synth, PnR)
         if: steps.hw_filter.outputs.hw_gate == 'true'
         uses: docker/build-push-action@v6
