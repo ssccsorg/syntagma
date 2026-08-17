@@ -41,9 +41,9 @@ fn coords_to_key_bytes(coords: &[Coord]) -> Vec<u8> {
 /// use tagma_map::CoordMap;
 /// use tagma_map::dyn_coord_map::DynCoordMap;
 ///
-/// let mut kv = DynCoordMap::new();
-/// kv.insert("hello", b"world".to_vec());
-/// assert_eq!(kv.get("hello"), Some(b"world".to_vec()));
+/// let mut map = DynCoordMap::new();
+/// map.insert("hello", b"world".to_vec());
+/// assert_eq!(map.get("hello"), Some(b"world".to_vec()));
 /// ```
 pub struct DynCoordMap {
     space: DynCoordSpace<Box<[u8]>>,

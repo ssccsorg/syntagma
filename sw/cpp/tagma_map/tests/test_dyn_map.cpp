@@ -81,35 +81,35 @@ void test_dyn_coord_space() {
 void test_dyn_coord_map() {
   using tagma_map::DynCoordMap;
   DynCoordMap map;
-  check(map.is_empty() && map.len() == 0, "dynkv initially empty");
+  check(map.is_empty() && map.len() == 0, "dynmap initially empty");
 
-  check(map.insert("hello", bytes("world")) == std::nullopt, "dynkv insert");
-  check(map.len() == 1, "dynkv length");
+  check(map.insert("hello", bytes("world")) == std::nullopt, "dynmap insert");
+  check(map.len() == 1, "dynmap length");
   check(map.get("hello") == std::optional<std::vector<uint8_t>>(bytes("world")),
-        "dynkv get");
-  check(map.contains_key("hello"), "dynkv contains");
+        "dynmap get");
+  check(map.contains_key("hello"), "dynmap contains");
 
   check(map.insert("hello", bytes("earth")) ==
             std::optional<std::vector<uint8_t>>(bytes("world")),
-        "dynkv replace returns previous");
-  check(map.len() == 1, "dynkv length after replace");
+        "dynmap replace returns previous");
+  check(map.len() == 1, "dynmap length after replace");
 
-  check(map.insert("한글", bytes("v")) == std::nullopt, "dynkv unicode key");
+  check(map.insert("한글", bytes("v")) == std::nullopt, "dynmap unicode key");
   check(map.get("한글") == std::optional<std::vector<uint8_t>>(bytes("v")),
-        "dynkv unicode get");
-  check(map.len() == 2, "dynkv length with unicode");
+        "dynmap unicode get");
+  check(map.len() == 2, "dynmap length with unicode");
 
-  check(map.insert("", bytes("x")) == std::nullopt, "dynkv empty key rejected");
-  check(map.get("") == std::nullopt, "dynkv empty get");
+  check(map.insert("", bytes("x")) == std::nullopt, "dynmap empty key rejected");
+  check(map.get("") == std::nullopt, "dynmap empty get");
 
   check(map.remove("hello") ==
             std::optional<std::vector<uint8_t>>(bytes("earth")),
-        "dynkv remove");
-  check(map.get("hello") == std::nullopt, "dynkv removed get");
-  check(map.len() == 1, "dynkv length after remove");
+        "dynmap remove");
+  check(map.get("hello") == std::nullopt, "dynmap removed get");
+  check(map.len() == 1, "dynmap length after remove");
 
   map.clear();
-  check(map.is_empty() && map.len() == 0, "dynkv clear");
+  check(map.is_empty() && map.len() == 0, "dynmap clear");
 }
 
 void test_dyn_iter() {

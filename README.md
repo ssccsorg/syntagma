@@ -81,7 +81,7 @@ Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero cli
 | CoordMapN\<N\> | Fixed N-byte tree map, CoordSpaceN, sparse | `map/src/coord_map_n.rs` |
 | CoordMap trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `map/src/coord_map.rs` |
 | CoordMapKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `map/src/coord_map.rs` |
-| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap | `kvsrc/spatial.rs` |
+| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap | `map/src/spatial.rs` |
 
 ### tagma-sec: security primitives (requires alloc)
 
@@ -181,25 +181,25 @@ use tagma_map::{CoordMap, CoordMap2, CoordMapKey, DynCoordMap};
 use tagma_map::coord_gen::CoordKey;
 
 // Dynamic map: any non-empty string key
-let mut kv = DynCoordMap::new();
-kv.insert("hello", b"world".to_vec());
-assert_eq!(kv.get("hello"), Some(b"world".to_vec()));
+let mut map = DynCoordMap::new();
+map.insert("hello", b"world".to_vec());
+assert_eq!(map.get("hello"), Some(b"world".to_vec()));
 
 // Fixed 2-byte dense map: 119 MB, O(1), collision-free
-let mut kv = CoordMap2::new();
-kv.insert("hi", b"value".to_vec());
-assert_eq!(kv.get("hi"), Some(b"value".to_vec()));
+let mut map = CoordMap2::new();
+map.insert("hi", b"value".to_vec());
+assert_eq!(map.get("hi"), Some(b"value".to_vec()));
 
 // Same store, CoordKey-based access
 let key = CoordKey::new(*b"hi");
-assert_eq!(kv.get_by_coordkey(&key), Some(b"value".to_vec()));
+assert_eq!(map.get_by_coordkey(&key), Some(b"value".to_vec()));
 
 // Compile-time key length enforcement
 const KEY: CoordKey<2> = CoordKey::from_str_const("hi");
 
 // Contains key, remove, all HashMap-compatible
-assert!(kv.contains_key("hi"));
-kv.remove("hi");
+assert!(map.contains_key("hi"));
+map.remove("hi");
 ```
 
 ### CoordCubeMap: spatial queries on maps
@@ -212,17 +212,17 @@ use tagma_core::{Coord, CoordCube, CoordPath};
 use tagma_geo::SpatialOps;
 
 // Fill a store with 10,000 entries in a 100x100 region
-let mut kv = CoordMapN::<2>::new();
+let mut map = CoordMapN::<2>::new();
 let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
     Coord::new(5000).unwrap(), Coord::new(5000).unwrap(),
 ]));
 for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
-    kv.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
+    map.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
 }
 
 // Spatial proximity query: find all entries within L∞ radius 1 of center
 let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
-let nearby: Vec<_> = kv.proximity::<2, 1>(&center, 1);
+let nearby: Vec<_> = map.proximity::<2, 1>(&center, 1);
 // Returns 9 entries (3x3 grid)
 assert_eq!(nearby.len(), 9);
 ```
@@ -471,7 +471,7 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 - [Specification (tagma-sec)](docs/spec/tagma-sec.md) -- Security layer: authority, integrity, audit, channel, hybrid confidentiality
 - [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
 - [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
-- [Rustdoc (tagma-map)](https://docs.ssccs.org/projects/syntagma/tagma/kv/) -- CoordMap, CoordMap2, CoordMapN, DynCoordMap, CoordCubeMap, CoordKey
+- [Rustdoc (tagma-map)](https://docs.ssccs.org/projects/syntagma/tagma/map/) -- CoordMap, CoordMap2, CoordMapN, DynCoordMap, CoordCubeMap, CoordKey
 - [Rustdoc (tagma-sec)](https://docs.ssccs.org/projects/syntagma/tagma/sec/) -- SecStack, Authority, Integrity, Audit, Channel
 
 ## License

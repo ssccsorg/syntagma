@@ -61,7 +61,7 @@ void test_map2_proximity() {
 
   const auto results =
       tagma_map::proximity<2, 2, 1>(map, center_key.to_coord_path(), 1);
-  check(results.size() == 2, "kv2 proximity finds 2");
+  check(results.size() == 2, "map2 proximity finds 2");
 }
 
 void test_map2_bounding_box() {
@@ -78,7 +78,7 @@ void test_map2_bounding_box() {
   const std::array<std::pair<uint16_t, uint16_t>, 2> ranges = {
       {{4, 6}, {5, 7}}};
   const auto results = tagma_map::bounding_box_range(map, ranges);
-  check(results.size() == 2, "kv2 bounding box finds 2");
+  check(results.size() == 2, "map2 bounding box finds 2");
 }
 
 void test_mapn_proximity() {
@@ -95,7 +95,7 @@ void test_mapn_proximity() {
   map.insert_by_coordkey(CoordKey<3>::from_coord_path(far_path), bytes("far"));
 
   const auto results = tagma_map::proximity<3, 3, 1>(map, center_path, 1);
-  check(results.size() == 2, "kvn proximity finds 2");
+  check(results.size() == 2, "mapn proximity finds 2");
 }
 
 void test_mapn_empty() {
@@ -103,13 +103,13 @@ void test_mapn_empty() {
   const CoordMapN<2> map;
   const auto center = path_of<2>({5, 5});
   check(tagma_map::proximity<2, 2, 1>(map, center, 1).empty(),
-        "kvn empty proximity");
+        "mapn empty proximity");
   const std::array<std::pair<uint16_t, uint16_t>, 2> ranges = {
       {{0, 100}, {0, 100}}};
-  check(tagma_map::bounding_box_range(map, ranges).empty(), "kvn empty box");
+  check(tagma_map::bounding_box_range(map, ranges).empty(), "mapn empty box");
 }
 
-void test_dynkv_spatial() {
+void test_dynmap_spatial() {
   using tagma_map::DynCoordMap;
   DynCoordMap map;
   map.insert("ab", bytes("v1"));
@@ -118,19 +118,19 @@ void test_dynkv_spatial() {
 
   const auto center = path_of<2>({97, 98});  // "ab"
   const auto prox = tagma_map::proximity<2, 2, 1>(map, center, 1);
-  check(prox.size() == 2, "dynkv proximity finds 2");
+  check(prox.size() == 2, "dynmap proximity finds 2");
 
   const std::array<std::pair<uint16_t, uint16_t>, 2> ranges = {
       {{97, 99}, {98, 100}}};
   const auto box = tagma_map::bounding_box_range(map, ranges);
-  check(box.size() == 2, "dynkv bounding box finds 2");
+  check(box.size() == 2, "dynmap bounding box finds 2");
 
   // "az" sits at (97, 122), so the box must cover index 122 to include
   // all three entries.
   const std::array<std::pair<uint16_t, uint16_t>, 2> wide = {
       {{0, 200}, {0, 200}}};
   check(tagma_map::bounding_box_range(map, wide).size() == 3,
-        "dynkv wide box finds 3");
+        "dynmap wide box finds 3");
 }
 
 }  // namespace
@@ -140,7 +140,7 @@ int main() {
   test_map2_bounding_box();
   test_mapn_proximity();
   test_mapn_empty();
-  test_dynkv_spatial();
+  test_dynmap_spatial();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);

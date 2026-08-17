@@ -346,7 +346,7 @@ void bench_cube_distances() {
 
 // ── tagma_map ───────────────────────────────────────────────────────
 
-void bench_kv_single_insert_static() {
+void bench_map_single_insert_static() {
   bench("map static single insert", 100, 3, [&] {
     tagma_map::CoordMapN<2> map;
     map.insert("hi", std::vector<uint8_t>(1, 1));
@@ -354,7 +354,7 @@ void bench_kv_single_insert_static() {
   });
 }
 
-void bench_kv_single_get_static() {
+void bench_map_single_get_static() {
   // Vary the key per call so the lookup cannot be hoisted out of the
   // timed loop.
   tagma_map::CoordMapN<2> map;
@@ -374,7 +374,7 @@ void bench_kv_single_get_static() {
   });
 }
 
-void bench_kv_single_insert_dyn() {
+void bench_map_single_insert_dyn() {
   bench("map dyn single insert", 100, 3, [&] {
     tagma_map::DynCoordMap map;
     map.insert("hello", std::vector<uint8_t>(1, 1));
@@ -382,7 +382,7 @@ void bench_kv_single_insert_dyn() {
   });
 }
 
-void bench_kv_single_get_dyn() {
+void bench_map_single_get_dyn() {
   tagma_map::DynCoordMap map;
   std::vector<std::string> keys;
   keys.reserve(100);
@@ -399,7 +399,7 @@ void bench_kv_single_get_dyn() {
   });
 }
 
-void bench_kv_batch_insert_2k() {
+void bench_map_batch_insert_2k() {
   std::vector<std::string> keys;
   keys.reserve(2048);
   for (int i = 0; i < 2048; ++i) {
@@ -413,7 +413,7 @@ void bench_kv_batch_insert_2k() {
   });
 }
 
-void bench_kv_spatial_proximity() {
+void bench_map_spatial_proximity() {
   tagma_map::CoordMapN<2> map;
   for (int i = 0; i < 1000; ++i) {
     const std::string key{static_cast<char>((i * 7) % 256),
@@ -479,12 +479,12 @@ int main(int argc, char** argv) {
   bench_cube_bounding_box();
   bench_cube_proximity_hamming();
   bench_cube_distances();
-  bench_kv_single_insert_static();
-  bench_kv_single_get_static();
-  bench_kv_single_insert_dyn();
-  bench_kv_single_get_dyn();
-  bench_kv_batch_insert_2k();
-  bench_kv_spatial_proximity();
+  bench_map_single_insert_static();
+  bench_map_single_get_static();
+  bench_map_single_insert_dyn();
+  bench_map_single_get_dyn();
+  bench_map_batch_insert_2k();
+  bench_map_spatial_proximity();
 
   std::printf("\nsink: %zu\n", g_sink);
 

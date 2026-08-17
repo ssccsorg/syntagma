@@ -105,8 +105,8 @@ the same store supports:
   rehashing.
 
 These capabilities are not add-ons. They are the same coordinate space, accessed
-through the same API. An application that starts with kv.insert("hi", value) today
-can later query kv.iter_prefix("h") without changing a single byte of stored data.
+through the same API. An application that starts with map.insert("hi", value) today
+can later query map.iter_prefix("h") without changing a single byte of stored data.
 
 ## Summary
 

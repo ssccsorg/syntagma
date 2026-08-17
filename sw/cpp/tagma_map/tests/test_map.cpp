@@ -112,67 +112,67 @@ void test_coord_key() {
 void test_coord_mapn() {
   using tagma_map::CoordMapN;
   CoordMapN<2> map;
-  check(map.is_empty() && map.len() == 0, "kvn initially empty");
+  check(map.is_empty() && map.len() == 0, "mapn initially empty");
 
-  check(map.insert("hi", bytes("v1")) == std::nullopt, "kvn first insert");
-  check(map.len() == 1, "kvn length");
-  check(map.contains_key("hi"), "kvn contains");
+  check(map.insert("hi", bytes("v1")) == std::nullopt, "mapn first insert");
+  check(map.len() == 1, "mapn length");
+  check(map.contains_key("hi"), "mapn contains");
   check(map.get("hi") == std::optional<std::vector<uint8_t>>(bytes("v1")),
-        "kvn get");
-  check(map.get("no") == std::nullopt, "kvn get absent");
+        "mapn get");
+  check(map.get("no") == std::nullopt, "mapn get absent");
 
   check(map.insert("hi", bytes("v2")) ==
             std::optional<std::vector<uint8_t>>(bytes("v1")),
-        "kvn replace returns previous");
-  check(map.len() == 1, "kvn length after replace");
+        "mapn replace returns previous");
+  check(map.len() == 1, "mapn length after replace");
 
   check(map.remove("hi") == std::optional<std::vector<uint8_t>>(bytes("v2")),
-        "kvn remove");
-  check(map.is_empty(), "kvn empty after remove");
-  check(map.get("hi") == std::nullopt, "kvn get after remove");
+        "mapn remove");
+  check(map.is_empty(), "mapn empty after remove");
+  check(map.get("hi") == std::nullopt, "mapn get after remove");
 
   // Wrong-length keys: get/remove return nullopt, insert throws, mirroring
   // the Rust reference (CoordMap::get/remove guard on length; insert panics
   // via CoordKey::from).
-  check(map.get("x") == std::nullopt, "kvn wrong length get");
-  check(map.remove("x") == std::nullopt, "kvn wrong length remove");
+  check(map.get("x") == std::nullopt, "mapn wrong length get");
+  check(map.remove("x") == std::nullopt, "mapn wrong length remove");
   bool threw = false;
   try {
     map.insert("x", bytes("v"));
   } catch (const std::invalid_argument&) {
     threw = true;
   }
-  check(threw, "kvn wrong length insert throws");
+  check(threw, "mapn wrong length insert throws");
 
   // CoordKey API.
   const tagma_map::CoordKey<2> key(std::array<uint8_t, 2>{{'a', 'b'}});
   check(map.insert_by_coordkey(key, bytes("v3")) == std::nullopt,
-        "kvn insert by coordkey");
-  check(map.contains_key_by_coordkey(key), "kvn contains by coordkey");
+        "mapn insert by coordkey");
+  check(map.contains_key_by_coordkey(key), "mapn contains by coordkey");
   check(map.get_by_coordkey(key) ==
             std::optional<std::vector<uint8_t>>(bytes("v3")),
-        "kvn get by coordkey");
+        "mapn get by coordkey");
 
   map.clear();
-  check(map.is_empty() && map.len() == 0, "kvn clear");
+  check(map.is_empty() && map.len() == 0, "mapn clear");
 }
 
 void test_mapn_iter() {
   using tagma_map::CoordMapN;
   const CoordMapN<2> empty;
-  check(empty.iter().empty(), "kvn iter empty");
+  check(empty.iter().empty(), "mapn iter empty");
 
   CoordMapN<2> map;
   map.insert("aa", bytes("1"));
   map.insert("bb", bytes("2"));
   const auto entries = map.iter();
-  check(entries.size() == 2, "kvn iter size");
+  check(entries.size() == 2, "mapn iter size");
   check(entries[0].first == std::array<uint8_t, 2>{{'a', 'a'}} &&
             *entries[0].second == bytes("1"),
-        "kvn iter first in ascending order");
+        "mapn iter first in ascending order");
   check(entries[1].first == std::array<uint8_t, 2>{{'b', 'b'}} &&
             *entries[1].second == bytes("2"),
-        "kvn iter second in ascending order");
+        "mapn iter second in ascending order");
 }
 
 void test_strategy_edge_cases() {

@@ -188,20 +188,20 @@ mod tests {
     // ── CoordMap2 spatial tests ─────────────────────────────────────
 
     #[test]
-    fn kv2_proximity_finds_nearby() {
-        let mut kv = CoordMap2::new();
+    fn map2_proximity_finds_nearby() {
+        let mut map = CoordMap2::new();
 
         // Insert at (5,5) and (5,6) — within radius 1 of center (5,5)
         let center_key = CoordKey::new([5, 5]);
         let nearby_key = CoordKey::new([5, 6]);
         let far_key = CoordKey::new([5, 20]);
 
-        kv.insert_by_coordkey(&center_key, b"center".to_vec());
-        kv.insert_by_coordkey(&nearby_key, b"nearby".to_vec());
-        kv.insert_by_coordkey(&far_key, b"far".to_vec());
+        map.insert_by_coordkey(&center_key, b"center".to_vec());
+        map.insert_by_coordkey(&nearby_key, b"nearby".to_vec());
+        map.insert_by_coordkey(&far_key, b"far".to_vec());
 
         let center_path = center_key.to_coord_path();
-        let results = kv.proximity::<2, 1>(&center_path, 1);
+        let results = map.proximity::<2, 1>(&center_path, 1);
 
         // Should find center and nearby, but not far
         assert_eq!(results.len(), 2);
@@ -211,17 +211,17 @@ mod tests {
     }
 
     #[test]
-    fn kv2_bounding_box_range() {
-        let mut kv = CoordMap2::new();
+    fn map2_bounding_box_range() {
+        let mut map = CoordMap2::new();
 
         // Insert values at (5,5), (5,6), (10,10)
-        kv.insert_by_coordkey(&CoordKey::new([5, 5]), b"v1".to_vec());
-        kv.insert_by_coordkey(&CoordKey::new([5, 6]), b"v2".to_vec());
-        kv.insert_by_coordkey(&CoordKey::new([10, 10]), b"v3".to_vec());
+        map.insert_by_coordkey(&CoordKey::new([5, 5]), b"v1".to_vec());
+        map.insert_by_coordkey(&CoordKey::new([5, 6]), b"v2".to_vec());
+        map.insert_by_coordkey(&CoordKey::new([10, 10]), b"v3".to_vec());
 
         // Box: character 0 in [4,6], character 1 in [5,7]
         let ranges = [(4, 6), (5, 7)];
-        let results = kv.bounding_box_range(&ranges);
+        let results = map.bounding_box_range(&ranges);
 
         // Should find (5,5) and (5,6), but not (10,10)
         assert_eq!(results.len(), 2);
@@ -230,8 +230,8 @@ mod tests {
     // ── CoordMapN spatial tests ─────────────────────────────────────
 
     #[test]
-    fn kvn_proximity_finds_nearby() {
-        let mut kv = CoordMapN::<3>::new();
+    fn mapn_proximity_finds_nearby() {
+        let mut map = CoordMapN::<3>::new();
 
         // Insert at (5,5,5) and (5,5,6) — nearby
         let center_path = CoordPath::<3>::new([
@@ -250,34 +250,34 @@ mod tests {
             Coord::new(20).unwrap(),
         ]);
 
-        kv.insert_by_coordkey(&CoordKey::from_coord_path(&center_path), b"center".to_vec());
-        kv.insert_by_coordkey(&CoordKey::from_coord_path(&nearby_path), b"nearby".to_vec());
-        kv.insert_by_coordkey(&CoordKey::from_coord_path(&far_path), b"far".to_vec());
+        map.insert_by_coordkey(&CoordKey::from_coord_path(&center_path), b"center".to_vec());
+        map.insert_by_coordkey(&CoordKey::from_coord_path(&nearby_path), b"nearby".to_vec());
+        map.insert_by_coordkey(&CoordKey::from_coord_path(&far_path), b"far".to_vec());
 
-        let results = kv.proximity::<3, 1>(&center_path, 1);
+        let results = map.proximity::<3, 1>(&center_path, 1);
 
         // Should find center and nearby, but not far
         assert_eq!(results.len(), 2);
     }
 
     #[test]
-    fn kvn_proximity_empty_when_none_nearby() {
-        let kv: CoordMapN<2> = CoordMapN::new();
+    fn mapn_proximity_empty_when_none_nearby() {
+        let map: CoordMapN<2> = CoordMapN::new();
         let center_path = CoordPath::<2>::new([Coord::new(5).unwrap(), Coord::new(5).unwrap()]);
-        let results = kv.proximity::<2, 1>(&center_path, 1);
+        let results = map.proximity::<2, 1>(&center_path, 1);
         assert!(results.is_empty());
     }
 
     #[test]
-    fn kvn_bounding_box_range() {
-        let mut kv = CoordMapN::<2>::new();
+    fn mapn_bounding_box_range() {
+        let mut map = CoordMapN::<2>::new();
 
-        kv.insert_by_coordkey(&CoordKey::new([5, 5]), b"v1".to_vec());
-        kv.insert_by_coordkey(&CoordKey::new([5, 6]), b"v2".to_vec());
-        kv.insert_by_coordkey(&CoordKey::new([10, 10]), b"v3".to_vec());
+        map.insert_by_coordkey(&CoordKey::new([5, 5]), b"v1".to_vec());
+        map.insert_by_coordkey(&CoordKey::new([5, 6]), b"v2".to_vec());
+        map.insert_by_coordkey(&CoordKey::new([10, 10]), b"v3".to_vec());
 
         let ranges = [(4u16, 6u16), (5u16, 7u16)];
-        let results = kv.bounding_box_range(&ranges);
+        let results = map.bounding_box_range(&ranges);
 
         // Should find (5,5) and (5,6), but not (10,10)
         assert_eq!(results.len(), 2);
@@ -285,13 +285,13 @@ mod tests {
 
     #[test]
     fn spatial_map_empty_store_returns_empty() {
-        let kv: CoordMapN<2> = CoordMapN::new();
+        let map: CoordMapN<2> = CoordMapN::new();
         let ranges = [(0u16, 100u16), (0u16, 100u16)];
-        let results = kv.bounding_box_range(&ranges);
+        let results = map.bounding_box_range(&ranges);
         assert!(results.is_empty());
 
         let center_path = CoordPath::<2>::new([Coord::new(50).unwrap(), Coord::new(50).unwrap()]);
-        let results = kv.proximity::<2, 1>(&center_path, 1);
+        let results = map.proximity::<2, 1>(&center_path, 1);
         assert!(results.is_empty());
     }
 
@@ -299,32 +299,32 @@ mod tests {
 
     #[test]
     fn dynmap_proximity_finds_nearby() {
-        let mut kv = DynCoordMap::new();
-        kv.insert("ab", b"center".to_vec());
-        kv.insert("ac", b"nearby".to_vec());
-        kv.insert("az", b"far".to_vec());
+        let mut map = DynCoordMap::new();
+        map.insert("ab", b"center".to_vec());
+        map.insert("ac", b"nearby".to_vec());
+        map.insert("az", b"far".to_vec());
 
         let center_path = CoordPath::<2>::new([Coord::new(97).unwrap(), Coord::new(98).unwrap()]);
-        let results = kv.proximity::<2, 1>(&center_path, 1);
+        let results = map.proximity::<2, 1>(&center_path, 1);
         assert_eq!(results.len(), 2);
     }
 
     #[test]
     fn dynmap_bounding_box_range() {
-        let mut kv = DynCoordMap::new();
-        kv.insert("ab", b"v1".to_vec());
-        kv.insert("ac", b"v2".to_vec());
-        kv.insert("xy", b"v3".to_vec());
+        let mut map = DynCoordMap::new();
+        map.insert("ab", b"v1".to_vec());
+        map.insert("ac", b"v2".to_vec());
+        map.insert("xy", b"v3".to_vec());
         let ranges = [(97u16, 99u16), (98u16, 100u16)];
-        let results = kv.bounding_box_range(&ranges);
+        let results = map.bounding_box_range(&ranges);
         assert_eq!(results.len(), 2);
     }
 
     #[test]
     fn dynmap_empty_store_returns_empty() {
-        let kv = DynCoordMap::new();
+        let map = DynCoordMap::new();
         let ranges = [(0u16, 100u16), (0u16, 100u16)];
-        let results = kv.bounding_box_range(&ranges);
+        let results = map.bounding_box_range(&ranges);
         assert!(results.is_empty());
     }
 }

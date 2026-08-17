@@ -24,7 +24,7 @@ HashMap has no equivalent decomposition. SipHash, bucket probe, and collision re
 
 ## The one-time cost chart
 
-The cumulative cost chart (`fig-bench-kv-onetime-cost.qmd`) visualizes the strategic difference. CoordMap2 via `by_coordkey` pays ~22 ns once and then ~1 ns per operation. HashMap pays ~24 ns per operation forever. At 100,000 operations, the gap is 23.8x. At 10M operations, it is still 23.8x. This is not a performance tuning detail — it is a structural consequence of the addressing model.
+The cumulative cost chart (`fig-bench-map-onetime-cost.qmd`) visualizes the strategic difference. CoordMap2 via `by_coordkey` pays ~22 ns once and then ~1 ns per operation. HashMap pays ~24 ns per operation forever. At 100,000 operations, the gap is 23.8x. At 10M operations, it is still 23.8x. This is not a performance tuning detail — it is a structural consequence of the addressing model.
 
 ## Where the real engineering is
 

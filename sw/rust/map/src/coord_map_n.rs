@@ -45,9 +45,9 @@ fn path_to_key_bytes<const N: usize>(path: &tagma_core::CoordPath<N>) -> [u8; N]
 /// use tagma_map::{CoordMap, CoordMapKey};
 /// use tagma_map::coord_map_n::CoordMapN;
 ///
-/// let mut kv = CoordMapN::<3>::new();
-/// kv.insert("foo", b"bar".to_vec());
-/// assert_eq!(kv.get("foo"), Some(b"bar".to_vec()));
+/// let mut map = CoordMapN::<3>::new();
+/// map.insert("foo", b"bar".to_vec());
+/// assert_eq!(map.get("foo"), Some(b"bar".to_vec()));
 /// ```
 pub struct CoordMapN<const N: usize> {
     space: CoordSpaceN<N, Box<[u8]>>,

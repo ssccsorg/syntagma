@@ -36,9 +36,9 @@ fn box_to_vec_owned(v: Box<[u8]>) -> Vec<u8> {
 /// ```
 /// use tagma_map::{CoordMap, CoordMap2, CoordMapKey};
 ///
-/// let mut kv = CoordMap2::new();
-/// kv.insert("hi", b"world".to_vec());
-/// assert_eq!(kv.get("hi"), Some(b"world".to_vec()));
+/// let mut map = CoordMap2::new();
+/// map.insert("hi", b"world".to_vec());
+/// assert_eq!(map.get("hi"), Some(b"world".to_vec()));
 /// ```
 pub struct CoordMap2 {
     space: CoordSpace2<Box<[u8]>>,

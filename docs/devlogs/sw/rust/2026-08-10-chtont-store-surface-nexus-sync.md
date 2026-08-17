@@ -32,7 +32,7 @@ Running `bash run.sh` on 2026-08-09 exposed two independent failures.
 
 ### Stale lockfiles after the refactor
 
-The workspace lockfiles for `nex/`, `apps/nex-api`, `apps/nex-calc-fihcontract`, and `apps/nex-spinwasi-ssccsdocs` pinned chton at `4bf4d72`, a commit that predates the `cell` and `store` modules. The nexus source had already been migrated to the new chton surface (`chton::cell`, `chton::store`, `chton::kv::CoordMapStore`, `chton::io::CoordMapStoreIo`), so the wasm check of `nex-fih` and the gateway build of `nex-api` failed to compile. The root lockfile already pinned the newer chton (`e3ec990`), which is why the native workspace check passed while the sub-workspaces failed.
+The workspace lockfiles for `nex/`, `apps/nex-api`, `apps/nex-calc-fihcontract`, and `apps/nex-spinwasi-ssccsdocs` pinned chton at `4bf4d72`, a commit that predates the `cell` and `store` modules. The nexus source had already been migrated to the new chton surface (`chton::cell`, `chton::store`, `chton::map::CoordMapStore`, `chton::io::CoordMapStoreIo`), so the wasm check of `nex-fih` and the gateway build of `nex-api` failed to compile. The root lockfile already pinned the newer chton (`e3ec990`), which is why the native workspace check passed while the sub-workspaces failed.
 
 The fix was to run `cargo update -p chton -p tagma-core -p tagma-geo -p tagma-map` in every affected workspace so all lockfiles agree on chton `e3ec990` and syntagma `6b5e448`.
 

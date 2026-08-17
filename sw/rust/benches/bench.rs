@@ -1520,7 +1520,7 @@ fn bench_coordcube_distance_metrics(c: &mut Criterion) {
     group.finish();
 }
 
-// Spatial/kvproximity/store_density
+// Spatial/map_proximity/store_density
 //   End-to-end map spatial query throughput with different store densities
 fn bench_map_spatial_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
@@ -1530,16 +1530,16 @@ fn bench_map_spatial_proximity(c: &mut Criterion) {
     use tagma_map::coord_map_n::CoordMapN;
     use tagma_map::CoordMapKey;
 
-    let mut group = c.benchmark_group("Spatial/kvproximity");
+    let mut group = c.benchmark_group("Spatial/map_proximity");
 
     // Dense store: fill 100x100 region around center
-    let mut kv = CoordMapN::<2>::new();
+    let mut map = CoordMapN::<2>::new();
     let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center);
     let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
-        kv.insert_by_coordkey(&key, b"v".to_vec());
+        map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
     let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
@@ -1547,7 +1547,7 @@ fn bench_map_spatial_proximity(c: &mut Criterion) {
     group.throughput(criterion::Throughput::Elements(9)); // 3^2
     group.bench_function("dense_r1_proximity", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&query_center, 1);
+            let r = map.proximity::<2, 1>(&query_center, 1);
             black_box(r.len());
         })
     });
@@ -1555,33 +1555,33 @@ fn bench_map_spatial_proximity(c: &mut Criterion) {
     group.throughput(criterion::Throughput::Elements(25)); // 5^2
     group.bench_function("dense_r2_proximity", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&query_center, 2);
+            let r = map.proximity::<2, 1>(&query_center, 2);
             black_box(r.len());
         })
     });
 
     // Sparse store: only a few scattered entries
-    let mut sparse_kv = CoordMapN::<2>::new();
+    let mut sparse_map = CoordMapN::<2>::new();
     for p in [4950u16, 5000u16, 5050u16] {
         for q in [4950u16, 5000u16, 5050u16] {
             let key = CoordKey::new([p as u8, q as u8]);
-            sparse_kv.insert_by_coordkey(&key, b"v".to_vec());
+            sparse_map.insert_by_coordkey(&key, b"v".to_vec());
         }
     }
 
     group.throughput(criterion::Throughput::Elements(9));
     group.bench_function("sparse_r1_proximity", |b| {
         b.iter(|| {
-            let r = sparse_kv.proximity::<2, 1>(&query_center, 1);
+            let r = sparse_map.proximity::<2, 1>(&query_center, 1);
             black_box(r.len());
         })
     });
 
     // Empty store
-    let empty_kv: CoordMapN<2> = CoordMapN::new();
+    let empty_map: CoordMapN<2> = CoordMapN::new();
     group.bench_function("empty_r1_proximity", |b| {
         b.iter(|| {
-            let r = empty_kv.proximity::<2, 1>(&query_center, 1);
+            let r = empty_map.proximity::<2, 1>(&query_center, 1);
             black_box(r.len());
         })
     });
@@ -1717,13 +1717,13 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     let mut group = c.benchmark_group("Spatial/cubevspath");
 
     // Dense tree store: 10K entries in a 100x100 region
-    let mut kv = CoordMapN::<2>::new();
+    let mut map = CoordMapN::<2>::new();
     let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
     let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
-        kv.insert_by_coordkey(&key, b"v".to_vec());
+        map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
     // Pre-compute the 9 neighbor keys for sequential lookup
@@ -1740,7 +1740,7 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
         b.iter(|| {
             let mut count = 0usize;
             for key in &neighbor_keys {
-                if kv.get_by_coordkey(key).is_some() {
+                if map.get_by_coordkey(key).is_some() {
                     count += 1;
                 }
             }
@@ -1751,7 +1751,7 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     // Tree+CoordCube: proximity r=1 (generates 9 paths, looks them up)
     group.bench_function("tree_cube_proximity_r1", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&query_center, 1);
+            let r = map.proximity::<2, 1>(&query_center, 1);
             black_box(r.len());
         })
     });
@@ -1759,7 +1759,7 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     // Tree+CoordCube: proximity r=2 (25 paths)
     group.bench_function("tree_cube_proximity_r2", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&query_center, 2);
+            let r = map.proximity::<2, 1>(&query_center, 2);
             black_box(r.len());
         })
     });
@@ -1779,12 +1779,12 @@ fn bench_coordcube_dynmap(c: &mut Criterion) {
     let mut group = c.benchmark_group("Spatial/cubevspath");
 
     // Fill DynCoordMap with short string keys (ByteWise → 2 Coords each)
-    let mut kv = DynCoordMap::new();
+    let mut map = DynCoordMap::new();
     for b0 in 97u8..107u8 {
         // 'a'..'j'
         for b1 in 97u8..107u8 {
             let key = format!("{}{}", b0 as char, b1 as char);
-            kv.insert(&key, b"v".to_vec());
+            map.insert(&key, b"v".to_vec());
         }
     }
 
@@ -1795,14 +1795,14 @@ fn bench_coordcube_dynmap(c: &mut Criterion) {
 
     group.bench_function("dynmap_proximity_r1", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&center_path, 1);
+            let r = map.proximity::<2, 1>(&center_path, 1);
             black_box(r.len());
         })
     });
 
     group.bench_function("dynmap_proximity_r2", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&center_path, 2);
+            let r = map.proximity::<2, 1>(&center_path, 2);
             black_box(r.len());
         })
     });
@@ -1849,12 +1849,12 @@ fn bench_coordcube_path_baseline(c: &mut Criterion) {
     group.finish();
 }
 
-// Spatial/cubekv2
+// Spatial/cubemap2
 //   CoordCube proximity on CoordMap2 (dense array, 119 MB pre-zeroed).
 //   dense_r1_proximity:  282 ns  (vs tree 285 ns -- essentially identical)
 //   dense_r2_proximity:  666 ns  (vs tree 626 ns)
 //   Vec push dominates: lookup cost difference (0.38 vs 0.87 ns) is negligible.
-fn bench_coordcube_kv2_proximity(c: &mut Criterion) {
+fn bench_coordcube_map2_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
     use tagma_map::coord_cube_map::CoordCubeMap;
@@ -1862,30 +1862,30 @@ fn bench_coordcube_kv2_proximity(c: &mut Criterion) {
     use tagma_map::{CoordMap2, CoordMapKey};
 
     let mid = 5000u16;
-    let mut kv = CoordMap2::new();
+    let mut map = CoordMap2::new();
     let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
         Coord::new(mid).unwrap(),
         Coord::new(mid).unwrap(),
     ]));
     for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
         let key = CoordKey::from_coord_path(&path);
-        kv.insert_by_coordkey(&key, b"v".to_vec());
+        map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
     let query_center = CoordPath::<2>::new([Coord::new(mid).unwrap(), Coord::new(mid).unwrap()]);
 
-    let mut group = c.benchmark_group("Spatial/cubekv2");
+    let mut group = c.benchmark_group("Spatial/cubemap2");
 
     group.bench_function("dense_r1_proximity", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&query_center, 1);
+            let r = map.proximity::<2, 1>(&query_center, 1);
             black_box(r.len());
         })
     });
 
     group.bench_function("dense_r2_proximity", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&query_center, 2);
+            let r = map.proximity::<2, 1>(&query_center, 2);
             black_box(r.len());
         })
     });
@@ -1963,11 +1963,11 @@ fn bench_coordcube_dynmap_baseline(c: &mut Criterion) {
     use tagma_map::dyn_coord_map::DynCoordMap;
     use tagma_map::CoordMap;
 
-    let mut kv = DynCoordMap::new();
+    let mut map = DynCoordMap::new();
     for b0 in 97u8..107u8 {
         for b1 in 97u8..107u8 {
             let key = format!("{}{}", b0 as char, b1 as char);
-            kv.insert(&key, b"v".to_vec());
+            map.insert(&key, b"v".to_vec());
         }
     }
 
@@ -1997,7 +1997,7 @@ fn bench_coordcube_dynmap_baseline(c: &mut Criterion) {
         b.iter(|| {
             let mut count = 0usize;
             for key in &neighbor_keys {
-                if kv.get(key).is_some() {
+                if map.get(key).is_some() {
                     count += 1;
                 }
             }
@@ -2008,7 +2008,7 @@ fn bench_coordcube_dynmap_baseline(c: &mut Criterion) {
     group.finish();
 }
 
-// Spatial/kvproximity/r5
+// Spatial/map_proximity/r5
 //   CoordCube proximity at radius 5 on CoordMapN tree store (121 paths).
 fn bench_map_spatial_proximity_r5(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
@@ -2018,16 +2018,16 @@ fn bench_map_spatial_proximity_r5(c: &mut Criterion) {
     use tagma_map::coord_map_n::CoordMapN;
     use tagma_map::CoordMapKey;
 
-    let mut group = c.benchmark_group("Spatial/kvproximity");
+    let mut group = c.benchmark_group("Spatial/map_proximity");
 
     // Dense store: fill 50x50 region around center
-    let mut kv = CoordMapN::<2>::new();
+    let mut map = CoordMapN::<2>::new();
     let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
     let fill_ranges = [(4975u16, 5025u16), (4975u16, 5025u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
-        kv.insert_by_coordkey(&key, b"v".to_vec());
+        map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
     let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
@@ -2035,7 +2035,7 @@ fn bench_map_spatial_proximity_r5(c: &mut Criterion) {
     group.throughput(criterion::Throughput::Elements(121)); // 11^2
     group.bench_function("dense_r5_proximity", |b| {
         b.iter(|| {
-            let r = kv.proximity::<2, 1>(&query_center, 5);
+            let r = map.proximity::<2, 1>(&query_center, 5);
             black_box(r.len());
         })
     });
@@ -2105,18 +2105,18 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 
     // N=6, D=6, R=1: map proximity r=0 on tree
     {
-        let mut kv = CoordMapN::<6>::new();
+        let mut map = CoordMapN::<6>::new();
         let path = CoordPath::<6>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let key = CoordKey::from_coord_path(&path);
-        kv.insert_by_coordkey(&key, b"v".to_vec());
+        map.insert_by_coordkey(&key, b"v".to_vec());
         let center = CoordPath::<6>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         group.bench_function("n6_map_proximity_r0", |b| {
             b.iter(|| {
-                let r = kv.proximity::<6, 1>(&center, 0);
+                let r = map.proximity::<6, 1>(&center, 0);
                 black_box(r.len());
             })
         });
@@ -2135,18 +2135,18 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 
     // N=12, D=12, R=1: map proximity r=0 on tree
     {
-        let mut kv = CoordMapN::<12>::new();
+        let mut map = CoordMapN::<12>::new();
         let path = CoordPath::<12>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let key = CoordKey::from_coord_path(&path);
-        kv.insert_by_coordkey(&key, b"v".to_vec());
+        map.insert_by_coordkey(&key, b"v".to_vec());
         let center = CoordPath::<12>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         group.bench_function("n12_map_proximity_r0", |b| {
             b.iter(|| {
-                let r = kv.proximity::<12, 1>(&center, 0);
+                let r = map.proximity::<12, 1>(&center, 0);
                 black_box(r.len());
             })
         });
@@ -2165,18 +2165,18 @@ fn bench_coordcube_large_n(c: &mut Criterion) {
 
     // N=19, D=19, R=1: map proximity r=0 on tree
     {
-        let mut kv = CoordMapN::<19>::new();
+        let mut map = CoordMapN::<19>::new();
         let path = CoordPath::<19>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         let key = CoordKey::from_coord_path(&path);
-        kv.insert_by_coordkey(&key, b"v".to_vec());
+        map.insert_by_coordkey(&key, b"v".to_vec());
         let center = CoordPath::<19>::new(core::array::from_fn(|i| {
             Coord::new((i as u16) % (Coord::N_VALID as u16)).unwrap()
         }));
         group.bench_function("n19_map_proximity_r0", |b| {
             b.iter(|| {
-                let r = kv.proximity::<19, 1>(&center, 0);
+                let r = map.proximity::<19, 1>(&center, 0);
                 black_box(r.len());
             })
         });
@@ -2200,7 +2200,7 @@ fn bench_coordcube_hierarchical(c: &mut Criterion) {
     let mut group = c.benchmark_group("Spatial/hierarchical");
 
     // Fill a 4-character store (D=2, R=2 → N=4)
-    let mut kv = CoordMapN::<4>::new();
+    let mut map = CoordMapN::<4>::new();
     let center = CoordPath::<4>::new([
         Coord::new(5000).unwrap(),
         Coord::new(5000).unwrap(),
@@ -2215,7 +2215,7 @@ fn bench_coordcube_hierarchical(c: &mut Criterion) {
                 Coord::new(d1).unwrap(),
                 Coord::new(d1 + 1).unwrap(),
             ]);
-            kv.insert_by_coordkey(&CoordKey::from_coord_path(&p), b"v".to_vec());
+            map.insert_by_coordkey(&CoordKey::from_coord_path(&p), b"v".to_vec());
         }
     }
 
@@ -2233,7 +2233,7 @@ fn bench_coordcube_hierarchical(c: &mut Criterion) {
             let mut count = 0usize;
             for path in &candidates {
                 let key = CoordKey::from_coord_path(path);
-                if kv.get_by_coordkey(&key).is_some() {
+                if map.get_by_coordkey(&key).is_some() {
                     count += 1;
                 }
             }
@@ -2244,7 +2244,7 @@ fn bench_coordcube_hierarchical(c: &mut Criterion) {
     // Compare with direct map proximity
     group.bench_function("map_proximity_r1_direct", |b| {
         b.iter(|| {
-            let r = kv.proximity::<4, 1>(&center, 1);
+            let r = map.proximity::<4, 1>(&center, 1);
             black_box(r.len());
         })
     });
@@ -2577,7 +2577,7 @@ criterion_group!(
               bench_coordcube_path_vs_cube,
               bench_coordcube_dynmap,
               bench_coordcube_path_baseline,
-              bench_coordcube_kv2_proximity,
+              bench_coordcube_map2_proximity,
               bench_coordcube_compound,
               bench_coordcube_dynmap_baseline,
               bench_map_spatial_proximity_r5,
@@ -2593,25 +2593,25 @@ criterion_group!(
 // ===========================================================================
 //
 // Single-op results (ns):
-//   kv/static/insert/single        16.9  ns
-//   kv/dynamic/insert/single       29.0  ns
-//   kv/hashmap/insert/single       47.6  ns
-//   kv/static/get/single            1.07 ns
-//   kv/dynamic/get/single           4.19 ns
-//   kv/hashmap/get/single          13.4  ns
+//   map/static/insert/single        16.9  ns
+//   map/dynamic/insert/single       29.0  ns
+//   map/hashmap/insert/single       47.6  ns
+//   map/static/get/single            1.07 ns
+//   map/dynamic/get/single           4.19 ns
+//   map/hashmap/get/single          13.4  ns
 //
 // Batch results:
-//   kv/static/insert/short_1k      21.4 µs
-//   kv/dynamic/insert/short_1k     42.6 µs
-//   kv/hashmap/insert/short_1k     57.1 µs
-//   kv/static/insert/medium_1k     21.4 µs
-//   kv/dynamic/insert/medium_1k    73.6 µs
-//   kv/hashmap/insert/medium_1k    57.6 µs
+//   map/static/insert/short_1k      21.4 µs
+//   map/dynamic/insert/short_1k     42.6 µs
+//   map/hashmap/insert/short_1k     57.1 µs
+//   map/static/insert/medium_1k     21.4 µs
+//   map/dynamic/insert/medium_1k    73.6 µs
+//   map/hashmap/insert/medium_1k    57.6 µs
 //
 // Batch get (10k keys, per-key ns):
-//   kv/batch-get/static             0.84 ns
-//   kv/batch-get/dynamic           12.0  ns
-//   kv/batch-get/hashmap           19.1  ns
+//   map/batch-get/static             0.84 ns
+//   map/batch-get/dynamic           12.0  ns
+//   map/batch-get/hashmap           19.1  ns
 //
 // Wrapper single-op (ns):
 //   DynCoordMap/insert/single             49.4 ns
@@ -2680,7 +2680,7 @@ fn bench_map_single_insert_static(c: &mut Criterion) {
     let path = Prefix::<2>.generate(key).unwrap();
     let cp = CoordPath::new([path[0], path[1]]);
 
-    c.bench_function("kv/static/insert/single", |b| {
+    c.bench_function("map/static/insert/single", |b| {
         let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
         b.iter(|| {
             black_box(space.place_path(black_box(&cp), map_boxed(&map_value())));
@@ -2692,7 +2692,7 @@ fn bench_map_single_insert_dyn(c: &mut Criterion) {
     let key = "k000";
     let path = ByteWise.generate(key).unwrap();
 
-    c.bench_function("kv/dynamic/insert/single", |b| {
+    c.bench_function("map/dynamic/insert/single", |b| {
         let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
         b.iter(|| {
             black_box(space.place(black_box(&path), map_boxed(&map_value())));
@@ -2703,7 +2703,7 @@ fn bench_map_single_insert_dyn(c: &mut Criterion) {
 fn bench_map_single_insert_hashmap(c: &mut Criterion) {
     let key = "k000";
 
-    c.bench_function("kv/hashmap/insert/single", |b| {
+    c.bench_function("map/hashmap/insert/single", |b| {
         let mut map: std::collections::HashMap<String, Box<[u8]>> =
             std::collections::HashMap::new();
         b.iter(|| {
@@ -2719,7 +2719,7 @@ fn bench_map_single_get_static(c: &mut Criterion) {
     let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
     space.place_path(&cp, map_boxed(&map_value()));
 
-    c.bench_function("kv/static/get/single", |b| {
+    c.bench_function("map/static/get/single", |b| {
         b.iter(|| {
             black_box(black_box(&space).at_path(black_box(&cp)));
         })
@@ -2732,7 +2732,7 @@ fn bench_map_single_get_dyn(c: &mut Criterion) {
     let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
     space.place(&path, map_boxed(&map_value()));
 
-    c.bench_function("kv/dynamic/get/single", |b| {
+    c.bench_function("map/dynamic/get/single", |b| {
         b.iter(|| {
             black_box(black_box(&space).at(black_box(&path)));
         })
@@ -2744,7 +2744,7 @@ fn bench_map_single_get_hashmap(c: &mut Criterion) {
     let mut map: std::collections::HashMap<String, Box<[u8]>> = std::collections::HashMap::new();
     map.insert(key.to_string(), map_boxed(&map_value()));
 
-    c.bench_function("kv/hashmap/get/single", |b| {
+    c.bench_function("map/hashmap/get/single", |b| {
         b.iter(|| {
             black_box(black_box(&map).get(key));
         })
@@ -2763,7 +2763,7 @@ fn bench_map_batch_insert_static_short(c: &mut Criterion) {
         })
         .collect();
 
-    c.bench_function("kv/static/insert/short_1k", |b| {
+    c.bench_function("map/static/insert/short_1k", |b| {
         let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
         b.iter(|| {
             for (cp, val) in &keys {
@@ -2783,7 +2783,7 @@ fn bench_map_batch_insert_dyn_short(c: &mut Criterion) {
         })
         .collect();
 
-    c.bench_function("kv/dynamic/insert/short_1k", |b| {
+    c.bench_function("map/dynamic/insert/short_1k", |b| {
         let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
         b.iter(|| {
             for (path, val) in &keys {
@@ -2800,7 +2800,7 @@ fn bench_map_batch_insert_hashmap_short(c: &mut Criterion) {
         .map(|k| (k.clone(), map_boxed(&map_value())))
         .collect();
 
-    c.bench_function("kv/hashmap/insert/short_1k", |b| {
+    c.bench_function("map/hashmap/insert/short_1k", |b| {
         let mut map: std::collections::HashMap<String, Box<[u8]>> =
             std::collections::HashMap::new();
         b.iter(|| {
@@ -2824,7 +2824,7 @@ fn bench_map_batch_insert_static_medium(c: &mut Criterion) {
         })
         .collect();
 
-    c.bench_function("kv/static/insert/medium_1k", |b| {
+    c.bench_function("map/static/insert/medium_1k", |b| {
         let mut space: tagma_core::CoordSpace2<Box<[u8]>> = tagma_core::CoordSpace2::new();
         b.iter(|| {
             for (cp, val) in &keys {
@@ -2844,7 +2844,7 @@ fn bench_map_batch_insert_dyn_medium(c: &mut Criterion) {
         })
         .collect();
 
-    c.bench_function("kv/dynamic/insert/medium_1k", |b| {
+    c.bench_function("map/dynamic/insert/medium_1k", |b| {
         let mut space: tagma_core::DynCoordSpace<Box<[u8]>> = tagma_core::DynCoordSpace::new();
         b.iter(|| {
             for (path, val) in &keys {
@@ -2861,7 +2861,7 @@ fn bench_map_batch_insert_hashmap_medium(c: &mut Criterion) {
         .map(|k| (k.clone(), map_boxed(&map_value())))
         .collect();
 
-    c.bench_function("kv/hashmap/insert/medium_1k", |b| {
+    c.bench_function("map/hashmap/insert/medium_1k", |b| {
         let mut map: std::collections::HashMap<String, Box<[u8]>> =
             std::collections::HashMap::new();
         b.iter(|| {
@@ -2877,7 +2877,7 @@ fn bench_map_batch_insert_hashmap_medium(c: &mut Criterion) {
 
 fn bench_map_batch_get_all(c: &mut Criterion) {
     let short_keys = map_short_keys(10_000);
-    let mut group = c.benchmark_group("kv/batch-get/short_10k");
+    let mut group = c.benchmark_group("map/batch-get/short_10k");
 
     // Static: pre-populate CoordSpace2
     {
@@ -2976,23 +2976,23 @@ fn bench_map_wrapper_single_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("tagma-map-wrapper/insert/single");
 
     group.bench_function("DynCoordMap", |b| {
-        let mut kv = DynCoordMap::new();
+        let mut map = DynCoordMap::new();
         b.iter(|| {
-            black_box(kv.insert("k000", map_value()));
+            black_box(map.insert("k000", map_value()));
         })
     });
 
     group.bench_function("CoordMap2", |b| {
-        let mut kv = CoordMap2::new();
+        let mut map = CoordMap2::new();
         b.iter(|| {
-            black_box(kv.insert("k0", map_value()));
+            black_box(map.insert("k0", map_value()));
         })
     });
 
     group.bench_function("CoordMapN<2>", |b| {
-        let mut kv = CoordMapN::<2>::new();
+        let mut map = CoordMapN::<2>::new();
         b.iter(|| {
-            black_box(kv.insert("k0", map_value()));
+            black_box(map.insert("k0", map_value()));
         })
     });
 
@@ -3012,26 +3012,26 @@ fn bench_map_wrapper_single_get(c: &mut Criterion) {
     let mut group = c.benchmark_group("tagma-map-wrapper/get/single");
 
     group.bench_function("DynCoordMap", |b| {
-        let mut kv = DynCoordMap::new();
-        kv.insert("k000", map_value());
+        let mut map = DynCoordMap::new();
+        map.insert("k000", map_value());
         b.iter(|| {
-            black_box(kv.get("k000"));
+            black_box(map.get("k000"));
         })
     });
 
     group.bench_function("CoordMap2", |b| {
-        let mut kv = CoordMap2::new();
-        kv.insert("k0", map_value());
+        let mut map = CoordMap2::new();
+        map.insert("k0", map_value());
         b.iter(|| {
-            black_box(kv.get("k0"));
+            black_box(map.get("k0"));
         })
     });
 
     group.bench_function("CoordMapN<2>", |b| {
-        let mut kv = CoordMapN::<2>::new();
-        kv.insert("k0", map_value());
+        let mut map = CoordMapN::<2>::new();
+        map.insert("k0", map_value());
         b.iter(|| {
-            black_box(kv.get("k0"));
+            black_box(map.get("k0"));
         })
     });
 
@@ -3055,37 +3055,37 @@ fn bench_map_wrapper_batch_get(c: &mut Criterion) {
     let mut group = c.benchmark_group("tagma-map-wrapper/batch-get/10k");
 
     group.bench_function("DynCoordMap", |b| {
-        let mut kv = DynCoordMap::new();
+        let mut map = DynCoordMap::new();
         for k in &short_keys {
-            kv.insert(k, val.clone());
+            map.insert(k, val.clone());
         }
         b.iter(|| {
             for k in &short_keys {
-                black_box(kv.get(k));
+                black_box(map.get(k));
             }
         })
     });
 
     group.bench_function("CoordMap2", |b| {
-        let mut kv = CoordMap2::new();
+        let mut map = CoordMap2::new();
         for k in &byte2_keys {
-            kv.insert(k, val.clone());
+            map.insert(k, val.clone());
         }
         b.iter(|| {
             for k in &byte2_keys {
-                black_box(kv.get(k));
+                black_box(map.get(k));
             }
         })
     });
 
     group.bench_function("CoordMapN<2>", |b| {
-        let mut kv = CoordMapN::<2>::new();
+        let mut map = CoordMapN::<2>::new();
         for k in &byte2_keys {
-            kv.insert(k, val.clone());
+            map.insert(k, val.clone());
         }
         b.iter(|| {
             for k in &byte2_keys {
-                black_box(kv.get(k));
+                black_box(map.get(k));
             }
         })
     });
@@ -3124,7 +3124,7 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
     let k2_str = map_2byte_keys(STR_2BYTE_UNIQUE); // 1296 unique 2-char str keys
     let all_k2 = map_2byte_all(); // 65536 raw CoordKey<2>
     let val = map_value();
-    let group_name = format!("kv/workload/{}", scale);
+    let group_name = format!("map/workload/{}", scale);
     let mut group = c.benchmark_group(&group_name);
 
     // Use by_coordkey API when n exceeds the str-usable key limit
@@ -3132,15 +3132,15 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
 
     // DynCoordMap
     {
-        let mut kv = DynCoordMap::new();
+        let mut map = DynCoordMap::new();
         for k in &keys {
-            kv.insert(k, val.clone());
+            map.insert(k, val.clone());
         }
         group.bench_function("DynCoordMap/get", |b| {
             b.iter(|| {
                 for _ in 0..cycles {
                     for k in &keys {
-                        black_box(kv.get(k));
+                        black_box(map.get(k));
                     }
                 }
             })
@@ -3149,16 +3149,16 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
             b.iter(|| {
                 for _ in 0..cycles {
                     for k in &keys {
-                        black_box(kv.contains_key(k));
+                        black_box(map.contains_key(k));
                     }
                 }
             })
         });
         group.bench_function("DynCoordMap/insert", |b| {
             b.iter(|| {
-                let mut kv = DynCoordMap::new();
+                let mut map = DynCoordMap::new();
                 for k in &keys {
-                    kv.insert(k, val.clone());
+                    map.insert(k, val.clone());
                 }
             })
         });
@@ -3167,15 +3167,15 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
     // CoordMap2 — str API for small scale, by_coordkey for 1M/10M
     {
         if !use_coordkey_api {
-            let mut kv = CoordMap2::new();
+            let mut map = CoordMap2::new();
             for k in &k2_str {
-                kv.insert(k, val.clone());
+                map.insert(k, val.clone());
             }
             group.bench_function("CoordMap2/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
-                            black_box(kv.get(k));
+                            black_box(map.get(k));
                         }
                     }
                 })
@@ -3184,29 +3184,29 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
-                            black_box(kv.contains_key(k));
+                            black_box(map.contains_key(k));
                         }
                     }
                 })
             });
             group.bench_function("CoordMap2/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordMap2::new();
+                    let mut map = CoordMap2::new();
                     for k in &k2_str {
-                        kv.insert(k, val.clone());
+                        map.insert(k, val.clone());
                     }
                 })
             });
         } else {
-            let mut kv = CoordMap2::new();
+            let mut map = CoordMap2::new();
             for ck in &all_k2 {
-                kv.insert_by_coordkey(ck, val.clone());
+                map.insert_by_coordkey(ck, val.clone());
             }
             group.bench_function("CoordMap2/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
-                            black_box(kv.get_by_coordkey(ck));
+                            black_box(map.get_by_coordkey(ck));
                         }
                     }
                 })
@@ -3215,16 +3215,16 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
-                            black_box(kv.contains_key_by_coordkey(ck));
+                            black_box(map.contains_key_by_coordkey(ck));
                         }
                     }
                 })
             });
             group.bench_function("CoordMap2/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordMap2::new();
+                    let mut map = CoordMap2::new();
                     for ck in &all_k2 {
-                        kv.insert_by_coordkey(ck, val.clone());
+                        map.insert_by_coordkey(ck, val.clone());
                     }
                 })
             });
@@ -3234,15 +3234,15 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
     // CoordMapN<2> — str API for small scale, by_coordkey for 1M/10M
     {
         if !use_coordkey_api {
-            let mut kv = CoordMapN::<2>::new();
+            let mut map = CoordMapN::<2>::new();
             for k in &k2_str {
-                kv.insert(k, val.clone());
+                map.insert(k, val.clone());
             }
             group.bench_function("CoordMapN<2>/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
-                            black_box(kv.get(k));
+                            black_box(map.get(k));
                         }
                     }
                 })
@@ -3251,29 +3251,29 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for k in &k2_str {
-                            black_box(kv.contains_key(k));
+                            black_box(map.contains_key(k));
                         }
                     }
                 })
             });
             group.bench_function("CoordMapN<2>/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordMapN::<2>::new();
+                    let mut map = CoordMapN::<2>::new();
                     for k in &k2_str {
-                        kv.insert(k, val.clone());
+                        map.insert(k, val.clone());
                     }
                 })
             });
         } else {
-            let mut kv = CoordMapN::<2>::new();
+            let mut map = CoordMapN::<2>::new();
             for ck in &all_k2 {
-                kv.insert_by_coordkey(ck, val.clone());
+                map.insert_by_coordkey(ck, val.clone());
             }
             group.bench_function("CoordMapN<2>/get", |b| {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
-                            black_box(kv.get_by_coordkey(ck));
+                            black_box(map.get_by_coordkey(ck));
                         }
                     }
                 })
@@ -3282,16 +3282,16 @@ fn map_workload(c: &mut Criterion, scale: &str, n: usize, cycles: usize) {
                 b.iter(|| {
                     for _ in 0..cycles {
                         for ck in &all_k2 {
-                            black_box(kv.contains_key_by_coordkey(ck));
+                            black_box(map.contains_key_by_coordkey(ck));
                         }
                     }
                 })
             });
             group.bench_function("CoordMapN<2>/insert", |b| {
                 b.iter(|| {
-                    let mut kv = CoordMapN::<2>::new();
+                    let mut map = CoordMapN::<2>::new();
                     for ck in &all_k2 {
-                        kv.insert_by_coordkey(ck, val.clone());
+                        map.insert_by_coordkey(ck, val.clone());
                     }
                 })
             });
@@ -3347,7 +3347,7 @@ fn map_workload_10m(c: &mut Criterion) {
 }
 
 criterion_group!(
-    name = kv;
+    name = map;
     config = Criterion::default().sample_size(10);
     targets = bench_map_single_insert_static, bench_map_single_insert_dyn, bench_map_single_insert_hashmap,
               bench_map_single_get_static,    bench_map_single_get_dyn,    bench_map_single_get_hashmap,
@@ -3373,7 +3373,7 @@ criterion_main!(
     edge,
     deep,
     set,
-    kv,
+    map,
     sec
 );
 
