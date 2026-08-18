@@ -157,7 +157,7 @@ Beyond these paths, the coordinate space opens directions including:
 
 ## References
 
-For the full technical analysis including decoder specification, XIF coprocessor implementation, hardware design, benchmarks, and SEU detection analysis, see the [Tagma White Paper](https://docs.ssccs.org/projects/syntagma/tagma/wp).
+For the full technical analysis including decoder specification, XIF coprocessor implementation, hardware design, benchmarks, and SEU detection analysis, see the [Tagma White Paper](https://docs.ssccs.org/projects/syntagma/tagma).
 
 1. Tagma White Paper (forthcoming) -- Zenodo DOI (TBD)
 2. ISO/IEC 10646:2020 -- Universal Coded Character Set (UCS)

@@ -464,7 +464,7 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 ## Documentation
 
 - [synTagma project page](https://docs.ssccs.org/projects/syntagma/) -- Project overview, paradigm shift, papers
-- [White Paper](https://docs.ssccs.org/projects/syntagma/tagma/wp) -- Tagma coordinate space, decoder, hardware implementation, benchmarks
+- [White Paper](https://docs.ssccs.org/projects/syntagma/tagma) -- Tagma coordinate space, decoder, hardware implementation, benchmarks
 - [synTagma coordination layer](https://docs.ssccs.org/projects/syntagma/) -- Recursive topology mapping, transport, distributed resolver, consistency
 - [Tagma-ID](https://docs.ssccs.org/projects/syntagma/tagma/id) -- Content-addressable identity without hash functions
 - [Specification](docs/spec/coord-space.md) -- Language-independent Tagma coordinate space definition
