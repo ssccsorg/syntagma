@@ -1,18 +1,18 @@
 # tagma-map: native map with a HashMap-compatible entry
 
-Tagma Map is the first practical bridge between the standard key-value paradigm and
+TagmaMap is the first practical bridge between the standard key-value paradigm and
 Tagma's coordinate space. It answers a single make-or-break question.
 
 ## The premise
 
-Tagma Map cannot use hash functions. It converts string keys to Coord sequences via
+TagmaMap cannot use hash functions. It converts string keys to Coord sequences via
 byte-wise or fixed-size mapping (ByteWise, CoordKey<N>). The concern has always been:
 
-> If string-to-Coord conversion is slower than string-to-hash, Tagma Map can
+> If string-to-Coord conversion is slower than string-to-hash, TagmaMap can
 > never replace HashMap in the general case. The bridge collapses.
 
 This is a hard constraint: the conversion must be at least as fast as SipHash-2-4
-(the standard Rust HashMap hasher), and ideally faster. If not, every Tagma Map
+(the standard Rust HashMap hasher), and ideally faster. If not, every TagmaMap
 operation carries a baseline penalty that has nothing to do with storage or indexing.
 
 ## The benchmark (ARMv8.4-A Firestorm)
@@ -75,7 +75,7 @@ CoordMap2 beats HashMap on both speed and collision guarantees.
 
 ## The bridge
 
-This result is strategically important not because Tagma Map replaces HashMap in every
+This result is strategically important not because TagmaMap replaces HashMap in every
 workload, but because it proves tagma-map exists at all. Before this measurement,
 there was no evidence that a hashless string-to-address mapping could be competitive.
 The gap could have been 10x or 100x. It is 0.94x (slightly faster).
@@ -84,13 +84,13 @@ With tagma-map established:
 
 | Before (no bridge) | After (bridge exists) |
 |---|---|
-| Tagma is a specialized system for numeric Coord addresses | Tagma Map accepts &str at HashMap-competitive speed |
+| Tagma is a specialized system for numeric Coord addresses | TagmaMap accepts &str at HashMap-competitive speed |
 | Existing KV workloads must be redesigned | Existing KV workloads migrate transparently |
 | Tagma spatial indexing requires dedicated data pipeline | Spatial indexing is a property of the same map, zero extra cost |
 
 ## What tagma-map enables
 
-Every entry stored via Tagma Map is stored in Tagma coordinate space. This means
+Every entry stored via TagmaMap is stored in Tagma coordinate space. This means
 the same store supports:
 
 - **Prefix scan**: iter_prefix("us") returns all entries under that prefix in O(matched)
@@ -111,7 +111,7 @@ can later query map.iter_prefix("h") without changing a single byte of stored da
 ## Summary
 
 The premise is satisfied. The str-to-Coord conversion is competitive with str-to-hash,
-with the fixed-2-byte variant slightly faster than SipHash. Tagma Map is not a compromise
+with the fixed-2-byte variant slightly faster than SipHash. TagmaMap is not a compromise
 for compatibility. It is the entry point through which existing KV workloads can adopt
 Tagma coordinate space and, over time, exploit its spatial indexing capabilities
 without migration cost.

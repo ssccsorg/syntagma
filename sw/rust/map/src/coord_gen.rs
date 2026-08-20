@@ -317,7 +317,7 @@ pub type DefaultDynamic = ByteWise;
 /// - Heap allocation for owned forms (`String`)
 /// - SipHash-2-4 must process every byte
 ///
-/// Tagma Map converts `&str` to `Coord` faster than SipHash hashes it (22.5 ns vs
+/// TagmaMap converts `&str` to `Coord` faster than SipHash hashes it (22.5 ns vs
 /// 23.8 ns on ARMv8.4-A Firestorm for 2-byte keys).  If the hardest case is already faster,
 /// then **every more constrained key type** — fixed integers, UUIDs, byte arrays,
 /// enums, timestamps — is trivially faster by an even larger margin.  The
