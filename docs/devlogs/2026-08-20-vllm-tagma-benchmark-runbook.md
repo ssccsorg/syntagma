@@ -56,6 +56,22 @@ vllm serve <model> --kv-cache-backend paged --max-model-len 16384
 vllm serve <model> --kv-cache-backend tagma --max-model-len 16384
 ```
 
+## Runner script
+
+The methodology is automated by `run-vllm-tagma-benchmark.sh` in this
+directory. It builds the fork, runs the verification gate, then measures both
+backends on each context window with two repeats per backend in ABBA order and
+writes the per-run JSON, server logs, GPU memory samples, and a `report.md`
+summary table into the result directory:
+
+```bash
+./run-vllm-tagma-benchmark.sh --vllm-repo <ssccsorg/vllm checkout> \
+    --dataset <ShareGPT_V3_unfiltered_cleaned_split.json>
+```
+
+Run it from the CUDA machine itself; the script fails fast with a clear error
+when the GPU, dataset, or fork checkout is missing.
+
 ## What the read-path decision needs
 
 The attention backends consume the materialized `block_table` in this version. The deferred item is range arithmetic inside the vLLM-owned Triton kernels (`unified_attention`, `context_attention_fwd`). Before implementing it, profile the block-table gather in those kernels on the baseline run:
