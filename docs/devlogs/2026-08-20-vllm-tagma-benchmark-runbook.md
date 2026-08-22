@@ -92,7 +92,7 @@ The criteria are measurements, not assumptions:
 | Throughput at 16K and 128K | Measured | Measured, compared |
 | KV cache footprint | Measured | Measured, compared |
 
-The CERN ROOT-Bypass numbers (69.0x coordinate, 181.7x mapped) are the measured precedent of the same structural pattern on a different workload. They do not project a vLLM speedup; the vLLM numbers come from this runbook.
+The CERN ROOT-Coord numbers are the measured precedent of the same structural pattern on a different workload. They do not project a vLLM speedup; the vLLM numbers come from this runbook.
 
 ## Recording
 
