@@ -40,7 +40,7 @@ The vLLM track (syntagma issue 52) provides reference material, not a template. 
 | Range allocator | `csrc/tagma/kv_allocator.h` | Portable header; the allocation core of the new memory implementation |
 | Host extension | `csrc/tagma/tagma_bindings.cpp` | Not needed: llama.cpp is pure C++ with no Python binding layer |
 | Manager contract | `vllm/v1/core/tagma_kv_cache_manager.py` | The `llama_memory_i` interface; a new implementation follows the msa, iswa, dsa, dsv4 pattern |
-| Write path | `BlockTables` tagma mode and `_compute_slot_mappings_tagma_kernel` | `slot_info` construction in `prepare()`; contiguous spans make `idxs` a closed form and `get_k` and `get_v` direct slices |
+| Write path | `BlockTables` tagma mode and `_compute_slot_mappings_tagma_kernel` | `slot_info` construction in `prepare()`; contiguous spans make `idxs` a closed form and the `cpy_k` and `cpy_v` scatter a dense copy, while `get_k` and `get_v` keep their existing contiguous views |
 | Fail-closed boundary | Manager rejections of unsupported configurations | Fall back to the base cell mapping when contiguity cannot be maintained |
 | Benchmark pattern | `bench_kv_engine.cpp` and `run-vllm-tagma-benchmark.sh` | `llama-bench` as the single bench code point and `run-llamacpp-tagma-benchmark.sh` as the single collection point |
 
@@ -62,7 +62,7 @@ llama.cpp differs from vLLM in the execution model, the kind of indirection, and
 
 ### Value hypotheses
 
-- H1, host-side graph cost: the per-token `idxs` vector construction and the scatter into the batch order are host-side costs that contiguous spans remove. `is_contiguous()` makes the index a closed form and `get_k` and `get_v` direct slices. Measurable on the host without a GPU.
+- H1, host-side graph and bookkeeping cost: the cell scan in `find_slot`, the snapshot and restore in `prepare` (`cells.cp` and `cells.set`), the per-token metadata updates in `apply_ubatch`, the `set_input_*_idxs` fills, and the per-row scatter in `cpy_k` and `cpy_v` are host-side costs that contiguous spans remove. The read path is already range-based: `get_k` and `get_v` return contiguous per-stream views and the attention mask selects the cells. Measurable on the host without a GPU.
 - H2, CPU memory locality: contiguous per-sequence KV spans improve cache and TLB behavior in long-context decode, the CPU counterpart of the GPU L2 and TLB argument. This is the llama.cpp-specific form of the structural claim.
 - H3, parallel streams: the multi-stream mode interleaves sequences; keeping each sequence contiguous within its stream is the allocation problem that the `find_slot(cont=true)` success rate measures. When contiguity fails, the base cell mapping takes over, the fail-closed boundary.
 
@@ -82,7 +82,7 @@ Measure the `find_slot(cont=true)` success rate under parallel streams and fragm
 
 ### Phase C: implementation
 
-Follow the pattern trace above. Copy the header-only engine (`kv_coord_map.h`, `kv_allocator.h`) into the llama.cpp fork, add a new `llama_memory_i` implementation (or a contiguity-default mode in `llama_kv_cache`) that keeps per-sequence contiguous cell spans and derives cell indices by arithmetic, and make `is_contiguous()` the stable path so `get_k` and `get_v` slice directly. The change must keep the CPU, Metal, and CUDA paths correct; when contiguity cannot be maintained, the implementation falls back to the base cell mapping.
+Follow the pattern trace above. Copy the header-only engine (`kv_coord_map.h`, `kv_allocator.h`) into the llama.cpp fork, add a new `llama_memory_i` implementation (or a contiguity-default mode in `llama_kv_cache`) that keeps per-sequence contiguous cell spans and derives cell indices by arithmetic, so the write path becomes a dense copy of a contiguous destination range and the bookkeeping collapses to range endpoints. The read path needs no change because `get_k` and `get_v` already return contiguous per-stream views. The change must keep the CPU, Metal, and CUDA paths correct; when contiguity cannot be maintained, the implementation falls back to the base cell mapping.
 
 ### Phase D: benchmark and contribution decision
 

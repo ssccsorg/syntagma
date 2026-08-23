@@ -20,7 +20,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-PROMPT_LENS="32768,131072"
+PROMPT_LENS="32768"
 N_OUTPUT=256
 REPEATS=2
 N_GPU_LAYERS=0
@@ -37,7 +37,7 @@ Required:
   --model <path>        GGUF model file (small model recommended for CPU)
 
 Options:
-  --prompt-lens <csv>   Prompt (KV) lengths, comma separated (default: 32768,131072)
+  --prompt-lens <csv>   Prompt (KV) lengths, comma separated (default: 32768)
   --n-output <tokens>   Generated tokens per run (default: 256)
   --repeats <n>         llama-bench repetitions per context (default: 2)
   --n-gpu-layers <n>    GPU layers, 0 for the CPU-only baseline (default: 0)
