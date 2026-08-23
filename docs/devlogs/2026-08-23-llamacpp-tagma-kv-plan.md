@@ -88,6 +88,21 @@ Follow the pattern trace above. Copy the header-only engine (`kv_coord_map.h`, `
 
 Run `llama-bench` before and after on CPU and Apple Silicon, and compare the memory footprint. If the measured improvement holds, decide between an upstream pull request (per the llama.cpp contribution policy, with a human review of every changed line) and a public SSCCS fork. Parity records a measured negative result and closes the track.
 
+## Measured outcome: Phase A and Phase B
+
+Executed on 2026-08-23 on the CPU-only build (Apple M1 Max, Qwen2.5-0.5B Q4_K_M, 32K context) with the host-path microbenchmark in the fork (`pocs/tagma-kv-bench`), which drives the real `llama_kv_cache` functions with synthetic ubatches and times them without attention arithmetic.
+
+| Measurement | Value |
+| :--- | ---: |
+| T2 host KV bookkeeping per decode step, clean ring | 2.48 us (0.033 % of the 7.47 ms decode step) |
+| T2 host KV bookkeeping per decode step, fragmented | 19.7 us (0.26 %) |
+| `find_slot(cont=true)` success rate under eviction | 100 % (run of 32 exists), found at 193 us vs 0.94 us base scan |
+| Per-sequence append adjacency in unified mode | 0.0 % (sequences interleave) |
+| T1 scatter vs dense copy, decode (1 token) | equal at ~6.5 us per op (dominated by per-op dispatch) |
+| T1 scatter vs dense copy, V transposed, 256-token chunk | 80.6 us vs 7.95 us (prefill only, ~0.13 % of prefill wall time) |
+
+Analytic conclusion: the host-side KV bookkeeping is three orders of magnitude below the decode step time on CPU, so the Phase A gate as written (a measurable share of decode time) returns a negative result for the host-side cost hypothesis. The read path reads the full ring sequentially through the contiguous per-stream view, so per-sequence contiguity does not change the CPU read pattern. The remaining unmeasured items are the in-graph marginal cost of the scatter nodes inside a real decode graph, the SWA variant (needs a SWA model), and the GPU-side behavior, which stays on the vLLM CUDA track.
+
 ## Decision rules
 
 - The GPU-free measurement is the gate; every phase runs on CPU or Apple Silicon.
