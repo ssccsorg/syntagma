@@ -80,6 +80,6 @@ The integration work is tracked under ssccsorg/syntagma issue 52. The fork work 
 
 ## References
 
-- vLLM Tagma KV Cache report, ssccs docs, works/vllm/kvcache
+- vLLM Tagma KV Cache report, ssccs docs, works/llms/vllm/kvcache
 - vLLM Tagma KV Cache Benchmark Runbook, 2026-08-20-vllm-tagma-benchmark-runbook.md in this directory
 - TagmaVec assessment, 2026-08-22-tagmavec-turbovec-assessment.md
