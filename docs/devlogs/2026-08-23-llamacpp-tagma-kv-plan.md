@@ -100,8 +100,9 @@ Executed on 2026-08-23 on the CPU-only build (Apple M1 Max, Qwen2.5-0.5B Q4_K_M,
 | Per-sequence append adjacency in unified mode | 0.0 % (sequences interleave) |
 | T1 scatter vs dense copy, decode (1 token) | equal at ~6.5 us per op (dominated by per-op dispatch) |
 | T1 scatter vs dense copy, V transposed, 256-token chunk | 80.6 us vs 7.95 us (prefill only, ~0.13 % of prefill wall time) |
+| In-graph scatter share of decode | 0.025 % measured, 0.45 % against the baseline step (48 nodes at ~0.7 us each) |
 
-Analytic conclusion: the host-side KV bookkeeping is three orders of magnitude below the decode step time on CPU, so the Phase A gate as written (a measurable share of decode time) returns a negative result for the host-side cost hypothesis. The read path reads the full ring sequentially through the contiguous per-stream view, so per-sequence contiguity does not change the CPU read pattern. The remaining unmeasured items are the in-graph marginal cost of the scatter nodes inside a real decode graph, the SWA variant (needs a SWA model), and the GPU-side behavior, which stays on the vLLM CUDA track.
+Analytic conclusion: the host-side KV bookkeeping is three orders of magnitude below the decode step time on CPU, so the Phase A gate as written (a measurable share of decode time) returns a negative result for the host-side cost hypothesis. The read path reads the full ring sequentially through the contiguous per-stream view, so per-sequence contiguity does not change the CPU read pattern. The in-graph scatter profile closes the Phase A item: the per-node set_rows cost is ~0.7 us inside the real graph, an order of magnitude below the single-op measurement, and the scatter share of decode is below one percent. The remaining unmeasured items are the SWA variant (needs a SWA model) and the GPU-side behavior, which stays on the vLLM CUDA track.
 
 ## Decision rules
 
