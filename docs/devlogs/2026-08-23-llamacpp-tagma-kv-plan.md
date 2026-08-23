@@ -32,7 +32,7 @@ The verified structural parallel stands on its own: llama.cpp resolves every tok
 
 ## Pattern trace from the vLLM integration
 
-The vLLM track (syntagma issue 52) established the integration pattern, and the llama.cpp track reuses it. The tagma C++ engine is header-only and portable, which is the main carry-over: the two engine headers move into the llama.cpp fork with minimal adaptation, and the binding, manager, and kernel layers map to llama.cpp equivalents.
+The vLLM track (syntagma issue 52) provides reference material, not a template. The two header-only engine files (`kv_coord_map.h`, `kv_allocator.h`) carry over, and the binding, manager, and kernel layers map to llama.cpp equivalents only where the structures align. The value analysis in the following section is specific to llama.cpp and overrides the mechanical mapping where the projects differ.
 
 | vLLM integration component | File | llama.cpp mapping |
 | :--- | :--- | :--- |
@@ -45,6 +45,30 @@ The vLLM track (syntagma issue 52) established the integration pattern, and the 
 | Benchmark pattern | `bench_kv_engine.cpp` and `run-vllm-tagma-benchmark.sh` | `llama-bench` as the single bench code point and `run-llamacpp-tagma-benchmark.sh` as the single collection point |
 
 The porting order follows the vLLM phases minus the binding layer: the header-only engine first, then the memory implementation, then the write-path change, then the measurement.
+
+## llama.cpp-specific value analysis
+
+llama.cpp differs from vLLM in the execution model, the kind of indirection, and the memory model. The tagma value hypotheses follow from those differences, and the vLLM mapping is reference material where the structures align.
+
+### What differs from vLLM
+
+| Dimension | vLLM | llama.cpp |
+| :--- | :--- | :--- |
+| Execution model | CUDA graphs amortize the per-step host work; kernels are the hot path | The ggml graph is rebuilt every step on the host; graph construction is a per-step cost |
+| Indirection kind | A block table gathered per position inside attention kernels | Per-token `idxs` vectors built on the host and passed as graph tensors; `get_k` and `get_v` select views through them |
+| Memory model | Discrete VRAM, fragmentation-driven paging | Unified memory, fixed `[n_embd, kv_size, n_stream]` tensors; the cell cache tracks usage inside the fixed buffer |
+| Contiguity | Not a mode; the block table is the only path | `find_slot(cont=true)` and `is_contiguous()` exist; the unified single-stream mode is already contiguous |
+| Sharing | Range-level refcounts | Cell-level sharing across sequences (sequence bitset per cell), transposed V layout, flash-attention block reads |
+
+### Value hypotheses
+
+- H1, host-side graph cost: the per-token `idxs` vector construction and the scatter into the batch order are host-side costs that contiguous spans remove. `is_contiguous()` makes the index a closed form and `get_k` and `get_v` direct slices. Measurable on the host without a GPU.
+- H2, CPU memory locality: contiguous per-sequence KV spans improve cache and TLB behavior in long-context decode, the CPU counterpart of the GPU L2 and TLB argument. This is the llama.cpp-specific form of the structural claim.
+- H3, parallel streams: the multi-stream mode interleaves sequences; keeping each sequence contiguous within its stream is the allocation problem that the `find_slot(cont=true)` success rate measures. When contiguity fails, the base cell mapping takes over, the fail-closed boundary.
+
+### Baseline signal interpretation
+
+The Phase A baseline on Apple Silicon (CPU-only) shows prompt processing at 648 tok/s for a 4K prompt and 166 tok/s for a 32K prompt, and decode at 157 and 134 tok/s. The prefill drop is dominated by the quadratic attention cost, so it is by itself a tagma signal. The decode drop is mild; the indirection share is not yet isolated. The Phase A profile must separate the host-side `idxs` construction and the K and V access behavior from the attention arithmetic, which is the actual gate.
 
 ### Phase A: local build and profile
 
