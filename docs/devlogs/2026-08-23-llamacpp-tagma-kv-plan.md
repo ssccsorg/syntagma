@@ -30,7 +30,21 @@ The verified structural parallel stands on its own: llama.cpp resolves every tok
 - `is_contiguous()` on `slot_info`: the entry point for range arithmetic.
 - Cells carry position, shift, and sequence metadata and can be shared across sequences; the ring search starts at `v_heads`.
 
-## Execution phases
+## Pattern trace from the vLLM integration
+
+The vLLM track (syntagma issue 52) established the integration pattern, and the llama.cpp track reuses it. The tagma C++ engine is header-only and portable, which is the main carry-over: the two engine headers move into the llama.cpp fork with minimal adaptation, and the binding, manager, and kernel layers map to llama.cpp equivalents.
+
+| vLLM integration component | File | llama.cpp mapping |
+| :--- | :--- | :--- |
+| Coordinate arithmetic | `csrc/tagma/kv_coord_map.h` | Portable header; the cell offset closed form inside the new memory implementation |
+| Range allocator | `csrc/tagma/kv_allocator.h` | Portable header; the allocation core of the new memory implementation |
+| Host extension | `csrc/tagma/tagma_bindings.cpp` | Not needed: llama.cpp is pure C++ with no Python binding layer |
+| Manager contract | `vllm/v1/core/tagma_kv_cache_manager.py` | The `llama_memory_i` interface; a new implementation follows the msa, iswa, dsa, dsv4 pattern |
+| Write path | `BlockTables` tagma mode and `_compute_slot_mappings_tagma_kernel` | `slot_info` construction in `prepare()`; contiguous spans make `idxs` a closed form and `get_k` and `get_v` direct slices |
+| Fail-closed boundary | Manager rejections of unsupported configurations | Fall back to the base cell mapping when contiguity cannot be maintained |
+| Benchmark pattern | `bench_kv_engine.cpp` and `run-vllm-tagma-benchmark.sh` | `llama-bench` as the single bench code point and `run-llamacpp-tagma-benchmark.sh` as the single collection point |
+
+The porting order follows the vLLM phases minus the binding layer: the header-only engine first, then the memory implementation, then the write-path change, then the measurement.
 
 ### Phase A: local build and profile
 
@@ -44,7 +58,7 @@ Measure the `find_slot(cont=true)` success rate under parallel streams and fragm
 
 ### Phase C: implementation
 
-Follow the `llama_memory_i` pattern: a range-addressed implementation, or a contiguity-default mode, that keeps per-sequence contiguous cell spans and derives cell indices by arithmetic. Port the KVAllocator spec from the vLLM track (contiguous ranges, coalescing, refcounted sharing, LRU eviction) to the llama.cpp memory model. The change must keep the CPU, Metal, and CUDA paths correct.
+Follow the pattern trace above. Copy the header-only engine (`kv_coord_map.h`, `kv_allocator.h`) into the llama.cpp fork, add a new `llama_memory_i` implementation (or a contiguity-default mode in `llama_kv_cache`) that keeps per-sequence contiguous cell spans and derives cell indices by arithmetic, and make `is_contiguous()` the stable path so `get_k` and `get_v` slice directly. The change must keep the CPU, Metal, and CUDA paths correct; when contiguity cannot be maintained, the implementation falls back to the base cell mapping.
 
 ### Phase D: benchmark and contribution decision
 
