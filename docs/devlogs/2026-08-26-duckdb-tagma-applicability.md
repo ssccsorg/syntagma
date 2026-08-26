@@ -150,7 +150,7 @@ converged to a constant factor.
 | :--- | :--- | :--- |
 | ExaVerif (RISC-V verification) | high | full space to valid subspace, unprunable |
 | CERN ROOT (HEP I/O) | high | I/O-dominated, per-read index traversal |
-| DuckDB (analytical DB) | low | zonemap pruning shrinks the win to a constant factor |
+| DuckDB (analytical DB) | low (tagma principle) | zonemap pruning shrinks the tagma win to a constant factor; the track still produced a measured 3-5x standard-engineering contribution, the multi-filter index scan |
 | vLLM and llama.cpp (KV cache) | moderate | index traversal exists but compute dominates, parity |
 | vector DB (LanceDB and similar) | moderate to high | ANN search is traversal-dominated, unprunable |
 
@@ -168,18 +168,62 @@ converged to a constant factor.
    competes with the closed form; random or unordered layouts expose the
    traversal cost the closed form removes.
 
-The options are: continue DuckDB engineering (constant-factor wins, a
-possible upstream contribution but not disruptive), exit the DuckDB track
-(lessons recorded, results retained as assets that define the applicability
-conditions), or move to unprunable and traversal-dominated domains (vector
-databases, Iceberg metadata, Arrow metadata parsing). The recommendation is
-the third: DuckDB was a valuable experiment, and its result refines the
-strategic direction of syntagma rather than refuting the principle.
+The options are: continue DuckDB engineering (constant-factor wins, now duplicated upstream by duckdb/duckdb pull request #24942, so the value is the measurement record), exit the DuckDB track (lessons recorded, results retained as assets that define the applicability conditions), or move to unprunable and traversal-dominated domains (vector databases, Iceberg metadata, Arrow metadata parsing). The recommendation is the third: DuckDB was a valuable experiment, and its result refines the strategic direction of syntagma rather than refuting the principle.
+
+## The multi-filter index scan result (ssccsorg/syntagma #56)
+
+A follow-up track implemented the TableScanInitGlobal FIXME on the fork
+branch `56-duckdb-multi-filter-index`: for multi-filter point queries, scan
+one single-column ART per filtered column and intersect the row-ID sets. The
+implementation also fixed a latent binding bug in `TryScanIndex` (the
+unbound index expression references the indexed columns positionally, and
+the update condition compared that positional index against the table column
+id, so index scans on non-first columns never activated).
+
+Measured on a 100M-row random-order 2D table where the scan cannot prune
+(extent 10,000, per-dimension selectivity 0.01 percent, below the 0.1
+percent index-scan threshold):
+
+| Query | scan | multi-filter index | ratio |
+| :--- | ---: | ---: | ---: |
+| count, warm | 37 ms | 10 ms | 3.7x |
+| payload, warm | 34 ms | 7 ms | 4.9x |
+| count, cold | 102 ms | 26 ms | 3.9x |
+| payload, cold | 98 ms | 22 ms | 4.5x |
+
+The first cold sample measures 224 ms against 26 ms (8.6x); the cold ratio
+is bounded by the compressed data volume (about 0.7 GB, which fits in RAM).
+The scan side is measured with the index scan forced off on the same table,
+so both sides run the identical query. Correctness is verified by
+`benchmark/lattice/verify_multi_index.sh` (2-filter and 3-filter
+intersections, filter order, empty results, missing-index fallback,
+threshold non-activation, single-filter regression).
+
+Boundaries: the path activates only when every filtered column carries a
+single-column ART and each individual filter stays below the threshold;
+range filters fall back to the scan (the pre-existing single-filter
+behavior); the two ART indexes dominate the file size (about 2.5 GB each on
+100M rows).
+
+Upstream discovery: duckdb/duckdb pull request #24942 implements the same
+feature with a more complete design (one-sided ranges, IN filters,
+physical-versus-logical column handling, empty-intersection early exit,
+sqllogictest coverage) and includes the same binding fix. A duplicate
+upstream pull request is therefore not appropriate; the fork work stands as
+the measurement record. The upstream PR has no performance measurement, so
+the measured 3-5x data is the record's contribution.
+
+Meaning for the record: this is a measured 3-5x DuckDB contribution produced
+by the track's measurement discipline and recorded through the syntagma
+infrastructure (fork bench scripts, results, this devlog), independent of
+upstream adoption. It revises the DuckDB row of the domain table: as a
+tagma-principle target the fitness remains low, while as a standard
+engineering target the track produced a measured 3-5x result.
 
 ## References
 
 - The DuckDB lattice development plan: `/works/duckdb/lattice/` in ssccs
 - The DuckDB lattice topic: `/works/duckdb/` in ssccs
 - The syntagma core upgrade living note: `/works/duckdb/lattice/syntagma/` in ssccs
-- The fork branches `54-duckdb-lattice` and `55-join-probe` in `ssccsorg/duckdb`
+- The fork branches `54-duckdb-lattice`, `55-join-probe`, and `56-duckdb-multi-filter-index` in `ssccsorg/duckdb`
 - The bench scripts and results under `benchmark/lattice/` on the fork branches
