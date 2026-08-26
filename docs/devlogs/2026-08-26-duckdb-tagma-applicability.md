@@ -220,6 +220,21 @@ upstream adoption. It revises the DuckDB row of the domain table: as a
 tagma-principle target the fitness remains low, while as a standard
 engineering target the track produced a measured 3-5x result.
 
+## Track outcome
+
+The DuckDB track is closed with the following consolidated record. The
+lattice principle is verified in a database engine, but only in the narrow
+regime the measurements define: dense bounded integer lattices, warm cache,
+point and small range queries, against the zonemap-pruned scan. The cold-cache
+I/O dominance claim is refuted, the sparse boundary shows the density
+requirement, and the join generalization is correct with a limited measured
+advantage. The multi-filter index scan follow-up produced a measured 3-5x
+result that upstream independently implements more completely (duckdb/duckdb
+pull request #24942), so the fork contribution is the measurement record.
+The strategic direction is the unprunable and traversal-dominated domains,
+with a profile gate before any new target: bounded enumerable lattice,
+dominant cost share, and no cheap incumbent pruning.
+
 ## References
 
 - The DuckDB lattice development plan: `/works/duckdb/lattice/` in ssccs
