@@ -14,8 +14,6 @@
 #![no_std]
 extern crate alloc;
 
-use alloc::vec::Vec;
-
 pub mod spatial;
 
 pub use spatial::BoundingBoxIter;
