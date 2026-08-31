@@ -1,3 +1,6 @@
+#![no_std]
+extern crate alloc;
+
 pub mod coord_cube_map;
 pub mod coord_gen;
 pub mod coord_map;
