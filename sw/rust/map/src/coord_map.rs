@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::coord_gen::CoordKey;
 
 /// Core operations for any [`CoordMap`] implementation.
