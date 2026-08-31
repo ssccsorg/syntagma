@@ -11,6 +11,9 @@
 //! This crate depends only on [`tagma-core`] and does **not** modify or
 //! replace any existing storage primitives.
 
+#![no_std]
+extern crate alloc;
+
 pub mod spatial;
 
 pub use spatial::BoundingBoxIter;
