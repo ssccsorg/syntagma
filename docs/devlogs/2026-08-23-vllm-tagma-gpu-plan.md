@@ -72,7 +72,7 @@ Independent track, after the vLLM GPU measurement. Decompose the TagmaVec search
 
 ## GPU resource path
 
-The local machine has no NVIDIA GPU. The candidate acquisition paths are the NVIDIA Inception program and the NVIDIA academic grant programs. Eligibility is unverified: Inception targets startups by public documentation, and SSCCS is a non-profit foundation. The eligibility check and the application are preparation tasks for Phase 1.
+The local machine has no NVIDIA GPU. The candidate acquisition paths are the NVIDIA Inception program and the NVIDIA academic grant programs. Eligibility is unverified: Inception targets startups by public documentation, and SSCCS is an open-source foundation. The eligibility check and the application are preparation tasks for Phase 1.
 
 ## Tracking
 
