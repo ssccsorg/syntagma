@@ -15,10 +15,15 @@ use core::slice;
 /// For N=2:  124,813,584
 /// For N=3:  1,394,417,360,448  (mmap required; beyond single heap alloc)
 /// For N=4+: overflow; not representable in usize on 64-bit.
+///
+/// N=3 is only representable on 64-bit targets: the product exceeds a
+/// 32-bit usize. On 32-bit targets (wasm32, riscv32) it evaluates to 0,
+/// which the call sites guard as unreachable.
 const fn coord_slots(n: usize) -> usize {
     match n {
         1 => Coord::N_VALID,
         2 => Coord::N_VALID * Coord::N_VALID,
+        #[cfg(target_pointer_width = "64")]
         3 => Coord::N_VALID * Coord::N_VALID * Coord::N_VALID,
         _ => 0, // unreachable; guarded by call sites
     }

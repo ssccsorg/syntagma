@@ -354,7 +354,9 @@ fn sqrt_approx(x: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
     use super::*;
+    use alloc::vec::Vec;
     use tagma_core::{Coord, CoordCube, CoordPath};
 
     // ── BoundingBoxIter ────────────────────────────────────────────

@@ -55,6 +55,11 @@ check_checks() {
     echo "--- no_alloc build + test ---"
     (cd sw/rust && cargo build --release --no-default-features)
     (cd sw/rust && cargo test --release --no-default-features)
+    # MCU: the tagma family (core/geo/map) must compile for a std-less
+    # target with the default alloc feature, which is what the no_std
+    # storage path (chton, nex) consumes on device.
+    echo "--- riscv32imac-unknown-none-elf check (MCU target) ---"
+    (cd sw/rust && cargo check -p tagma-core -p tagma-geo -p tagma-map --target riscv32imac-unknown-none-elf)
     check_cpp
     check_hw
 }

@@ -45,6 +45,10 @@ RUN git clone https://github.com/YosysHQ/icestorm.git /tmp/icestorm \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# The MCU target for the no_std storage path: run.sh --check compiles
+# tagma-core/geo/map for riscv32imac-unknown-none-elf.
+RUN rustup target add riscv32imac-unknown-none-elf
+
 # Verify the toolchain. nextpnr-ice40, icepack, and icetime in this
 # image do not support --version, so their presence is checked with
 # command -v; only verilator and yosys print a version.

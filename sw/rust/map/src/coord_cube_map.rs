@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use tagma_core::{CoordCube, CoordPath};
 use tagma_geo::spatial::SpatialOps;
 use tagma_geo::BoundingBoxIter;

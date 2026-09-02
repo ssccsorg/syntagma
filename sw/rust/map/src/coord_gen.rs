@@ -1,3 +1,6 @@
+use alloc::vec;
+use alloc::vec::Vec;
+
 use tagma_core::{Coord, CoordPath};
 
 // ---------------------------------------------------------------------------
@@ -500,9 +503,8 @@ impl<const N: usize> CoordKey<N> {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
     use super::*;
-
-    // ── CoordKey ──────────────────────────────────────────────────────────────
 
     #[test]
     fn fixed_key_new() {

@@ -1,3 +1,6 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+
 use tagma_core::CoordSpace2;
 
 use crate::coord_gen::CoordKey;
