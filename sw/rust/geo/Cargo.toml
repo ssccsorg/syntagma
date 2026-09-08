@@ -7,3 +7,6 @@ description = "Spatial operations for Tagma: proximity, bounding box, distance m
 
 [dependencies]
 tagma-core = { workspace = true }
+
+[dev-dependencies]
+tagma-core = { workspace = true }

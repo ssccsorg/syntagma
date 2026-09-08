@@ -161,14 +161,31 @@ impl<const N: usize> Iterator for HammingFilter<N> {
 ///
 /// These methods generate `CoordPath` values within a spatial region;
 /// they do **not** perform storage lookups.
+///
+/// Region generation is bounded by a per-character domain. The default
+/// domain is the full `Coord` index space `[0, Coord::N_VALID)`; storage
+/// layers whose keys occupy a narrower domain (for example a byte-space
+/// store over `[0, 256)`) must use [`SpatialOps::proximity_bounded`] so
+/// that generated regions stay inside the store domain.
 pub trait SpatialOps<const N: usize> {
     /// Generates all `CoordPath<N>` within a bounding box defined by
     /// per-character `(min, max)` ranges.
     fn bounding_box(&self, ranges: &[(u16, u16); N]) -> BoundingBoxIter<N>;
 
     /// Generates all `CoordPath<N>` within an L∞ (Chebyshev) proximity
-    /// radius of the cube's center.
+    /// radius of the cube's center over the full `Coord` index domain
+    /// `[0, Coord::N_VALID)`.
     fn proximity(&self, radius: usize) -> BoundingBoxIter<N>;
+
+    /// Generates all `CoordPath<N>` within an L∞ (Chebyshev) proximity
+    /// radius of the cube's center, clamped to the per-character domain
+    /// `[0, domain)`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `domain` is `0` or exceeds `Coord::N_VALID`, or if any
+    /// center character index is at or above `domain`.
+    fn proximity_bounded(&self, radius: usize, domain: u16) -> BoundingBoxIter<N>;
 
     /// Generates all `CoordPath<N>` within a Hamming distance `radius`
     /// of the cube's center.
@@ -181,11 +198,28 @@ impl<const N: usize, const D: usize, const R: usize> SpatialOps<N> for CoordCube
     }
 
     fn proximity(&self, radius: usize) -> BoundingBoxIter<N> {
+        self.proximity_bounded(radius, Coord::N_VALID as u16)
+    }
+
+    fn proximity_bounded(&self, radius: usize, domain: u16) -> BoundingBoxIter<N> {
+        assert!(
+            domain > 0 && (domain as usize) <= Coord::N_VALID,
+            "proximity_bounded: domain {} must be in (0, {}]",
+            domain,
+            Coord::N_VALID
+        );
         let mut ranges = [(0u16, 0u16); N];
         for (i, slot) in ranges.iter_mut().enumerate().take(N) {
             let idx = self.coords()[i].index() as usize;
+            assert!(
+                idx < domain as usize,
+                "proximity_bounded: center character {} index {} is at or above domain {}",
+                i,
+                idx,
+                domain
+            );
             let min = idx.saturating_sub(radius);
-            let max = (idx + radius).min(11171);
+            let max = (idx + radius).min(domain as usize - 1);
             *slot = (min as u16, max as u16);
         }
         BoundingBoxIter::new(ranges)
