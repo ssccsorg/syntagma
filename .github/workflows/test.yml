@@ -6,6 +6,7 @@ on:
     paths:
       - "sw/rust/**"
       - "sw/cpp/**"
+      - "sw/java/**"
       - "hw/rtl/**"
       - "hw/tools/**"
       - "hw/synth/yosys/*.ys"
@@ -87,6 +88,25 @@ jobs:
       - name: C++ pipeline (configure, build, test)
         if: steps.cpp_filter.outputs.cpp == 'true'
         run: bash sw/cpp/run.sh
+
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: java_filter
+        with:
+          filters: |
+            java:
+              - 'sw/java/**'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Java pipeline (build + test)
+        if: steps.java_filter.outputs.java == 'true'
+        run: bash sw/java/run.sh
 
   cpp-bench:
     runs-on: ubuntu-latest

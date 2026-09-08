@@ -27,6 +27,22 @@ check_cpp() {
     ctest --test-dir "$CPP_BUILD" --output-on-failure
 }
 
+check_java() {
+    echo "--- java core: maven build + test ---"
+    if ! command -v mvn >/dev/null 2>&1 || ! command -v java >/dev/null 2>&1; then
+        echo "  skipped (mvn and/or java not installed)"
+        return 0
+    fi
+    # The Java port targets Java 21. Runner images may ship an older default
+    # JDK, so only run when the active JDK major version is 21 or newer.
+    java_major=$(java -version 2>&1 | sed -n 's/.*version "\([0-9]*\)[^"]*".*/\1/p')
+    if [ -z "$java_major" ] || [ "$java_major" -lt 21 ]; then
+        echo "  skipped (JDK 21+ required, found $(java -version 2>&1 | head -1))"
+        return 0
+    fi
+    (cd sw/java && mvn -B verify)
+}
+
 check_hw() {
     echo "--- hw: RTL simulation + synthesis ---"
     if ! command -v verilator >/dev/null 2>&1 || ! command -v yosys >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
@@ -61,6 +77,7 @@ check_checks() {
     echo "--- riscv32imac-unknown-none-elf check (MCU target) ---"
     (cd sw/rust && cargo check -p tagma-core -p tagma-geo -p tagma-map --target riscv32imac-unknown-none-elf)
     check_cpp
+    check_java
     check_hw
 }
 
@@ -68,6 +85,7 @@ build_and_test() {
     (cd sw/rust && cargo build --release)
     (cd sw/rust && cargo test --release)
     check_cpp
+    check_java
 }
 
 auto_fix() {
