@@ -1532,17 +1532,17 @@ fn bench_map_spatial_proximity(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Spatial/map_proximity");
 
-    // Dense store: fill 100x100 region around center
+    // Dense store: fill a 100x100 byte-domain region around the center
     let mut map = CoordMapN::<2>::new();
-    let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center);
-    let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
+    let fill_ranges = [(86u16, 186u16), (86u16, 186u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
-    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let query_center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 
     group.throughput(criterion::Throughput::Elements(9)); // 3^2
     group.bench_function("dense_r1_proximity", |b| {
@@ -1560,10 +1560,10 @@ fn bench_map_spatial_proximity(c: &mut Criterion) {
         })
     });
 
-    // Sparse store: only a few scattered entries
+    // Sparse store: only a few scattered byte-domain entries
     let mut sparse_map = CoordMapN::<2>::new();
-    for p in [4950u16, 5000u16, 5050u16] {
-        for q in [4950u16, 5000u16, 5050u16] {
+    for p in [86u16, 136u16, 186u16] {
+        for q in [86u16, 136u16, 186u16] {
             let key = CoordKey::new([p as u8, q as u8]);
             sparse_map.insert_by_coordkey(&key, b"v".to_vec());
         }
@@ -1718,9 +1718,9 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
 
     // Dense tree store: 10K entries in a 100x100 region
     let mut map = CoordMapN::<2>::new();
-    let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let center_path = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
-    let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
+    let fill_ranges = [(86u16, 186u16), (86u16, 186u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
@@ -1733,7 +1733,7 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
         .map(CoordKey::from_coord_path)
         .collect();
 
-    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let query_center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 
     // Tree+CoordPath: 9 sequential lookups
     group.bench_function("tree_path_sequential_9", |b| {
@@ -1861,13 +1861,14 @@ fn bench_coordcube_map2_proximity(c: &mut Criterion) {
     use tagma_map::coord_gen::CoordKey;
     use tagma_map::{CoordMap2, CoordMapKey};
 
-    let mid = 5000u16;
+    // Byte-domain center for the CoordMap2 store (map keys are 0..255)
+    let mid = 136u16;
     let mut map = CoordMap2::new();
     let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
         Coord::new(mid).unwrap(),
         Coord::new(mid).unwrap(),
     ]));
-    for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
+    for path in fill_center.bounding_box(&[(86u16, 186u16), (86u16, 186u16)]) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
     }
@@ -2022,15 +2023,15 @@ fn bench_map_spatial_proximity_r5(c: &mut Criterion) {
 
     // Dense store: fill 50x50 region around center
     let mut map = CoordMapN::<2>::new();
-    let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let center_path = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
-    let fill_ranges = [(4975u16, 5025u16), (4975u16, 5025u16)];
+    let fill_ranges = [(111u16, 161u16), (111u16, 161u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
-    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let query_center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 
     group.throughput(criterion::Throughput::Elements(121)); // 11^2
     group.bench_function("dense_r5_proximity", |b| {
@@ -2202,13 +2203,13 @@ fn bench_coordcube_hierarchical(c: &mut Criterion) {
     // Fill a 4-character store (D=2, R=2 → N=4)
     let mut map = CoordMapN::<4>::new();
     let center = CoordPath::<4>::new([
-        Coord::new(5000).unwrap(),
-        Coord::new(5000).unwrap(),
-        Coord::new(5000).unwrap(),
-        Coord::new(5000).unwrap(),
+        Coord::new(136).unwrap(),
+        Coord::new(136).unwrap(),
+        Coord::new(136).unwrap(),
+        Coord::new(136).unwrap(),
     ]);
-    for d0 in [4995u16, 5000u16, 5005u16] {
-        for d1 in [4995u16, 5000u16, 5005u16] {
+    for d0 in [131u16, 136u16, 141u16] {
+        for d1 in [131u16, 136u16, 141u16] {
             let p = CoordPath::<4>::new([
                 Coord::new(d0).unwrap(),
                 Coord::new(d0 + 1).unwrap(),

@@ -1,12 +1,12 @@
-//! Characterization tests for the density scenarios behind the
-//! `Spatial/map_proximity` benchmark record.
+//! Integration tests for the density scenarios behind the
+//! `Spatial/map_proximity` benchmark record, under the explicit map
+//! byte-space domain.
 //!
-//! `CoordKey<2>` addresses the map store in byte space (0..255 per
-//! character), while `CoordCube` proximity indexes span the full
-//! 0..11171 range. `CoordKey::from_coord_path` truncates each index with
-//! `as u8`, so storage-backed spatial queries operate on a wrapped 256-wide
-//! window per character. These tests reproduce the exact fills used by the
-//! benchmark and lock in the observable found counts (issue #59).
+//! The map key space is one byte per character (`CoordKey<N>`), so
+//! storage-backed spatial queries operate in the per-character domain
+//! `[0, 256)`. Region generation is bounded to this domain, centers and
+//! range bounds outside it panic, and a radius that crosses the domain edge
+//! clamps instead of wrapping onto low byte values. Issue #59.
 
 use tagma_core::{Coord, CoordPath};
 use tagma_map::coord_cube_map::CoordCubeMap;
@@ -18,32 +18,32 @@ fn coord(value: u16) -> Coord {
     Coord::new(value).expect("valid coord index")
 }
 
-fn center_5000() -> CoordPath<2> {
-    CoordPath::new([coord(5000), coord(5000)])
+fn center_136() -> CoordPath<2> {
+    CoordPath::new([coord(136), coord(136)])
 }
 
-/// The dense benchmark fill: a 100x100 box over coordinates 4950..=5050.
-/// Through `from_coord_path` the box lands on bytes 86..=186, which still
-/// contains the query window bytes 134..=138, so every generated neighbor
-/// hits. The chart plan records 9 hits at r=1 and 25 hits at r=2.
+/// The dense benchmark fill mapped onto the byte domain: a 100x100 box
+/// over bytes 86..=186 with the query center at byte 136. Every generated
+/// neighbor lies inside the filled box, so the found counts match the
+/// record (9 hits at r=1, 25 hits at r=2) without coordinate wrapping.
 #[test]
 fn dense_scenario_100x100_found_counts() {
     let mut map = CoordMapN::<2>::new();
-    for x in 4950..=5050u16 {
-        for y in 4950..=5050u16 {
+    for x in 86..=186u16 {
+        for y in 86..=186u16 {
             let path = CoordPath::new([coord(x), coord(y)]);
             map.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
         }
     }
 
-    let results_r1 = map.proximity::<2, 1>(&center_5000(), 1);
+    let results_r1 = map.proximity::<2, 1>(&center_136(), 1);
     assert_eq!(
         results_r1.len(),
         9,
         "dense r=1: all 9 generated neighbors present"
     );
 
-    let results_r2 = map.proximity::<2, 1>(&center_5000(), 2);
+    let results_r2 = map.proximity::<2, 1>(&center_136(), 2);
     assert_eq!(
         results_r2.len(),
         25,
@@ -51,22 +51,23 @@ fn dense_scenario_100x100_found_counts() {
     );
 }
 
-/// The sparse benchmark fill: nine scattered coordinates {4950, 5000, 5050}
-/// in both axes. Through truncation these become bytes {86, 136, 186}. A
-/// radius-1 query centered at byte 136 covers bytes 135..=137, so only the
-/// center entry (136, 136) hits. The chart plan records 9 hits at 48.5 ns
-/// for this scenario; the current code returns 1 (issue #59).
+/// The sparse benchmark fill mapped onto the byte domain: nine scattered
+/// bytes {86, 136, 186} in both axes. A radius-1 query centered at byte
+/// 136 covers bytes 135..=137, so only the center entry (136, 136) hits.
+/// The chart plan records 9 hits for this scenario; the bounded semantics
+/// return 1 because the scatter points lie outside the radius-1 box
+/// (issue #59).
 #[test]
 fn sparse_scenario_nine_scattered_entries_found_count() {
     let mut map = CoordMapN::<2>::new();
-    for &x in &[4950u16, 5000, 5050] {
-        for &y in &[4950u16, 5000, 5050] {
+    for &x in &[86u16, 136, 186] {
+        for &y in &[86u16, 136, 186] {
             let key = CoordKey::new([x as u8, y as u8]);
             map.insert_by_coordkey(&key, b"v".to_vec());
         }
     }
 
-    let results = map.proximity::<2, 1>(&center_5000(), 1);
+    let results = map.proximity::<2, 1>(&center_136(), 1);
     assert_eq!(
         results.len(),
         1,
@@ -78,28 +79,60 @@ fn sparse_scenario_nine_scattered_entries_found_count() {
 #[test]
 fn empty_scenario_found_count() {
     let map: CoordMapN<2> = CoordMapN::new();
-    let results = map.proximity::<2, 1>(&center_5000(), 1);
+    let results = map.proximity::<2, 1>(&center_136(), 1);
     assert!(results.is_empty());
 }
 
-/// `from_coord_path` truncates each index with `as u8`; index 256 and index
-/// 0 share byte 0. The collision is structural: storage-backed spatial
-/// queries address a 0..255 window per character (issue #59).
+/// A radius that crosses the top of the byte domain must clamp at byte
+/// 255. Entries in bytes 0..=5 must not be reached through wrapping.
 #[test]
-fn from_coord_path_collides_at_index_256() {
-    let mut map = CoordMapN::<1>::new();
+fn proximity_does_not_wrap_across_byte_domain_edge() {
+    let mut map = CoordMapN::<2>::new();
+    for x in 0..=5u16 {
+        for y in 0..=5u16 {
+            let path = CoordPath::new([coord(x), coord(y)]);
+            map.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"low".to_vec());
+        }
+    }
+    for x in 250..=255u16 {
+        for y in 250..=255u16 {
+            let path = CoordPath::new([coord(x), coord(y)]);
+            map.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"high".to_vec());
+        }
+    }
 
-    let high = CoordPath::new([coord(256)]);
-    map.insert_by_coordkey(&CoordKey::from_coord_path(&high), b"high".to_vec());
-
-    let low = CoordPath::new([coord(0)]);
-    let stored = map.get_by_coordkey(&CoordKey::from_coord_path(&low));
-    assert_eq!(stored, Some(b"high".to_vec()), "index 256 wraps to byte 0");
-
-    let boundary = CoordPath::new([coord(255)]);
+    let center = CoordPath::new([coord(255), coord(255)]);
+    let results = map.proximity::<2, 1>(&center, 2);
     assert_eq!(
-        map.get_by_coordkey(&CoordKey::from_coord_path(&boundary)),
-        None,
-        "index 255 is byte 255, distinct from byte 0"
+        results.len(),
+        9,
+        "radius 2 from byte 255 covers bytes 253..=255 only"
     );
+    for (path, _) in &results {
+        for c in path.coords() {
+            assert!(
+                c.index() >= 253,
+                "wrapped low-byte entry leaked into the result"
+            );
+        }
+    }
+}
+
+/// A center at or above the byte-space domain is a caller error and panics
+/// instead of silently wrapping onto low bytes.
+#[test]
+#[should_panic(expected = "outside the map byte-space domain")]
+fn proximity_center_outside_byte_domain_panics() {
+    let map: CoordMapN<2> = CoordMapN::new();
+    let center = CoordPath::new([coord(300), coord(300)]);
+    let _ = map.proximity::<2, 1>(&center, 1);
+}
+
+/// `from_coord_path` cannot represent a character index at or above 256 and
+/// panics instead of truncating.
+#[test]
+#[should_panic(expected = "exceeds the map byte-space domain")]
+fn from_coord_path_rejects_index_256() {
+    let path = CoordPath::new([coord(256)]);
+    let _ = CoordKey::from_coord_path(&path);
 }

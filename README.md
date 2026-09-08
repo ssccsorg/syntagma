@@ -206,22 +206,23 @@ map.remove("hi");
 
 ```rust
 use tagma_map::{CoordMap, CoordMapN, CoordMapKey};
+use tagma_map::coord_cube_map::CoordCubeMap;
 use tagma_map::coord_gen::CoordKey;
-use tagma_map::spatial::CoordCubeMap;
 use tagma_core::{Coord, CoordCube, CoordPath};
 use tagma_geo::SpatialOps;
 
-// Fill a store with 10,000 entries in a 100x100 region
+// Map keys are one byte per character, so spatial queries operate in the
+// per-character domain [0, 256). Fill a 100x100 region over bytes 86..=186.
 let mut map = CoordMapN::<2>::new();
 let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
-    Coord::new(5000).unwrap(), Coord::new(5000).unwrap(),
+    Coord::new(136).unwrap(), Coord::new(136).unwrap(),
 ]));
-for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
+for path in fill_center.bounding_box(&[(86u16, 186u16), (86u16, 186u16)]) {
     map.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
 }
 
 // Spatial proximity query: find all entries within L∞ radius 1 of center
-let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+let center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 let nearby: Vec<_> = map.proximity::<2, 1>(&center, 1);
 // Returns 9 entries (3x3 grid)
 assert_eq!(nearby.len(), 9);
