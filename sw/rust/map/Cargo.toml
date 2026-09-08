@@ -15,4 +15,5 @@ tagma-core = { workspace = true, features = ["alloc"] }
 tagma-geo = { workspace = true }
 
 [dev-dependencies]
+tagma-core = { workspace = true }
 tagma-geo = { workspace = true }
