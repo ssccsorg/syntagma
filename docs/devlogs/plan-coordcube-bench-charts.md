@@ -2,6 +2,8 @@
 
 ## Measured Data (ARMv8.4-A Firestorm)
 
+Map-store rows (sections 8 and 9), the hierarchical rows, and the distance-metric rows were re-measured on 2026-09-08 after the CoordCubeMap byte-domain change (issue #59). Map-store queries operate in the per-character domain [0, 256) with byte-domain fills (center 136, bytes 86..=186) instead of coordinates around 5000 that wrapped through the key conversion.
+
 ### 1. CoordCube overhead over CoordPath (cubeoverhead)
 
 | Benchmark | Time | Notes |
@@ -57,18 +59,16 @@
 
 **Insight**: Identical pattern to dimensional scaling -- same mixed-radix iteration, R=2 is like D=2, R=3 is like D=3. Throughput follows total path count, not N or D or R individually.
 
-### 6. Distance metrics (3D, single pair) -- FLAGGED
+### 6. Distance metrics (single pair, runtime inputs)
 
-**Warning**: Current benchmark uses compile-time-constant CoordCube values. The optimizer pre-computes all distance results, producing ~320 ps measurements that are not representative of real performance. The benchmark inputs need to pass through `black_box` or be runtime-generated before these numbers can be trusted.
+Measured with the runtime-generated `bench_coordcube_distance_metrics` benchmark, whose random input buffer defeats constant folding:
 
-Raw (unreliable) measurements:
-| Metric | Measurement | Status |
-|--------|-------------|--------|
-| Hamming | 321 ps | Optimized away |
-| Euclidean approx | 318 ps | Optimized away |
-| Manhattan | 317 ps | Optimized away |
+| Metric | R=1 | R=2 |
+|--------|-----|-----|
+| Hamming | 1.74 ns | 2.28 ns |
+| Euclidean approx | 13.41 ns | 13.25 ns |
+| Manhattan | 2.61 ns | 2.59 ns |
 
-These should be in the low-ns range once fixed (Manhattan sum of absolute diffs across D dimensions, requiring integer ops per dim).
 
 ### 7. CoordSet compound axis query
 
@@ -81,47 +81,43 @@ These should be in the low-ns range once fixed (Manhattan sum of absolute diffs 
 
 ### 8. CoordCube vs CoordPath on the map store (KEY COMPARISON)
 
-Direct comparison on the same 10K-entry CoordMapN<2> store:
+Direct comparison on the same 10K-entry CoordMapN<2> store (byte-domain fill, bytes 86..=186):
 
 | Method | Time | Paths generated | Per-path cost | Overhead vs baseline |
 |--------|------|----------------|---------------|---------------------|
-| Sequential path lookup (baseline) | 158 ns | 9 (manual) | 17.6 ns/lookup | -- |
-| CoordCube proximity r=1 | 285 ns | 9 | 31.7 ns/lookup | +127 ns (80%) |
-| CoordCube proximity r=2 | 626 ns | 25 | 25.0 ns/lookup | +468 ns (296%) |
-| DynCoordMap proximity r=1 | 161 ns | 9 | 17.9 ns/lookup | +3 ns (2%) |
-| DynCoordMap proximity r=2 | 290 ns | 25 | 11.6 ns/lookup | +132 ns (84%) |
+| Sequential path lookup (baseline) | 160.5 ns | 9 (manual) | 17.8 ns/lookup | -- |
+| CoordCube proximity r=1 | 240.7 ns | 9 | 26.7 ns/lookup | +80.2 ns (~50%) |
+| CoordCube proximity r=2 | 556.2 ns | 25 | 22.2 ns/lookup | +396 ns (~247%) |
+| DynCoordMap proximity r=1 | 175.6 ns | 9 | 19.5 ns/lookup | +15 ns (~9%) |
+| DynCoordMap proximity r=2 | 386.4 ns | 25 | 15.5 ns/lookup | +226 ns (~141%) |
 
-**Breakdown of the +127 ns overhead in Tree+Cube r=1**:
-- Path generation via CoordCube: ~16 ns (measured: cube_from_path ~1 ns + iteration overhead ~15 ns)
-- Vec::push for 9 paths: ~74 ns (9 x ~8.2 ns/push)
-- Vec allocation: ~37 ns (amortized capacity doubling)
-- **Total**: ~127 ns, matches measured gap
+**Breakdown of the ~80 ns overhead in Tree+Cube r=1**: generation alone is about 12 ns for the 9-path box (cube_proximity_r1_baseline measures 12.3 ns), and the remaining ~68 ns is Vec push and allocation for the 9 hits. The earlier 127 ns split predates the byte-domain change and is superseded by this re-measurement.
 
-**Insight**: CoordCube proximity overhead is dominated by Vec allocation and push, not by coordinate arithmetic. On short-lived queries, this overhead is significant (+80%). On sparse stores where most generated paths are absent, CoordCube proximity short-circuits faster than sequential lookups because BoundingBoxIter::next() returns None immediately for out-of-bounds, while sequential lookup must query the tree for each key.
+**Insight**: CoordCube proximity overhead is dominated by Vec push and allocation, not by coordinate arithmetic; on short-lived queries it adds about 50% over sequential lookups at r=1. Empty and sparse stores finish faster because fewer lookups hit and fewer entries are pushed; the generation pass is constant for a given radius. The CoordCubeMap path performs no structural short-circuit: every generated path is looked up.
 
 ### 9. Map proximity at scale
 
 | Scenario | Store | Query | Time | Found |
 |----------|-------|-------|------|-------|
-| Dense 10K entries | CoordMapN<2> | r=1 | 285 ns | 9 |
-| Dense 10K entries | CoordMapN<2> | r=2 | 626 ns | 25 |
-| Dense 10K entries | CoordMapN<2> | r=5 | 2.55 us | 121 |
-| Sparse 9 entries | CoordMapN<2> | r=1 | 48.5 ns | 9 |
-| Empty store | CoordMapN<2> | r=1 | 15.7 ns | 0 |
-| DynCoordMap 100 entries | DynCoordMap | r=1 | 161 ns | 9 |
-| DynCoordMap 100 entries | DynCoordMap | r=2 | 290 ns | 25 |
-| Hierarchical R=2, r=1 (2-phase) | CoordMapN<4> | r=1 | 547 ns | -- |
-| Hierarchical R=2, r=1 (direct map) | CoordMapN<4> | r=1 | 639 ns | -- |
+| Dense 10K entries (bytes 86..=186) | CoordMapN<2> | r=1 | 237.9 ns | 9 |
+| Dense 10K entries (bytes 86..=186) | CoordMapN<2> | r=2 | 530.2 ns | 25 |
+| Dense 2.6K entries (bytes 111..=161) | CoordMapN<2> | r=5 | 2.29 us | 121 |
+| Sparse 9 entries (bytes {86, 136, 186}) | CoordMapN<2> | r=1 | 84.4 ns | 1 |
+| Empty store | CoordMapN<2> | r=1 | 63.9 ns | 0 |
+| DynCoordMap 100 entries | DynCoordMap | r=1 | 175.6 ns | -- |
+| DynCoordMap 100 entries | DynCoordMap | r=2 | 386.4 ns | -- |
+| Hierarchical R=2, r=1 (2-phase) | CoordMapN<4> | r=1 | 550.5 ns | -- |
+| Hierarchical R=2, r=1 (direct map) | CoordMapN<4> | r=1 | 322.1 ns | -- |
 
-**Hierarchical insight**: CoordCube prox r=1 followed by manual lookup (547 ns) is slightly faster than direct map proximity (639 ns) on R=2 stores, because CoordCube generates candidate paths without considering multi-char dimension boundaries, and the manual post-filter weeds out false positives.
+**Hierarchical insight**: Direct map proximity (322 ns) beats the manual two-phase filter (550 ns) on the R=2 store after the bounded-generation change (issue #59). The direct path generates candidates bounded to the store domain and pushes only hits in a single pass; the manual phase collects all 3^4 candidates into a Vec first and re-looks each one up. The earlier record showed the reverse order and predated the change. The sparse row records 1 hit, not 9: the nine scattered bytes {86, 136, 186} place only the center entry inside the radius-1 box around byte 136.
 
 ### 10. Large N
 
 | Configuration | Time | Notes |
 |---------------|------|-------|
-| N=12 path gen r=0 | 17.5 ns | 12D proximity with radius 0 (single path) |
-| N=12 map proximity r=0 | 118.6 ns | path gen + tree lookup |
-| N=19 path gen r=0 | ~18 ns (projected) | Similar to N=12 since path gen is O(1) at r=0 |
+| N=12 path gen r=0 | 21.1 ns | 12D proximity with radius 0 (single path) |
+| N=12 map proximity r=0 | 127.3 ns | path gen + tree lookup |
+| N=19 path gen r=0 | 36.4 ns | 19D proximity with radius 0 (single path) |
 
 ## Proposed Charts
 
@@ -130,8 +126,8 @@ Direct comparison on the same 10K-entry CoordMapN<2> store:
 File: fig-bench-coordcube-overhead.qmd
 
 Two groups of bars:
-1. raw_path_get_3x (319 ps) vs cube_axis_3x (319 ps) -- showing zero cost
-2. cube_from_path (958 ps) -- showing construction cost
+1. raw_path_get_3x (318 ps) vs cube_axis_3x (322 ps) -- showing zero cost
+2. cube_from_path (961 ps) -- showing construction cost
 
 Annotate: "Zero-cost interpretation layer" / "0.96 ns one-time cost"
 
@@ -141,8 +137,8 @@ File: fig-bench-coordcube-proximity.qmd
 
 X-axis: radius (0-5)
 Y-axis: Throughput (Melem/s)
-Line shows throughput increasing ~60 to 365 Melem/s as radius grows
-Second line for bounding box at N=6 showing consistent ~427 Melem/s
+Line shows throughput increasing ~54 to 355 Melem/s as radius grows
+Second line for bounding box at N=6 showing consistent ~430 Melem/s
 
 ### Chart 3: Dimensional vs Resolution Scaling (grouped bar)
 
@@ -158,41 +154,41 @@ Highlight that D*R = N is the real driver, not D or R individually
 File: fig-bench-coordcube-vs-path.qmd
 
 THE KEY CHART. Three bars:
-- sequential 9 lookups: 158 ns
-- CoordCube prox r=1: 285 ns (+80% overhead)
-- CoordCube prox r=2: 626 ns
+- sequential 9 lookups: 160 ns
+- CoordCube prox r=1: 241 ns (+50% overhead)
+- CoordCube prox r=2: 556 ns
 
-Breakdown callout showing where the 127 ns goes: Vec alloc (37 ns) + push (74 ns) + path gen (16 ns)
+Breakdown callout showing the r=1 gap of ~80 ns: Vec push/alloc dominated, generation ~12 ns
 
 ### Chart 5: CoordCube Proximity -- Empty vs Sparse vs Dense (bar)
 
 File: fig-bench-coordcube-density.qmd
 
 Three bars at r=1:
-- Empty store: 15.7 ns (path gen only, no lookups hit)
-- Sparse 9 entries: 48.5 ns (few lookups)
-- Dense 10K: 285 ns (all 9 lookups hit + Vec push)
+- Empty store: 64 ns (path gen only, no lookups hit)
+- Sparse 9 entries: 84 ns (1 hit)
+- Dense 10K: 238 ns (all 9 lookups hit + Vec push)
 
-Annotate: "Structural short-circuit on empty: 18x faster than dense"
+Annotate: "Generation pass is constant; hits and Vec pushes vary"
 
 ### Chart 6: CoordSet Compound Axis Query (bar)
 
 File: fig-bench-coordcube-coordset.qmd
 
-Two bars: CoordSet 85.7 ns vs HashMap 12.3 us
-Annotate: "144x faster: single bitwise AND vs 11,172 iterations"
+Two bars: CoordSet 84.2 ns vs HashMap 13.0 us
+Annotate: "~154x faster: single bitwise AND vs 11,172 iterations"
 
 ### Chart 7: Large-N Scaling (bar)
 
 File: fig-bench-coordcube-largen.qmd
 
-N=12 path gen r=0: 17.5 ns
-N=12 map prox r=0: 119 ns
+N=12 path gen r=0: 21 ns
+N=12 map prox r=0: 127 ns
 N=6 bbox 3^6: 1.70 us
 
-## Distance Metrics -- DEFERRED
+## Distance Metrics -- RESOLVED
 
-The distance metrics benchmark needs to be fixed before charting. Current measurements (~320 ps) are compiler-optimized and not representative. Fix approach: pass `black_box` on the Coord values or generate them from `thread_rng` at warmup time.
+The distance metrics benchmark now generates runtime random inputs (`bench_coordcube_distance_metrics`), so the measured values in section 6 are representative and chartable.
 
 ## Implementation Order
 
