@@ -81,7 +81,7 @@ Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero cli
 | CoordMapN\<N\> | Fixed N-byte tree map, CoordSpaceN, sparse | `map/src/coord_map_n.rs` |
 | CoordMap trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `map/src/coord_map.rs` |
 | CoordMapKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `map/src/coord_map.rs` |
-| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap | `map/src/spatial.rs` |
+| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap | `map/src/coord_cube_map.rs` |
 
 ### tagma-sec: security primitives (requires alloc)
 
@@ -351,35 +351,34 @@ N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2
 
 | Metric | Latency |
 |--------|---------|
-| Hamming distance | 1.75 ns |
-| Manhattan distance | 2.63 ns |
-| Euclidean distance (approx) | 13.5 ns |
+| Hamming distance | 1.74 ns |
+| Manhattan distance | 2.61 ns |
+| Euclidean distance (approx) | 13.4 ns |
 
-Values are from runtime-generated coordinates (PRNG) to prevent compile-time constant folding. The 3.2 ps shown in earlier runs was an artifact of pre-computation.
+Values are from runtime-generated coordinates (PRNG) to prevent compile-time constant folding. The ~320 ps shown in earlier runs was an artifact of pre-computation.
 
 ## Benchmark: CoordCube + CoordMap proximity (ARMv8.4-A Firestorm)
 
-End-to-end spatial queries combining CoordCube path generation with map store lookup:
+End-to-end spatial queries combining CoordCube path generation with map store lookup. Map keys are one byte per character, so queries operate in the byte-space domain [0, 256); the byte-domain fill (bytes 86..=186 around center byte 136) preserves the hit geometry of the earlier record without coordinate wrapping (issue #59). Re-measured 2026-09-08.
 
 | Scenario | Store type | Query | Latency | Found |
 |----------|-----------|-------|---------|-------|
-| Sequential (9 manual lookups) | CoordMapN\<2\> | Tree+Path | 158 ns | 9 |
-| CoordCube proximity r=1 | CoordMapN\<2\> | Tree+Cube | 285 ns | 9 |
-| CoordCube proximity r=2 | CoordMapN\<2\> | Tree+Cube | 626 ns | 25 |
-| CoordCube proximity r=5 | CoordMapN\<2\> | Tree+Cube | 2.55 µs | 121 |
-| CoordCube proximity r=1 | CoordMap2 (dense) | Dense+Cube | 282 ns | 9 |
-| CoordCube proximity r=1 | DynCoordMap | Cube | 161 ns | 9 |
-| CoordCube proximity r=2 | DynCoordMap | Cube | 290 ns | 25 |
-| CoordCube proximity r=1 | CoordMapN\<2\> sparse | Cube | 48.5 ns | 9 |
-| CoordCube proximity r=1 | CoordMapN\<2\> empty | Cube | 15.7 ns | 0 |
-| Sequential (9 lookups) | DynCoordMap | Baseline | 259 ns | 9 |
+| Sequential (9 manual lookups) | CoordMapN\<2\> | Tree+Path | 160.5 ns | 9 |
+| CoordCube proximity r=1 | CoordMapN\<2\> | Tree+Cube | 240.7 ns | 9 |
+| CoordCube proximity r=2 | CoordMapN\<2\> | Tree+Cube | 556.2 ns | 25 |
+| CoordCube proximity r=5 | CoordMapN\<2\> | Tree+Cube | 2.29 µs | 121 |
+| CoordCube proximity r=1 | CoordMap2 (dense) | Dense+Cube | 231.7 ns | 9 |
+| CoordCube proximity r=1 | DynCoordMap | Cube | 175.6 ns | 9 |
+| CoordCube proximity r=2 | DynCoordMap | Cube | 386.4 ns | 25 |
+| CoordCube proximity r=1 | CoordMapN\<2\> sparse | Cube | 84.4 ns | 1 |
+| CoordCube proximity r=1 | CoordMapN\<2\> empty | Cube | 63.9 ns | 0 |
+| Sequential (9 lookups) | DynCoordMap | Baseline | 262.1 ns | 9 |
 
-Breakdown of the 127 ns overhead (Tree+Path 158 ns -> Tree+Cube 285 ns):
-- Vec allocation: 37 ns
-- Vec::push x9: 74 ns
-- Path generation: 16 ns
+Breakdown of the ~80 ns overhead (Tree+Path 160.5 ns to Tree+Cube 240.7 ns at r=1):
+- Path generation: ~12 ns (cube_proximity_r1_baseline measures 12.3 ns)
+- Vec allocation and push for the 9 hits: ~68 ns
 
-Key insight: On tree stores, the extra overhead is dominated by Vec allocation and push, not coordinate arithmetic. Dense vs tree backend makes almost no difference (282 ns vs 285 ns) because Vec push dominates. On sparse stores, CoordCube is up to 3.3x faster than sequential lookups because it avoids tree lookups for nonexistent paths. On DynCoordMap, proximity is 1.6x faster than sequential (161 vs 259 ns) due to higher per-lookup cost.
+Key insight: On tree stores, the extra overhead is dominated by Vec push and allocation, not coordinate arithmetic. Generation is bounded to the store domain and every generated path is looked up; empty and sparse stores finish faster because fewer lookups hit and fewer entries are pushed. Dense vs tree backend makes little difference (231.7 ns vs 237.9 ns) because Vec push dominates. On DynCoordMap, proximity is 1.5x faster than sequential (175.6 vs 262.1 ns) due to higher per-lookup cost.
 
 ## Benchmark: Compound axis query via CoordSet (N=1 bit array, pre-computed)
 
