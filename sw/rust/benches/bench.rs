@@ -1094,28 +1094,30 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   D=4 (625 paths) 1.887 µs
 //   Same N = same throughput: D*R determines cost, not D or R individually.
 //
-// map proximity (CoordCubeMap, CoordMapN<2> tree store):
-//   Sequential 9-path lookup         158 ns    baseline (manual loop)
-//   Cube proximity r=1 (dense 10K)   285 ns    +127 ns (Vec alloc 37 + push 74 + gen 16)
-//   Cube proximity r=2 (dense 10K)   626 ns
-//   Cube proximity r=1 (sparse 9)     48.5 ns   all paths exist, no Vec alloc
-//   Cube proximity r=1 (empty)        15.7 ns   pure path gen, zero lookups
-//   Cube proximity r=5 (dense 10K)   2.55 µs   121 paths
-//   DynCoordMap proximity r=1         161 ns
-//   DynCoordMap proximity r=2         290 ns
+// map proximity (CoordCubeMap, CoordMapN<2> tree store; byte-domain fills,
+// bytes 86..=186 around center byte 136; re-measured 2026-09-08, #59):
+//   Sequential 9-path lookup         160.5 ns  baseline (manual loop)
+//   Cube proximity r=1 (dense 10K)   240.7 ns  +80 ns vs sequential (Vec push/alloc dominated)
+//   Cube proximity r=2 (dense 10K)   556.2 ns
+//   Cube proximity r=1 (sparse 9)     84.4 ns  1 hit (bytes {86,136,186}; the radius-1 box holds only the center)
+//   Cube proximity r=1 (empty)        63.9 ns  0 hits (generation plus 9 lookups)
+//   Cube proximity r=5 (dense 2.6K)  2.29 µs   121 paths
+//   DynCoordMap proximity r=1         175.6 ns
+//   DynCoordMap proximity r=2         386.4 ns
 //
 // Hierarchical (R=2, N=4):
-//   2-phase (Cube gen + manual filter)    547 ns
-//   Direct map proximity                    639 ns
-//   CoordCube + post-filter faster than direct on multi-char dims.
+//   2-phase (Cube gen + manual filter)    550.5 ns
+//   Direct map proximity                    322.1 ns
+//   Direct is faster: single bounded pass; the earlier record predated the
+//   bounded-generation change (#59).
 //
 // Large N:
-//   N=6  path gen r=0      6.52 ns
-//   N=6  map prox r=0       81.4 ns
-//   N=12 path gen r=0     17.5 ns
-//   N=12 map prox r=0      119  ns
-//   N=19 path gen r=0     27.2 ns
-//   N=19 map prox r=0      106  ns
+//   N=6  path gen r=0       8.98 ns
+//   N=6  map prox r=0       74.6 ns
+//   N=12 path gen r=0      21.1 ns
+//   N=12 map prox r=0      127.3 ns
+//   N=19 path gen r=0      36.4 ns
+//   N=19 map prox r=0      181.9 ns
 //
 // Distance metrics (D=3, single pair, runtime-generated coordinates via PRNG):
 //   hamming:   1.75 ns
@@ -1141,13 +1143,13 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   Vec alloc+push overhead (collect vs count): ~76-130 ns per query
 //
 // Map2 proximity (dense array, 119 MB):
-//   dense_r1_proximity:     282 ns   (vs tree 285 ns -- identical)
-//   dense_r2_proximity:     666 ns
-//   Dense vs tree backend makes no difference: Vec push dominates.
+//   dense_r1_proximity:     231.7 ns  (vs tree 237.9 ns)
+//   dense_r2_proximity:     521.7 ns  (vs tree 530.2 ns)
+//   Dense vs tree backend makes little difference: Vec push dominates.
 //
 // DynCoordMap proximity:
-//   dynmap_sequential_9:     259 ns
-//   dynmap_proximity_r1:     161 ns   (1.6x faster than sequential)
+//   dynmap_sequential_9:     262.1 ns
+//   dynmap_proximity_r1:     175.6 ns  (1.5x faster than sequential)
 // ===========================================================================
 
 // Spatial/cubeproximity/radius_N
@@ -1703,9 +1705,11 @@ fn bench_coordcube_overhead(c: &mut Criterion) {
 // Spatial/cubevspath
 //   Direct comparison: sequential CoordSpaceN2 lookups vs CoordCube proximity
 //   on the same 10K-entry tree store (9 keys in r=1 neighborhood).
-//   Tree+Path: 9 sequential lookups = 158 ns (17.6 ns each)
-//   Tree+Cube: proximity r=1 = 285 ns (gen 16 ns + 9 lookups 158 ns + push 74 ns + Vec alloc 37 ns)
-//   Sparse store: Tree+Cube = 48.5 ns (vs 158 ns, 3.3x faster)
+//   Tree+Path: 9 sequential lookups = 160.5 ns (17.8 ns each)
+//   Tree+Cube: proximity r=1 = 240.7 ns (+80 ns vs sequential; Vec push/alloc dominated)
+//   Tree+Cube: proximity r=2 = 556.2 ns
+//   Sparse and empty stores finish faster because fewer lookups hit and fewer
+//   entries are pushed; the CoordCubeMap path has no structural short-circuit.
 fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
@@ -1851,8 +1855,8 @@ fn bench_coordcube_path_baseline(c: &mut Criterion) {
 
 // Spatial/cubemap2
 //   CoordCube proximity on CoordMap2 (dense array, 119 MB pre-zeroed).
-//   dense_r1_proximity:  282 ns  (vs tree 285 ns -- essentially identical)
-//   dense_r2_proximity:  666 ns  (vs tree 626 ns)
+//   dense_r1_proximity:  231.7 ns  (vs tree 237.9 ns)
+//   dense_r2_proximity:  521.7 ns  (vs tree 530.2 ns)
 //   Vec push dominates: lookup cost difference (0.38 vs 0.87 ns) is negligible.
 fn bench_coordcube_map2_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
@@ -1957,8 +1961,8 @@ fn bench_coordcube_compound(c: &mut Criterion) {
 
 // Spatial/cubevspath/dynmap_baseline
 //   Sequential lookups on DynCoordMap (no CoordCube), for comparison with DynCoordMap proximity.
-//   dynmap_sequential_9:  259 ns  (vs DynCoordMap proximity r=1: 161 ns)
-//   On DynCoordMap, proximity is 1.6x faster than sequential lookups.
+//   dynmap_sequential_9:  262.1 ns  (vs DynCoordMap proximity r=1: 175.6 ns)
+//   On DynCoordMap, proximity is 1.5x faster than sequential lookups.
 fn bench_coordcube_dynmap_baseline(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
     use tagma_map::dyn_coord_map::DynCoordMap;
