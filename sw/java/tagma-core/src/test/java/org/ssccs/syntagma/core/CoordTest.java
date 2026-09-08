@@ -69,8 +69,10 @@ class CoordTest {
         assertTrue(Coord.fromCodePoint(0xAC00).isPresent(), "code point base valid");
         assertTrue(Coord.fromCodePoint(0xD7A3).isPresent(), "code point end valid");
         assertTrue(Coord.fromCodePoint(0xABFF).isEmpty(), "below base rejected");
-        assertTrue(Coord.fromCodePoint(0xD7A4).isEmpty(), "filler start rejected");
-        assertTrue(Coord.fromCodePoint(0xD7AF).isEmpty(), "filler end rejected");
+        // Every filler position U+D7A4..U+D7AF lacks structural validity.
+        for (int cp = 0xD7A4; cp <= 0xD7AF; cp++) {
+            assertTrue(Coord.fromCodePoint(cp).isEmpty(), "filler rejected: U+" + Integer.toHexString(cp));
+        }
         assertTrue(Coord.fromCodePoint(0xD7B0).isEmpty(), "above block rejected");
         assertTrue(Coord.fromChar('\uD7B0').isEmpty(), "out of block char rejected");
     }
@@ -104,12 +106,16 @@ class CoordTest {
 
     @Test
     void byteSerialization() {
+        // Round trip over the same sample set as the Rust serialization_roundtrip.
+        for (int raw : new int[] {0, 1, 256, 11171, 5555}) {
+            Coord coord = index(raw);
+            assertEquals(coord, Coord.fromLeBytes(coord.toLeBytes()).orElseThrow(), "le roundtrip");
+            assertEquals(coord, Coord.fromBeBytes(coord.toBeBytes()).orElseThrow(), "be roundtrip");
+        }
         byte[] leLast = {(byte) 0xA3, 0x2B}; // 11171 = 0x2BA3, LE
         byte[] beLast = {0x2B, (byte) 0xA3}; // 11171 BE
         assertArrayEquals(leLast, index(11171).toLeBytes());
         assertArrayEquals(beLast, index(11171).toBeBytes());
-        assertEquals(11171, Coord.fromLeBytes(leLast).orElseThrow().index());
-        assertEquals(11171, Coord.fromBeBytes(beLast).orElseThrow().index());
         byte[] leInvalid = {(byte) 0xA4, 0x2B}; // 11172 LE
         byte[] beInvalid = {0x2B, (byte) 0xA4}; // 11172 BE
         assertTrue(Coord.fromLeBytes(leInvalid).isEmpty(), "invalid le bytes rejected");

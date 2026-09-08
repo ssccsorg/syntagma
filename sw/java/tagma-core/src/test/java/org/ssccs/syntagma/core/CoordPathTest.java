@@ -3,6 +3,7 @@ package org.ssccs.syntagma.core;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
@@ -53,5 +54,19 @@ class CoordPathTest {
         CoordPath empty = CoordPath.fromArray();
         assertEquals(0, empty.length());
         assertTrue(empty.isEmpty());
+    }
+
+    @Test
+    void pathEquality() {
+        Coord a = coord(0, 0, 0);
+        Coord b = coord(1, 2, 3);
+        assertEquals(CoordPath.fromArray(a, b), CoordPath.fromArray(a, b));
+        assertNotEquals(CoordPath.fromArray(a, b), CoordPath.fromArray(a, coord(0, 0, 1)));
+        assertNotEquals(CoordPath.fromArray(a, b), CoordPath.fromArray(a), "different lengths differ");
+    }
+
+    @Test
+    void pathDisplay() {
+        assertEquals("CoordPath<2>(가, 각)", CoordPath.fromArray(coord(0, 0, 0), coord(0, 0, 1)).toString());
     }
 }

@@ -195,4 +195,17 @@ class CoordSetTest {
         }
         assertEquals(0, iterated);
     }
+
+    @Test
+    void defaultConstructorIsEmpty() {
+        assertTrue(new CoordSet().isEmpty());
+    }
+
+    @Test
+    void displayFormat() {
+        CoordSet set = new CoordSet();
+        set.insert(coordIndex(0));
+        assertTrue(set.toString().contains("가"), "display contains the block base character");
+        assertEquals("{가}", set.toString());
+    }
 }
