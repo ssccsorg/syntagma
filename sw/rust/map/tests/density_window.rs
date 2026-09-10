@@ -131,8 +131,17 @@ fn proximity_center_outside_byte_domain_panics() {
 /// `from_coord_path` cannot represent a character index at or above 256 and
 /// panics instead of truncating.
 #[test]
-#[should_panic(expected = "exceeds the map byte-space domain")]
+#[should_panic(expected = "exceeds the byte-space domain")]
 fn from_coord_path_rejects_index_256() {
     let path = CoordPath::new([coord(256)]);
     let _ = CoordKey::from_coord_path(&path);
+}
+
+/// `bounding_box_range` rejects range bounds at or above the byte domain
+/// before any generation runs.
+#[test]
+#[should_panic(expected = "outside the map byte-space domain")]
+fn bounding_box_range_outside_byte_domain_panics() {
+    let map: CoordMapN<2> = CoordMapN::new();
+    let _ = map.bounding_box_range(&[(0, 255), (0, 300)]);
 }

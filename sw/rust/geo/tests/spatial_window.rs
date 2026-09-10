@@ -44,6 +44,14 @@ fn proximity_bounded_clamps_at_domain_edge() {
     );
 }
 
+/// A radius that crosses the bottom of the domain clamps at byte 0.
+#[test]
+fn proximity_bounded_clamps_at_domain_floor() {
+    let cube = cube_at(5);
+    let count = assert_within_domain(cube.proximity_bounded(5, BYTE_DOMAIN), BYTE_DOMAIN);
+    assert_eq!(count, 11 * 11, "center 5 with radius 5 covers bytes 0..=10");
+}
+
 /// Near the middle of the domain, bounded generation agrees with the
 /// full-space default.
 #[test]
