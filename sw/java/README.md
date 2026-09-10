@@ -4,65 +4,64 @@ Java 21 port of the Tagma coordinate engine under `sw/java`. The C++ port in
 `sw/cpp` is the primary reference specification; the Rust sources in
 `sw/rust` remain the underlying specification where the C++ port defers or
 leaves a semantic gap. Java mirrors the module layout: the same types, the
-same semantics, verified by JUnit 5 tests translated from the C++ test
+same semantics, verified by JUnit 5 tests translated from the reference test
 suites.
 
 ## Scope
 
-Current scope covers milestones M1 to M3 of issue #60: the no-alloc
-coordinate types of `tagma-core` plus `base11172`.
+Every module of the reference implementations is covered.
 
 | Module | Types |
 |--------|-------|
-| `tagma-core` | `Coord`, `CoordPath`, `CoordSet`, `CoordSpace<V>`, `CoordCube` |
+| `tagma-core` | `Coord`, `CoordPath`, `CoordSet`, `CoordSpace<V>`, `CoordCube`, `CoordSpaceN`, `CoordSetN`, `DynCoordSpace`, `CoordSpaceM` |
 | `base11172` | `Base11172` serialization |
-
-Heap-backed core types (`CoordSpaceN`, `CoordSetN`, `DynCoordSpace`) and the
-modules `tagma-geo`, `tagma-map`, `tagma-sec` follow in later milestones.
-
-## Pending contract: byte-space map domain
-
-`tagma-geo` and `tagma-map` are not ported yet, so the byte-space domain
-contract those modules carry has no Java counterpart today. The porting
-milestone implements it from the references below.
-
-| Contract point | C++ reference (primary) | Rust source |
-|----------------|-------------------------|-------------|
-| A key character addresses one byte, domain `[0, 256)` | `tagma_map/coord_key.h` (`kByteDomain`) | `map/src/coord_gen.rs` (`COORD_KEY_DOMAIN`, `CoordKey::BYTE_DOMAIN`) |
-| A path index at or above 256 is rejected, because the byte projection loses information there | `tagma_map/coord_key.h` (`from_coord_path` throws `std::invalid_argument`) | `map/src/coord_gen.rs` (`from_coord_path` panics) |
-| Storage-backed proximity generation clamps to the caller domain | `tagma_geo/spatial.h` (`proximity_bounded`) | `geo/src/spatial.rs` (`SpatialOps::proximity_bounded`) |
-| The full-domain entry point delegates to the domain-bounded one | `tagma_geo/spatial.h` (`proximity`) | `geo/src/spatial.rs` (`SpatialOps::proximity`) |
-| A zero domain, a domain above the `Coord` index space, an out-of-domain center, and an out-of-domain range bound are rejected | `tagma_geo/spatial.h`, `tagma_map/coord_cube_map.h` | `geo/src/spatial.rs`, `map/src/coord_cube_map.rs` |
-| Result capacity pre-sizing saturates on overflow | `tagma_geo/spatial.h` (`BoundingBoxIter::count_paths`) | `map/src/coord_cube_map.rs` (`saturating_mul`, `saturating_add`, `saturating_pow`) |
-
-Test translation targets for the same milestone: `tagma_geo/tests/test_spatial.cpp`
-(`test_proximity_bounded`), `tagma_map/tests/test_map.cpp`
-(`test_coord_key_byte_domain`), `tagma_map/tests/test_cube_map.cpp`
-(`test_byte_domain_edge`, `test_byte_domain_rejections`), and the Rust
-integration suites `sw/rust/geo/tests/spatial_window.rs` and
-`sw/rust/map/tests/density_window.rs`.
-
-Rationale: the key projects each character onto one byte, so distinct indices
-such as 0 and 256 land on the same key. Issue #59 recorded that defect in the
-benchmark fixtures; the Rust and C++ ports now raise at the domain boundary.
-Java reproduces the boundary behavior when the map module lands.
-
-Paths in the table are relative to `sw/cpp` and `sw/rust`. The mapping was
-verified against those sources at merge `a09c418` (PR #61).
+| `tagma-geo` | `BoundingBoxIter`, `HammingFilter`, `SpatialOps` (proximity, bounding box, Hamming filtering, distance metrics, dimension values) |
+| `tagma-map` | `CoordKey`, the coordinate generation strategies, `CoordMap`, `CoordMapKey`, `CoordPathLookup`, `CoordMapN`, `CoordMap2`, `DynCoordMap`, `CoordCubeMap` |
+| `tagma-sec` | the hash layer, `Scope`, `Attestation`, `Seal`, `Event`, `SignedEvidence`, `Receipt`, `Authority`, `Integrity`, `Channel`, `LegacyAuthority`, `DelosAuthority`, `SecStack`, `Audit` |
+| `bench` | `tagma-bench`, the benchmark suite mirroring `sw/cpp/bench/bench.cpp` |
 
 ## Layout
 
 ```
 sw/java
 ├── pom.xml                  aggregator (Java 21, JUnit 5, -Xlint:all)
-├── run.sh                   module entry point: mvn verify
+├── run.sh                   module entry point: mvn verify, --bench
 ├── tagma-core/              artifact org.ssccs.syntagma:tagma-core
-└── base11172/               artifact org.ssccs.syntagma:base11172
+├── base11172/               artifact org.ssccs.syntagma:base11172
+├── tagma-geo/               artifact org.ssccs.syntagma:tagma-geo
+├── tagma-sec/               artifact org.ssccs.syntagma:tagma-sec
+├── tagma-map/               artifact org.ssccs.syntagma:tagma-map
+└── bench/                   artifact org.ssccs.syntagma:tagma-bench
 ```
 
-The root `run.sh` runs the Java core through `check_java` whenever `mvn` and
-`java` are available, and the CI workflow `java` job builds and tests
-`sw/java` with JDK 21 (temurin).
+The root `run.sh` runs the Java build through `check_java` whenever `mvn` and
+`java` are available, and `run.sh --bench` additionally runs the Java
+benchmark suite through `check_java_bench`. The CI workflows `java` (build and
+test) and `java-bench` (benchmark suite) exercise `sw/java` with JDK 21
+(temurin).
+
+## Byte-space map domain
+
+The store key space is one byte per character, so map queries operate in the
+per-character domain `[0, 256)`.
+
+- `CoordKey.BYTE_DOMAIN` is 256, and `CoordKey.fromCoordPath` rejects a
+  character index that reaches or exceeds it.
+- `CoordCubeMap.proximity` and `CoordCubeMap.boundingBoxRange` reject an
+  out-of-domain center and out-of-domain range bounds before generation runs.
+- Proximity generation goes through
+  `SpatialOps.proximityBounded(cube, radius, CoordKey.BYTE_DOMAIN)`, so a
+  radius that crosses the domain edge clamps at the edge, and the result
+  capacity saturates on overflow.
+
+A byte key cannot carry a `Coord` index above 255, and folding such an index
+onto its low byte collides distinct entries (0 and 256). That defect is
+recorded as issue #59. `ProximityBoundedTest`, `CoordKeyTest`,
+`CoordCubeMapTest` and `DensityWindowTest` pin the boundary behavior,
+including the domain-edge clamp at byte 254 with radius 5 over domain 256
+(49 paths), the domain floor clamp at byte 5 (121 paths), the full-domain
+clamp at index 11171 with radius 3 (16 paths), the nine-entry sparse fill
+returning one hit, and the rejection of a path index of 256.
 
 ## Parity and porting differences
 
@@ -75,7 +74,19 @@ The root `run.sh` runs the Java core through `check_java` whenever `mvn` and
 | `CoordSet` (`std::bitset`) | `CoordSet` (`java.util.BitSet`) | Same observable operations; `size()`, `copy()`, `capacity()` |
 | `CoordSpace<V>` | `CoordSpace<V>` | Java stores the slot array on the heap; null values are rejected, mirroring `Option<V>` / `std::optional<V>` |
 | `CoordSpace::Entry::or_insert` -> `V&` | `Entry.orInsert` -> `ValueRef<V>` | `ValueRef` is the Java counterpart of `V&` / `&mut V`: `get`, `set`, `update` write through to the slot |
-| `std::optional<T>` returns | `Optional<T>` / `OptionalInt` | Mirror of optional presence semantics |
+| `CoordSpaceN<N, V>` | `CoordSpaceN` | Depth and value width are instance state; a wrong path length, an out-of-range depth and set operations across depths throw `IllegalArgumentException` |
+| `CoordSetN<N>` | `CoordSetN` | Same instance-state mapping; content equality mirrors the C++ `operator==` |
+| `DynCoordSpace<V>` | `DynCoordSpace` | Depth-flexible space with the same placement and iteration surface |
+| `CoordSpaceM<N, V>` (`mmap`) | `CoordSpaceM` (`java.nio`) | `mmap` maps to `FileChannel.map` plus `MappedByteBuffer`: the file carries a validated header (magic, version, depth, stride, value tag, engaged count), the region is mapped in windows on first use, and `force()` and `close()` expose durability. Values are limited to the fixed-width primitives selected by a `Class<V>` token, because mapped bytes cannot hold arbitrary objects. Single-writer ownership is documented; the class carries no cross-process synchronization and no write-ahead protocol |
+| `tagma_geo` free functions | `SpatialOps` static facade | Java cannot add methods to `CoordCube`, so the Rust `SpatialOps` trait and the C++ free functions become static methods |
+| `BoundingBoxIter<N>::count_paths` | `BoundingBoxIter.countPaths()` -> `long` | Saturates at `Long.MAX_VALUE` where the references saturate at `SIZE_MAX` / `usize::MAX`; the `N == 0` case returns 0 |
+| `HammingFilter<N>` | `HammingFilter` | The constructor skip becomes a `hasNext()` look-ahead with single-element buffering |
+| `CoordKey<N>` | `CoordKey` | The key length becomes instance state; `BYTE_DOMAIN` carries the domain contract, and `bytes()` returns a defensive copy where the C++ returns a const reference |
+| `type DefaultDynamic = ByteWise` | `CoordGen.DEFAULT_DYNAMIC` | Java has no type aliases, so the alias is the interface constant holding `ByteWise.INSTANCE` |
+| `CoordMap2` | `CoordMap2` | `CoordMapN` fixed at depth 2 over the lazy `CoordSpaceN<2>` tree, following the C++ reference; the Java core has no dense depth-2 space |
+| blake3 keyed hashing (Rust) | SHA-256 and RFC 2104 HMAC-SHA-256 | The C++ port already made this substitution and documented it; Java uses `MessageDigest` and `Mac`, and the produced bytes are identical to C++ |
+| `tagma_sec` types | records and final classes | `std::optional<T>` maps to `Optional<T>` / `OptionalLong`; 32-byte tags and payloads are copied in and cloned out |
+| `tagma_bench` (`--json`, `--commit`, `--timestamp`) | `tagma-bench` (same flags) | The harness adds an explicit warmup phase, because the JIT only optimizes code that has already run, plus `--quick`, `--iterations` and `--rounds` for smoke runs |
 
 Method names follow Java conventions (`size`, `isEmpty`, `copy`, `union`)
 and map one-to-one onto the C++/Rust names documented in each class.
@@ -108,17 +119,33 @@ the C++/Rust tests require an iteration surface.
 
 # Direct:
 cd sw/java && ./run.sh  # or: mvn -f sw/java/pom.xml verify
+
+# Benchmark suite (writes bench/result/bench-<timestamp>-<commit>.json):
+cd sw/java && ./run.sh --bench
 ```
 
-Coverage of the translated suites: `CoordTest` (from `test_coord.cpp`),
-`CoordPathTest` / `CoordSetTest` / `CoordSpaceTest` (from
-`test_core_types.cpp`), `CoordCubeTest` (from `test_coord_cube.cpp`), and
-`Base11172Test` (from `test_base11172.cpp`). Rust-only behaviors that the C++
-port does not expose, such as the `FlatEntry::and_modify` chain, the
-`CoordSpace` equality contract, and `FromIterator` construction, are
-documented as follow-ups rather than invented API surface.
+The reactor holds 307 tests, all green.
+
+| Module | Tests | Translated from |
+|--------|-------|-----------------|
+| `tagma-core` | 113 | `test_coord.cpp`, `test_core_types.cpp`, `test_coord_cube.cpp`, `test_tree_types.cpp`, `test_coord_space_m.cpp`, plus the Rust-only cases for `DynCoordSpace` |
+| `base11172` | 5 | `test_base11172.cpp` |
+| `tagma-geo` | 44 | `test_spatial.cpp` and the integration suite `sw/rust/geo/tests/spatial_window.rs` |
+| `tagma-sec` | 38 | `test_workflow.cpp`, `test_delos.cpp`, `test_scenarios.cpp`, plus pinned hash vectors |
+| `tagma-map` | 67 | `test_map.cpp`, `test_cube_map.cpp`, `test_dyn_map.cpp` and the integration suite `sw/rust/map/tests/density_window.rs` |
+| `bench` | 40 | harness coverage: CLI parsing, statistics, JSON shape and profile handling |
+
+Rust-only behaviors that the C++ port does not expose are documented as
+follow-ups rather than invented API surface. The port provides `copy`,
+structural `equals`/`hashCode`, `entriesPrefix` and `Entry.andModify` where
+the C++ omissions would have blocked a translated case, and leaves the
+`CoordSpaceN<1>` member set, `FromIterator` construction and `Drain` out of
+the surface. The distance-metric functions mirror the reference code, which
+wraps the dimension maximum modulo 2^64 for large resolutions while the
+accompanying comments claim zero; the javadoc states the modulo wrap and no
+test locks the wrapped value.
 
 ## Reference
 
-- C++ port: `sw/cpp` (`tagma_core`, `base11172`)
-- Rust reference: `sw/rust` (`core`, `base11172`)
+- C++ port: `sw/cpp` (`tagma_core`, `base11172`, `tagma_geo`, `tagma_map`, `tagma_sec`, `bench`)
+- Rust reference: `sw/rust` (`core`, `base11172`, `geo`, `map`, `sec`, `benches`)

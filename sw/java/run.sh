@@ -13,9 +13,23 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 case "${1:-}" in
+    --bench|-b)
+        # exec:java resolves the module dependencies from the local
+        # repository, so package the reactor first. Tests are skipped here
+        # because the benchmark profile is the work in this path.
+        mvn -B -q -DskipTests install
+        RESULT_DIR="bench/result"
+        mkdir -p "$RESULT_DIR"
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+        mvn -B -q -f bench/pom.xml compile exec:java \
+            -Dexec.args="--json $RESULT_DIR/bench-${TIMESTAMP}-${COMMIT_HASH}.json --commit $COMMIT_HASH --timestamp $TIMESTAMP"
+        exit 0
+        ;;
     --help|-h)
         echo "Usage: ./run.sh [--help]"
-        echo "       ./run.sh   # maven verify (build + test)"
+        echo "       ./run.sh            # maven verify (build + test)"
+        echo "       ./run.sh --bench    # build + run the benchmark suite"
         exit 0
         ;;
 esac

@@ -43,6 +43,22 @@ check_java() {
     (cd sw/java && mvn -B verify)
 }
 
+check_java_bench() {
+    echo "--- java bench: maven build + benchmark suite ---"
+    if ! command -v mvn >/dev/null 2>&1 || ! command -v java >/dev/null 2>&1; then
+        echo "  skipped (mvn and/or java not installed)"
+        return 0
+    fi
+    # The Java port targets Java 21. Runner images may ship an older default
+    # JDK, so only run when the active JDK major version is 21 or newer.
+    java_major=$(java -version 2>&1 | sed -n 's/.*version "\([0-9]*\)[^"]*".*/\1/p')
+    if [ -z "$java_major" ] || [ "$java_major" -lt 21 ]; then
+        echo "  skipped (JDK 21+ required, found $(java -version 2>&1 | head -1))"
+        return 0
+    fi
+    (cd sw/java && ./run.sh --bench)
+}
+
 check_hw() {
     echo "--- hw: RTL simulation + synthesis ---"
     if ! command -v verilator >/dev/null 2>&1 || ! command -v yosys >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
@@ -113,6 +129,7 @@ case "${1:-}" in
         build_and_test
         echo "--- running core benchmarks ---"
         (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge|hw" 2>&1 | tail -20)
+        check_java_bench
         ;;
     --doc|doc)
         build_docs
