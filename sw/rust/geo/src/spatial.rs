@@ -175,7 +175,13 @@ pub trait SpatialOps<const N: usize> {
     /// Generates all `CoordPath<N>` within an L∞ (Chebyshev) proximity
     /// radius of the cube's center over the full `Coord` index domain
     /// `[0, Coord::N_VALID)`.
-    fn proximity(&self, radius: usize) -> BoundingBoxIter<N>;
+    ///
+    /// This is a provided method that delegates to
+    /// [`SpatialOps::proximity_bounded`] with the full domain, so
+    /// implementors only define the domain-aware generation.
+    fn proximity(&self, radius: usize) -> BoundingBoxIter<N> {
+        self.proximity_bounded(radius, Coord::N_VALID as u16)
+    }
 
     /// Generates all `CoordPath<N>` within an L∞ (Chebyshev) proximity
     /// radius of the cube's center, clamped to the per-character domain
@@ -197,10 +203,6 @@ impl<const N: usize, const D: usize, const R: usize> SpatialOps<N> for CoordCube
         BoundingBoxIter::new(*ranges)
     }
 
-    fn proximity(&self, radius: usize) -> BoundingBoxIter<N> {
-        self.proximity_bounded(radius, Coord::N_VALID as u16)
-    }
-
     fn proximity_bounded(&self, radius: usize, domain: u16) -> BoundingBoxIter<N> {
         assert!(
             domain > 0 && (domain as usize) <= Coord::N_VALID,
@@ -219,7 +221,7 @@ impl<const N: usize, const D: usize, const R: usize> SpatialOps<N> for CoordCube
                 domain
             );
             let min = idx.saturating_sub(radius);
-            let max = (idx + radius).min(domain as usize - 1);
+            let max = idx.saturating_add(radius).min(domain as usize - 1);
             *slot = (min as u16, max as u16);
         }
         BoundingBoxIter::new(ranges)
