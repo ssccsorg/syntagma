@@ -220,21 +220,40 @@ BoundingBoxIter<N> bounding_box(
 }
 
 // All CoordPath<N> within an L-infinity (Chebyshev) proximity radius of
-// the cube center, clamped to the valid index range.
+// the cube center, clamped to the per-character domain [0, domain).
+// Mirrors SpatialOps::proximity_bounded in the Rust tagma-geo crate.
+// Throws std::invalid_argument when domain is zero or exceeds kNValid, or
+// when a center character index lies at or above domain.
 template <int N, int D, int R>
-BoundingBoxIter<N> proximity(const tagma::CoordCube<N, D, R>& cube,
-                             std::size_t radius) {
+BoundingBoxIter<N> proximity_bounded(const tagma::CoordCube<N, D, R>& cube,
+                                     std::size_t radius, std::size_t domain) {
+  const std::size_t kDomain = domain;
+  if (kDomain == 0 ||
+      kDomain > static_cast<std::size_t>(tagma::Coord::kNValid)) {
+    throw std::invalid_argument("proximity_bounded: domain out of range");
+  }
   std::array<std::pair<uint16_t, uint16_t>, N> ranges{};
-  const std::size_t kMaxIndex =
-      static_cast<std::size_t>(tagma::Coord::kNValid) - 1;
   for (int i = 0; i < N; ++i) {
     const std::size_t index = cube.coords()[i].index();
+    if (index >= kDomain) {
+      throw std::invalid_argument(
+          "proximity_bounded: center character at or above domain");
+    }
     const std::size_t min = index >= radius ? index - radius : 0;
-    const std::size_t max = index + radius > kMaxIndex ? kMaxIndex
-                                                       : index + radius;
+    const std::size_t max =
+        index + radius > kDomain - 1 ? kDomain - 1 : index + radius;
     ranges[i] = {static_cast<uint16_t>(min), static_cast<uint16_t>(max)};
   }
   return BoundingBoxIter<N>(ranges);
+}
+
+// All CoordPath<N> within an L-infinity (Chebyshev) proximity radius of
+// the cube center, clamped to the full Coord index domain [0, kNValid).
+template <int N, int D, int R>
+BoundingBoxIter<N> proximity(const tagma::CoordCube<N, D, R>& cube,
+                             std::size_t radius) {
+  return proximity_bounded(
+      cube, radius, static_cast<std::size_t>(tagma::Coord::kNValid));
 }
 
 // All CoordPath<N> within a Hamming distance radius of the cube center.

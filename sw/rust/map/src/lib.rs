@@ -15,6 +15,7 @@ use tagma_core::Coord;
 // Re-exports from the coord_gen module.
 pub use coord_gen::{
     ByteFold, ByteWise, CharWise, CoordGen, CoordKey, DefaultDynamic, GenError, Prefix,
+    COORD_KEY_DOMAIN,
 };
 
 // Re-exports from the coord_map module (traits).
