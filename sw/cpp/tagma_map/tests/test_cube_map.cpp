@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <initializer_list>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -133,6 +134,63 @@ void test_dynmap_spatial() {
         "dynmap wide box finds 3");
 }
 
+void test_byte_domain_edge() {
+  using tagma_map::CoordKey;
+  using tagma_map::CoordMapN;
+  CoordMapN<2> map;
+  // Low byte entries must not be reachable by wrapping from the top.
+  for (uint16_t x = 0; x <= 5; ++x) {
+    for (uint16_t y = 0; y <= 5; ++y) {
+      map.insert_by_coordkey(
+          CoordKey<2>(std::array<uint8_t, 2>{static_cast<uint8_t>(x),
+                                             static_cast<uint8_t>(y)}),
+          bytes("low"));
+    }
+  }
+  for (uint16_t x = 250; x <= 255; ++x) {
+    for (uint16_t y = 250; y <= 255; ++y) {
+      map.insert_by_coordkey(
+          CoordKey<2>(std::array<uint8_t, 2>{static_cast<uint8_t>(x),
+                                             static_cast<uint8_t>(y)}),
+          bytes("high"));
+    }
+  }
+
+  const auto center = path_of<2>({255, 255});
+  const auto results = tagma_map::proximity<2, 2, 1>(map, center, 2);
+  check(results.size() == 9, "byte domain edge proximity count");
+  bool in_domain = true;
+  for (const auto& entry : results) {
+    for (const tagma::Coord& c : entry.first.coords()) {
+      if (c.index() < 253) in_domain = false;
+    }
+  }
+  check(in_domain, "byte domain edge no wrap");
+}
+
+void test_byte_domain_rejections() {
+  using tagma_map::CoordMapN;
+  bool threw = false;
+  try {
+    const CoordMapN<2> map;
+    (void)tagma_map::proximity<2, 2, 1>(map, path_of<2>({300, 300}), 1);
+  } catch (const std::invalid_argument&) {
+    threw = true;
+  }
+  check(threw, "proximity rejects out-of-domain center");
+
+  threw = false;
+  try {
+    const CoordMapN<2> map;
+    const std::array<std::pair<uint16_t, uint16_t>, 2> ranges = {
+        {{0, 255}, {0, 300}}};
+    (void)tagma_map::bounding_box_range(map, ranges);
+  } catch (const std::invalid_argument&) {
+    threw = true;
+  }
+  check(threw, "bounding box rejects out-of-domain range");
+}
+
 }  // namespace
 
 int main() {
@@ -141,6 +199,8 @@ int main() {
   test_mapn_proximity();
   test_mapn_empty();
   test_dynmap_spatial();
+  test_byte_domain_edge();
+  test_byte_domain_rejections();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);

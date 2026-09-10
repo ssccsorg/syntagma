@@ -235,6 +235,28 @@ void test_coord_key_roundtrip() {
   check(!(k1.to_coord_path() == k2.to_coord_path()), "coord key injective");
 }
 
+void test_coord_key_byte_domain() {
+  using tagma_map::CoordKey;
+
+  // Inside the domain: index 255 is representable.
+  const tagma::CoordPath<1> boundary = tagma::CoordPath<1>::from_array(
+      std::array<tagma::Coord, 1>{tagma::Coord::from_index(255).value()});
+  check(CoordKey<1>::from_coord_path(boundary) ==
+            CoordKey<1>(std::array<uint8_t, 1>{{255}}),
+        "coord key accepts index 255");
+
+  // At or above the domain: rejected instead of truncated.
+  bool threw = false;
+  try {
+    const tagma::CoordPath<1> high = tagma::CoordPath<1>::from_array(
+        std::array<tagma::Coord, 1>{tagma::Coord::from_index(256).value()});
+    (void)CoordKey<1>::from_coord_path(high);
+  } catch (const std::invalid_argument&) {
+    threw = true;
+  }
+  check(threw, "coord key rejects index 256");
+}
+
 }  // namespace
 
 int main() {
@@ -248,6 +270,7 @@ int main() {
   test_mapn_iter();
   test_strategy_edge_cases();
   test_coord_key_roundtrip();
+  test_coord_key_byte_domain();
 
   if (failures != 0) {
     std::fprintf(stderr, "%d check(s) failed\n", failures);
