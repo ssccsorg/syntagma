@@ -20,6 +20,36 @@ coordinate types of `tagma-core` plus `base11172`.
 Heap-backed core types (`CoordSpaceN`, `CoordSetN`, `DynCoordSpace`) and the
 modules `tagma-geo`, `tagma-map`, `tagma-sec` follow in later milestones.
 
+## Pending contract: byte-space map domain
+
+`tagma-geo` and `tagma-map` are not ported yet, so the byte-space domain
+contract those modules carry has no Java counterpart today. The porting
+milestone implements it from the references below.
+
+| Contract point | C++ reference (primary) | Rust source |
+|----------------|-------------------------|-------------|
+| A key character addresses one byte, domain `[0, 256)` | `tagma_map/coord_key.h` (`kByteDomain`) | `map/src/coord_gen.rs` (`COORD_KEY_DOMAIN`, `CoordKey::BYTE_DOMAIN`) |
+| A path index at or above 256 is rejected, because the byte projection loses information there | `tagma_map/coord_key.h` (`from_coord_path` throws `std::invalid_argument`) | `map/src/coord_gen.rs` (`from_coord_path` panics) |
+| Storage-backed proximity generation clamps to the caller domain | `tagma_geo/spatial.h` (`proximity_bounded`) | `geo/src/spatial.rs` (`SpatialOps::proximity_bounded`) |
+| The full-domain entry point delegates to the domain-bounded one | `tagma_geo/spatial.h` (`proximity`) | `geo/src/spatial.rs` (`SpatialOps::proximity`) |
+| A zero domain, a domain above the `Coord` index space, an out-of-domain center, and an out-of-domain range bound are rejected | `tagma_geo/spatial.h`, `tagma_map/coord_cube_map.h` | `geo/src/spatial.rs`, `map/src/coord_cube_map.rs` |
+| Result capacity pre-sizing saturates on overflow | `tagma_geo/spatial.h` (`BoundingBoxIter::count_paths`) | `map/src/coord_cube_map.rs` (`saturating_mul`, `saturating_add`, `saturating_pow`) |
+
+Test translation targets for the same milestone: `tagma_geo/tests/test_spatial.cpp`
+(`test_proximity_bounded`), `tagma_map/tests/test_map.cpp`
+(`test_coord_key_byte_domain`), `tagma_map/tests/test_cube_map.cpp`
+(`test_byte_domain_edge`, `test_byte_domain_rejections`), and the Rust
+integration suites `sw/rust/geo/tests/spatial_window.rs` and
+`sw/rust/map/tests/density_window.rs`.
+
+Rationale: the key projects each character onto one byte, so distinct indices
+such as 0 and 256 land on the same key. Issue #59 recorded that defect in the
+benchmark fixtures; the Rust and C++ ports now raise at the domain boundary.
+Java reproduces the boundary behavior when the map module lands.
+
+Paths in the table are relative to `sw/cpp` and `sw/rust`. The mapping was
+verified against those sources at merge `a09c418` (PR #61).
+
 ## Layout
 
 ```
