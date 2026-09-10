@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  tagma-bench: the Java benchmark suite of the Tagma coordinate engine.
+  Mirrors the C++ suite in sw/cpp/bench (bench.cpp): the same scenario
+  families, the same mean-nanoseconds-per-operation harness over a blackhole
+  sink, and the same JSON summary shape, plus the explicit JIT warmup phase
+  the C++ harness does not need.
+
+  Run the suite through the exec plugin, which needs no java launcher on PATH;
+  the flag list is documented in org.ssccs.syntagma.bench.BenchCli:
+
+    mvn -B -f sw/java/bench/pom.xml compile exec:java \
+        -Dexec.args="[flags]"
+
+  The exec:java goal runs in the Maven JVM and does not trigger a lifecycle, so
+  the module has to be compiled first; compile, verify or install in the same
+  command line provides that.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.ssccs.syntagma</groupId>
+    <artifactId>tagma-java</artifactId>
+    <version>0.1.0</version>
+  </parent>
+
+  <artifactId>tagma-bench</artifactId>
+  <name>tagma-bench</name>
+  <description>Tagma benchmark suite: the scenario families of sw/cpp/bench with a steady-clock harness and a JSON summary</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.ssccs.syntagma</groupId>
+      <artifactId>tagma-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ssccs.syntagma</groupId>
+      <artifactId>tagma-geo</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ssccs.syntagma</groupId>
+      <artifactId>tagma-map</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.6.3</version>
+        <configuration>
+          <mainClass>org.ssccs.syntagma.bench.BenchMain</mainClass>
+          <!-- The suite allocates no long-lived threads, so the daemon-thread
+               cleanup of exec:java has nothing to wait for. -->
+          <cleanupDaemonThreads>false</cleanupDaemonThreads>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

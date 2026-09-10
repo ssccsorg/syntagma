@@ -22,6 +22,7 @@
     <module>tagma-geo</module>
     <module>tagma-sec</module>
     <module>tagma-map</module>
+    <module>bench</module>
   </modules>
 
   <properties>
