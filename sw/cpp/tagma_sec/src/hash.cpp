@@ -119,14 +119,18 @@ class Sha256 {
   size_t block_len_ = 0;
 };
 
-// HMAC-SHA-256 (RFC 2104), internal to this translation unit.
+// RFC 2104 HMAC-SHA-256, internal to this translation unit. The 32-byte key
+// is shorter than the 64-byte SHA-256 block, so it is zero-padded to the
+// block length and every byte of the resulting block is mixed with the inner
+// (0x36) and outer (0x5c) pad constants.
 std::array<uint8_t, 32> hmac_sha256(const std::array<uint8_t, 32>& key,
                                     const Bytes& msg) {
   std::array<uint8_t, 64> ipad{};
   std::array<uint8_t, 64> opad{};
-  for (size_t i = 0; i < 32; ++i) {
-    ipad[i] = key[i] ^ 0x36;
-    opad[i] = key[i] ^ 0x5c;
+  for (size_t i = 0; i < ipad.size(); ++i) {
+    const uint8_t k = i < key.size() ? key[i] : 0;
+    ipad[i] = static_cast<uint8_t>(k ^ 0x36);
+    opad[i] = static_cast<uint8_t>(k ^ 0x5c);
   }
   Sha256 inner;
   inner.update(ipad.data(), ipad.size());

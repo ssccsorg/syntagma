@@ -30,6 +30,12 @@ target_link_libraries(tagma_sec PUBLIC tagma_core)
 target_compile_options(tagma_sec PRIVATE -Wall -Wextra)
 
 enable_testing()
+add_executable(test_hash tests/test_hash.cpp)
+target_include_directories(test_hash PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_hash PRIVATE tagma_sec tagma_core)
+target_compile_options(test_hash PRIVATE -Wall -Wextra)
+add_test(NAME sec_hash_test COMMAND test_hash)
+
 add_executable(test_workflow tests/test_workflow.cpp)
 target_include_directories(test_workflow PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(test_workflow PRIVATE tagma_sec tagma_core)
