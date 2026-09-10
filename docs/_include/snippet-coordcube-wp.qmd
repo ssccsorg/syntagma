@@ -17,9 +17,9 @@ CoordCube provides three families of spatial operations, all implemented as pure
 
 **Region generation.** `proximity(center, radius)` enumerates all CoordPaths within an L∞ (Chebyshev) neighborhood. `bounding_box(ranges)` enumerates all paths within a hyper-rectangle. Both use a mixed-radix counter that yields CoordPaths at 55-700 Melem/s throughput, depending on output density. Counterintuitively, larger radii yield higher throughput because the fixed setup cost is amortized over more paths.
 
-**Distance metrics.** Hamming distance counts differing character positions; Manhattan distance sums per-dimension linear values; Euclidean distance (normalised) computes the geometric distance in D-dimensional space. All three metrics cost ~320 ps per call — below a single array lookup (390 ps) — because they operate entirely on registers with no memory access.
+**Distance metrics.** Hamming distance counts differing character positions; Manhattan distance sums per-dimension linear values; Euclidean distance (normalised) computes the geometric distance in D-dimensional space. Single-pair cost is 1.7 ns (Hamming), 2.6 ns (Manhattan), and 13 ns (normalised Euclidean), measured with runtime inputs so constant folding cannot hide the cost. The earlier ~320 ps figure was a compiler artifact and is superseded (issue #59).
 
-**Storage-backed queries.** The `CoordCubeMap` extension combines CoordCube region generation with CoordSpace tree lookups: generate all paths in a spatial region, then look up each path in the map. End-to-end throughput ranges from 31 Melem/s (dense store, 10K entries) to 584 Melem/s (empty store, no matches).
+**Storage-backed queries.** The `CoordCubeMap` extension combines CoordCube region generation with CoordSpace tree lookups: generate all paths in a spatial region, then look up each path in the map. Map keys are one byte per character, so queries operate in the per-character domain [0, 256). End-to-end throughput ranges from 38 Melem/s (dense store, 10K byte-domain entries) to 141 Melem/s (empty store, no matches), re-measured after the byte-domain change (issue #59).
 
 ### Relationship to CoordPath
 

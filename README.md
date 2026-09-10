@@ -81,7 +81,7 @@ Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero cli
 | CoordMapN\<N\> | Fixed N-byte tree map, CoordSpaceN, sparse | `map/src/coord_map_n.rs` |
 | CoordMap trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `map/src/coord_map.rs` |
 | CoordMapKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `map/src/coord_map.rs` |
-| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap | `map/src/spatial.rs` |
+| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap. Queries operate in the byte-space domain [0, 256); out-of-domain centers and ranges panic | `map/src/coord_cube_map.rs` |
 
 ### tagma-sec: security primitives (requires alloc)
 
@@ -206,22 +206,23 @@ map.remove("hi");
 
 ```rust
 use tagma_map::{CoordMap, CoordMapN, CoordMapKey};
+use tagma_map::coord_cube_map::CoordCubeMap;
 use tagma_map::coord_gen::CoordKey;
-use tagma_map::spatial::CoordCubeMap;
 use tagma_core::{Coord, CoordCube, CoordPath};
 use tagma_geo::SpatialOps;
 
-// Fill a store with 10,000 entries in a 100x100 region
+// Map keys are one byte per character, so spatial queries operate in the
+// per-character domain [0, 256). Fill a 100x100 region over bytes 86..=186.
 let mut map = CoordMapN::<2>::new();
 let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
-    Coord::new(5000).unwrap(), Coord::new(5000).unwrap(),
+    Coord::new(136).unwrap(), Coord::new(136).unwrap(),
 ]));
-for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
+for path in fill_center.bounding_box(&[(86u16, 186u16), (86u16, 186u16)]) {
     map.insert_by_coordkey(&CoordKey::from_coord_path(&path), b"v".to_vec());
 }
 
 // Spatial proximity query: find all entries within L∞ radius 1 of center
-let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+let center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 let nearby: Vec<_> = map.proximity::<2, 1>(&center, 1);
 // Returns 9 entries (3x3 grid)
 assert_eq!(nearby.len(), 9);
@@ -320,11 +321,11 @@ CoordCube is a zero-cost interpretation layer. Creating a CoordCube from CoordPa
 
 | Radius | Paths | Time | Throughput |
 |--------|-------|------|------------|
-| 0 | 1 | 16.5 ns | 60.6 Melem/s |
-| 1 | 9 | 86.6 ns | 103.9 Melem/s |
-| 2 | 25 | 126.4 ns | 197.8 Melem/s |
-| 3 | 49 | 184.6 ns | 265.5 Melem/s |
-| 5 | 121 | 331.4 ns | 365.1 Melem/s |
+| 0 | 1 | 18.4 ns | 54.5 Melem/s |
+| 1 | 9 | 85.8 ns | 104.9 Melem/s |
+| 2 | 25 | 129.1 ns | 193.7 Melem/s |
+| 3 | 49 | 186.8 ns | 262.3 Melem/s |
+| 5 | 121 | 340.5 ns | 355.4 Melem/s |
 
 Baseline (manual loop without CoordCube): 2.51 ns for 9 CoordPath constructions. CoordCube API adds 7.8 ns for iterator infrastructure.
 
@@ -332,53 +333,52 @@ Baseline (manual loop without CoordCube): 2.51 ns for 9 CoordPath constructions.
 
 | Configuration | Paths | Time | Throughput |
 |---------------|-------|------|------------|
-| N=2, D=2, 100x100 | 10,201 | 14.28 µs | 714 Melem/s |
-| N=6, D=6, 3^6 | 729 | 1.70 µs | 427 Melem/s |
+| N=2, D=2, 100x100 | 10,201 | 14.40 µs | 708 Melem/s |
+| N=6, D=6, 3^6 | 729 | 1.70 µs | 429 Melem/s |
 
 ### Dimensional scaling (proximity r=2, R=1)
 
 | D | N | Paths | Time | Throughput |
 |---|---|-------|------|------------|
-| 1 | 1 | 5 | 33.8 ns | 148 Melem/s |
-| 2 | 2 | 25 | 126.5 ns | 198 Melem/s |
-| 3 | 3 | 125 | 441.9 ns | 283 Melem/s |
-| 4 | 4 | 625 | 1.887 µs | 331 Melem/s |
+| 1 | 1 | 5 | 34.4 ns | 145 Melem/s |
+| 2 | 2 | 25 | 129.2 ns | 193 Melem/s |
+| 3 | 3 | 125 | 448.4 ns | 279 Melem/s |
+| 4 | 4 | 625 | 1.989 µs | 314 Melem/s |
 
-N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2 both show ~127 ns).
+N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2 both show ~129 ns).
 
 ### Distance metrics (D=3, single pair, runtime-generated coordinates)
 
 | Metric | Latency |
 |--------|---------|
-| Hamming distance | 1.75 ns |
-| Manhattan distance | 2.63 ns |
-| Euclidean distance (approx) | 13.5 ns |
+| Hamming distance | 1.74 ns |
+| Manhattan distance | 2.61 ns |
+| Euclidean distance (approx) | 13.4 ns |
 
-Values are from runtime-generated coordinates (PRNG) to prevent compile-time constant folding. The 3.2 ps shown in earlier runs was an artifact of pre-computation.
+Values are from runtime-generated coordinates (PRNG) to prevent compile-time constant folding. The ~320 ps shown in earlier runs was an artifact of pre-computation.
 
 ## Benchmark: CoordCube + CoordMap proximity (ARMv8.4-A Firestorm)
 
-End-to-end spatial queries combining CoordCube path generation with map store lookup:
+End-to-end spatial queries combining CoordCube path generation with map store lookup. Map keys are one byte per character, so queries operate in the byte-space domain [0, 256); the byte-domain fill (bytes 86..=186 around center byte 136) preserves the hit geometry of the earlier record without coordinate wrapping (issue #59). Re-measured 2026-09-08.
 
 | Scenario | Store type | Query | Latency | Found |
 |----------|-----------|-------|---------|-------|
-| Sequential (9 manual lookups) | CoordMapN\<2\> | Tree+Path | 158 ns | 9 |
-| CoordCube proximity r=1 | CoordMapN\<2\> | Tree+Cube | 285 ns | 9 |
-| CoordCube proximity r=2 | CoordMapN\<2\> | Tree+Cube | 626 ns | 25 |
-| CoordCube proximity r=5 | CoordMapN\<2\> | Tree+Cube | 2.55 µs | 121 |
-| CoordCube proximity r=1 | CoordMap2 (dense) | Dense+Cube | 282 ns | 9 |
-| CoordCube proximity r=1 | DynCoordMap | Cube | 161 ns | 9 |
-| CoordCube proximity r=2 | DynCoordMap | Cube | 290 ns | 25 |
-| CoordCube proximity r=1 | CoordMapN\<2\> sparse | Cube | 48.5 ns | 9 |
-| CoordCube proximity r=1 | CoordMapN\<2\> empty | Cube | 15.7 ns | 0 |
-| Sequential (9 lookups) | DynCoordMap | Baseline | 259 ns | 9 |
+| Sequential (9 manual lookups) | CoordMapN\<2\> | Tree+Path | 160.5 ns | 9 |
+| CoordCube proximity r=1 | CoordMapN\<2\> | Tree+Cube | 240.7 ns | 9 |
+| CoordCube proximity r=2 | CoordMapN\<2\> | Tree+Cube | 556.2 ns | 25 |
+| CoordCube proximity r=5 | CoordMapN\<2\> | Tree+Cube | 2.29 µs | 121 |
+| CoordCube proximity r=1 | CoordMap2 (dense) | Dense+Cube | 231.7 ns | 9 |
+| CoordCube proximity r=1 | DynCoordMap | Cube | 175.6 ns | 9 |
+| CoordCube proximity r=2 | DynCoordMap | Cube | 386.4 ns | 25 |
+| CoordCube proximity r=1 | CoordMapN\<2\> sparse | Cube | 84.4 ns | 1 |
+| CoordCube proximity r=1 | CoordMapN\<2\> empty | Cube | 63.9 ns | 0 |
+| Sequential (9 lookups) | DynCoordMap | Baseline | 262.1 ns | 9 |
 
-Breakdown of the 127 ns overhead (Tree+Path 158 ns -> Tree+Cube 285 ns):
-- Vec allocation: 37 ns
-- Vec::push x9: 74 ns
-- Path generation: 16 ns
+Breakdown of the ~80 ns overhead (Tree+Path 160.5 ns to Tree+Cube 240.7 ns at r=1):
+- Path generation: ~12 ns (cube_proximity_r1_baseline measures 12.3 ns)
+- Vec allocation and push for the 9 hits: ~68 ns
 
-Key insight: On tree stores, the extra overhead is dominated by Vec allocation and push, not coordinate arithmetic. Dense vs tree backend makes almost no difference (282 ns vs 285 ns) because Vec push dominates. On sparse stores, CoordCube is up to 3.3x faster than sequential lookups because it avoids tree lookups for nonexistent paths. On DynCoordMap, proximity is 1.6x faster than sequential (161 vs 259 ns) due to higher per-lookup cost.
+Key insight: On tree stores, the extra overhead is dominated by Vec push and allocation, not coordinate arithmetic. Generation is bounded to the store domain and every generated path is looked up; empty and sparse stores finish faster because fewer lookups hit and fewer entries are pushed. Dense vs tree backend makes little difference (231.7 ns vs 237.9 ns) because Vec push dominates. On DynCoordMap, proximity is 1.5x faster than sequential (175.6 vs 262.1 ns) due to higher per-lookup cost.
 
 ## Benchmark: Compound axis query via CoordSet (N=1 bit array, pre-computed)
 
@@ -386,8 +386,8 @@ Pre-computed per-axis bit sets (19 initial + 21 medial, each 1.4 KB) answer comp
 
 | Implementation | Time | Throughput | vs HashMap |
 |---------------|------|------------|------------|
-| CoordSet bitwise AND | 85.7 ns | 327 Melem/s | **144x** |
-| HashMap iterate+filter | 12.3 µs | 2.28 Melem/s | baseline |
+| CoordSet bitwise AND | 84.2 ns | 333 Melem/s | **154x** |
+| HashMap iterate+filter | 13.0 µs | 2.15 Melem/s | baseline |
 
 ## Benchmark: CoordSetN set operations (N=2, sparse tree)
 

@@ -52,11 +52,23 @@ public:
     return tagma::CoordPath<N>::from_array(coords);
   }
 
+  // The byte-space domain of one key character (0..=255). Each byte maps
+  // to one Coord; a path index at or above this value cannot be
+  // represented as a byte key. Mirrors CoordKey::BYTE_DOMAIN in the Rust
+  // tagma-map crate.
+  static constexpr uint16_t kByteDomain = 256;
+
   // Creates a key from a CoordPath: each character index byte is the key
-  // byte, mirroring the Rust from_coord_path.
+  // byte. Throws std::invalid_argument when a character index is at or
+  // above kByteDomain, mirroring the always-on panic of the Rust
+  // from_coord_path.
   static CoordKey from_coord_path(const tagma::CoordPath<N>& path) {
     std::array<uint8_t, N> bytes{};
     for (int i = 0; i < N; ++i) {
+      if (path.coords()[i].index() >= kByteDomain) {
+        throw std::invalid_argument(
+            "CoordKey::from_coord_path: index above the byte-space domain");
+      }
       bytes[i] = static_cast<uint8_t>(path.coords()[i].index());
     }
     return CoordKey(bytes);

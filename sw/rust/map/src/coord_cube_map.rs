@@ -4,9 +4,38 @@ use tagma_core::{CoordCube, CoordPath};
 use tagma_geo::spatial::SpatialOps;
 use tagma_geo::BoundingBoxIter;
 
+use crate::coord_gen::COORD_KEY_DOMAIN;
 use crate::coord_map_n::CoordMapN;
 use crate::dyn_coord_map::DynCoordMap;
 use crate::CoordMap2;
+
+/// Panics when any center character index lies at or above the byte-space
+/// domain (`CoordKey::BYTE_DOMAIN`).
+fn assert_center_in_byte_domain<const N: usize>(center: &CoordPath<N>) {
+    for (i, coord) in center.coords().iter().enumerate() {
+        assert!(
+            coord.index() < COORD_KEY_DOMAIN,
+            "CoordCubeMap: center character {} index {} is outside the map byte-space domain [0, {})",
+            i,
+            coord.index(),
+            COORD_KEY_DOMAIN
+        );
+    }
+}
+
+/// Panics when any range bound lies at or above the byte-space domain.
+fn assert_ranges_in_byte_domain<const N: usize>(ranges: &[(u16, u16); N]) {
+    for (i, &(min, max)) in ranges.iter().enumerate() {
+        assert!(
+            min < COORD_KEY_DOMAIN && max < COORD_KEY_DOMAIN,
+            "CoordCubeMap: range {} ({}, {}) is outside the map byte-space domain [0, {})",
+            i,
+            min,
+            max,
+            COORD_KEY_DOMAIN
+        );
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Extension trait: CoordCubeMap
@@ -18,6 +47,10 @@ use crate::CoordMap2;
 /// These methods use [`CoordCube`] to interpret keys as multi-dimensional
 /// coordinates and generate spatial query regions, then look up matching
 /// entries in the store.
+///
+/// The store key space is one byte per character, so all queries operate
+/// in the per-character domain `[0, 256)`. Centers and range bounds outside
+/// this domain panic instead of wrapping onto low byte values.
 ///
 /// # Usage note
 ///
@@ -49,12 +82,16 @@ impl CoordCubeMap<2> for CoordMap2 {
         center: &CoordPath<2>,
         radius: usize,
     ) -> Vec<(CoordPath<2>, Vec<u8>)> {
+        assert_center_in_byte_domain(center);
         let cube = CoordCube::<2, D, R>::from_path(*center);
         // Pre-size Vec with exact path count to avoid reallocation.
         // proximity() generates at most (2*radius+1)^N paths.
-        let capacity = (2 * radius + 1).pow(2);
+        let capacity = 2usize
+            .saturating_mul(radius)
+            .saturating_add(1)
+            .saturating_pow(2);
         let mut results = Vec::with_capacity(capacity);
-        for path in cube.proximity(radius) {
+        for path in cube.proximity_bounded(radius, COORD_KEY_DOMAIN) {
             if let Some(val) = self.get_by_coordpath(&path) {
                 results.push((path, val));
             }
@@ -63,6 +100,7 @@ impl CoordCubeMap<2> for CoordMap2 {
     }
 
     fn bounding_box_range(&self, ranges: &[(u16, u16); 2]) -> Vec<(CoordPath<2>, Vec<u8>)> {
+        assert_ranges_in_byte_domain(ranges);
         let iter = BoundingBoxIter::<2>::new(*ranges);
         let capacity = iter.count_paths();
         let mut results = Vec::with_capacity(capacity);
@@ -81,10 +119,14 @@ impl<const N: usize> CoordCubeMap<N> for CoordMapN<N> {
         center: &CoordPath<N>,
         radius: usize,
     ) -> Vec<(CoordPath<N>, Vec<u8>)> {
+        assert_center_in_byte_domain(center);
         let cube = CoordCube::<N, D, R>::from_path(*center);
-        let capacity = (2 * radius + 1).pow(N as u32);
+        let capacity = 2usize
+            .saturating_mul(radius)
+            .saturating_add(1)
+            .saturating_pow(N as u32);
         let mut results = Vec::with_capacity(capacity);
-        for path in cube.proximity(radius) {
+        for path in cube.proximity_bounded(radius, COORD_KEY_DOMAIN) {
             if let Some(val) = self.get_by_coordpath(&path) {
                 results.push((path, val));
             }
@@ -93,6 +135,7 @@ impl<const N: usize> CoordCubeMap<N> for CoordMapN<N> {
     }
 
     fn bounding_box_range(&self, ranges: &[(u16, u16); N]) -> Vec<(CoordPath<N>, Vec<u8>)> {
+        assert_ranges_in_byte_domain(ranges);
         let iter = BoundingBoxIter::<N>::new(*ranges);
         let capacity = iter.count_paths();
         let mut results = Vec::with_capacity(capacity);
@@ -111,10 +154,14 @@ impl<const N: usize> CoordCubeMap<N> for DynCoordMap {
         center: &CoordPath<N>,
         radius: usize,
     ) -> Vec<(CoordPath<N>, Vec<u8>)> {
+        assert_center_in_byte_domain(center);
         let cube = CoordCube::<N, D, R>::from_path(*center);
-        let capacity = (2 * radius + 1).pow(N as u32);
+        let capacity = 2usize
+            .saturating_mul(radius)
+            .saturating_add(1)
+            .saturating_pow(N as u32);
         let mut results = Vec::with_capacity(capacity);
-        for path in cube.proximity(radius) {
+        for path in cube.proximity_bounded(radius, COORD_KEY_DOMAIN) {
             if let Some(val) = self.get_by_coord_path(&path) {
                 results.push((path, val));
             }
@@ -123,6 +170,7 @@ impl<const N: usize> CoordCubeMap<N> for DynCoordMap {
     }
 
     fn bounding_box_range(&self, ranges: &[(u16, u16); N]) -> Vec<(CoordPath<N>, Vec<u8>)> {
+        assert_ranges_in_byte_domain(ranges);
         let iter = BoundingBoxIter::<N>::new(*ranges);
         let capacity = iter.count_paths();
         let mut results = Vec::with_capacity(capacity);
@@ -155,23 +203,6 @@ impl<const N: usize> CoordPathLookup<N> for CoordMapN<N> {
         use crate::CoordMapKey;
         let key = crate::coord_gen::CoordKey::from_coord_path(path);
         self.get_by_coordkey(&key)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Extend CoordKey to accept CoordPath
-// ---------------------------------------------------------------------------
-
-impl<const N: usize> crate::coord_gen::CoordKey<N> {
-    /// Creates a `CoordKey<N>` from a `CoordPath<N>`.
-    ///
-    /// Each character's index byte is used as the key byte.
-    pub fn from_coord_path(path: &CoordPath<N>) -> Self {
-        let mut bytes = [0u8; N];
-        for (i, coord) in path.coords().iter().enumerate() {
-            bytes[i] = coord.index() as u8;
-        }
-        crate::coord_gen::CoordKey::new(bytes)
     }
 }
 

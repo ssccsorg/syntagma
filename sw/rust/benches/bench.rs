@@ -1088,72 +1088,74 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   N=6, 3^6 (729 paths)           1.71 µs   426 Melem/s
 //
 // Dim scaling (proximity r=2, R=1):   Res scaling (D=1, proximity r=2):
-//   D=1 (5 paths)    33.8 ns          R=1 (5 paths)    34.3 ns
-//   D=2 (25 paths)  126.5 ns          R=2 (25 paths)  127.8 ns
-//   D=3 (125 paths) 441.9 ns          R=3 (125 paths) 447.1 ns
-//   D=4 (625 paths) 1.887 µs
+//   D=1 (5 paths)    34.4 ns          R=1 (5 paths)    34.2 ns
+//   D=2 (25 paths)  129.2 ns          R=2 (25 paths)  130.7 ns
+//   D=3 (125 paths) 448.4 ns          R=3 (125 paths) 447.2 ns
+//   D=4 (625 paths) 1.989 µs
 //   Same N = same throughput: D*R determines cost, not D or R individually.
 //
-// map proximity (CoordCubeMap, CoordMapN<2> tree store):
-//   Sequential 9-path lookup         158 ns    baseline (manual loop)
-//   Cube proximity r=1 (dense 10K)   285 ns    +127 ns (Vec alloc 37 + push 74 + gen 16)
-//   Cube proximity r=2 (dense 10K)   626 ns
-//   Cube proximity r=1 (sparse 9)     48.5 ns   all paths exist, no Vec alloc
-//   Cube proximity r=1 (empty)        15.7 ns   pure path gen, zero lookups
-//   Cube proximity r=5 (dense 10K)   2.55 µs   121 paths
-//   DynCoordMap proximity r=1         161 ns
-//   DynCoordMap proximity r=2         290 ns
+// map proximity (CoordCubeMap, CoordMapN<2> tree store; byte-domain fills,
+// bytes 86..=186 around center byte 136; re-measured 2026-09-08, #59):
+//   Sequential 9-path lookup         160.5 ns  baseline (manual loop)
+//   Cube proximity r=1 (dense 10K)   240.7 ns  +80 ns vs sequential (Vec push/alloc dominated)
+//   Cube proximity r=2 (dense 10K)   556.2 ns
+//   Cube proximity r=1 (sparse 9)     84.4 ns  1 hit (bytes {86,136,186}; the radius-1 box holds only the center)
+//   Cube proximity r=1 (empty)        63.9 ns  0 hits (generation plus 9 lookups)
+//   Cube proximity r=5 (dense 2.6K)  2.29 µs   121 paths
+//   DynCoordMap proximity r=1         175.6 ns
+//   DynCoordMap proximity r=2         386.4 ns
 //
 // Hierarchical (R=2, N=4):
-//   2-phase (Cube gen + manual filter)    547 ns
-//   Direct map proximity                    639 ns
-//   CoordCube + post-filter faster than direct on multi-char dims.
+//   2-phase (Cube gen + manual filter)    550.5 ns
+//   Direct map proximity                    322.1 ns
+//   Direct is faster: single bounded pass; the earlier record predated the
+//   bounded-generation change (#59).
 //
 // Large N:
-//   N=6  path gen r=0      6.52 ns
-//   N=6  map prox r=0       81.4 ns
-//   N=12 path gen r=0     17.5 ns
-//   N=12 map prox r=0      119  ns
-//   N=19 path gen r=0     27.2 ns
-//   N=19 map prox r=0      106  ns
+//   N=6  path gen r=0       8.98 ns
+//   N=6  map prox r=0       74.6 ns
+//   N=12 path gen r=0      21.1 ns
+//   N=12 map prox r=0      127.3 ns
+//   N=19 path gen r=0      36.4 ns
+//   N=19 map prox r=0      181.9 ns
 //
 // Distance metrics (D=3, single pair, runtime-generated coordinates via PRNG):
-//   hamming:   1.75 ns
-//   manhattan: 2.63 ns
-//   euclidean: 13.5 ns
-//   hamming_r2: 2.31 ns, manhattan_r2: 2.55 ns, euclidean_r2: 13.3 ns
+//   hamming:   1.74 ns
+//   manhattan: 2.61 ns
+//   euclidean: 13.4 ns
+//   hamming_r2: 2.28 ns, manhattan_r2: 2.59 ns, euclidean_r2: 13.2 ns
 //
 // Compound axis query via CoordSet (pre-computed bit sets):
-//   CoordSet bitwise AND   85.7 ns   327 Melem/s    144x vs HashMap
-//   HashMap iterate+filter 12.3 µs   2.28 Melem/s   baseline
+//   CoordSet bitwise AND   84.2 ns  (~154x vs HashMap)
+//   HashMap iterate+filter 13.0 µs  baseline
 //
 // Compound query (proximity + CoordSet filter, avoiding Vec collect):
-//   proximity_r1_gen (Vec collect):         84.0 ns
-//   proximity + filter during iteration:    13.5 ns   (6.2x faster)
-//   coordset_only_axis_3_5:                83.3 ns
+//   proximity_r1_gen (Vec collect):         85.7 ns
+//   proximity + filter during iteration:    14.6 ns   (5.9x faster)
+//   coordset_only_axis_3_5:                90.2 ns
 //
 // Path generation throughput (Melem/s, D=2, R=1):
 //   r=0        r=1       r=2       r=3       r=5
-//   manual:    671       1169      1295      1273      1175   (nested loops)
-//   count():   926       865       696       637       602    (CoordCube, no Vec)
-//   collect():  60.6     103.9     197.8     265.5     365.1  (CoordCube + Vec)
-//   CoordCube API overhead (count vs manual): ~3-10 ns per query
-//   Vec alloc+push overhead (collect vs count): ~76-130 ns per query
+//   manual:    660       1169      1317      1257      1187   (nested loops)
+//   count():   290       712       806       838       726    (CoordCube, no Vec)
+//   collect():  54.5     104.9     193.7     262.3     355.4  (CoordCube + Vec)
+//   CoordCube API overhead (count vs manual): ~2-65 ns per query
+//   Vec alloc+push overhead (collect vs count): ~73-174 ns per query
 //
 // Map2 proximity (dense array, 119 MB):
-//   dense_r1_proximity:     282 ns   (vs tree 285 ns -- identical)
-//   dense_r2_proximity:     666 ns
-//   Dense vs tree backend makes no difference: Vec push dominates.
+//   dense_r1_proximity:     231.7 ns  (vs tree 237.9 ns)
+//   dense_r2_proximity:     521.7 ns  (vs tree 530.2 ns)
+//   Dense vs tree backend makes little difference: Vec push dominates.
 //
 // DynCoordMap proximity:
-//   dynmap_sequential_9:     259 ns
-//   dynmap_proximity_r1:     161 ns   (1.6x faster than sequential)
+//   dynmap_sequential_9:     262.1 ns
+//   dynmap_proximity_r1:     175.6 ns  (1.5x faster than sequential)
 // ===========================================================================
 
 // Spatial/cubeproximity/radius_N
 //   CoordCube proximity generation: all paths within L∞ radius of center
 //   Measures path generation throughput, NOT storage lookup
-//   r=0: 16.5 ns, r=1: 86.6 ns, r=2: 126.4 ns, r=3: 184.6 ns, r=5: 331.4 ns
+//   r=0: 18.4 ns, r=1: 85.8 ns, r=2: 129.1 ns, r=3: 186.8 ns, r=5: 340.5 ns
 fn bench_coordcube_proximity_radius(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
@@ -1181,7 +1183,7 @@ fn bench_coordcube_proximity_radius(c: &mut Criterion) {
 // Spatial/cubegen/radius_N
 //   Pure proximity path generation throughput without Vec allocation.
 //   Uses .count() instead of .collect::<Vec<_>>() to measure only generation cost.
-//   r0_count: ~6 ns, r1_count: ~10 ns, r2_count: ~16 ns, r3_count: ~24 ns, r5_count: ~42 ns
+//   r0_count: 3.5 ns, r1_count: 12.6 ns, r2_count: 31.0 ns, r3_count: 58.4 ns, r5_count: 166.7 ns
 fn bench_coordcube_proximity_count(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
@@ -1532,17 +1534,17 @@ fn bench_map_spatial_proximity(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Spatial/map_proximity");
 
-    // Dense store: fill 100x100 region around center
+    // Dense store: fill a 100x100 byte-domain region around the center
     let mut map = CoordMapN::<2>::new();
-    let center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center);
-    let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
+    let fill_ranges = [(86u16, 186u16), (86u16, 186u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
-    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let query_center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 
     group.throughput(criterion::Throughput::Elements(9)); // 3^2
     group.bench_function("dense_r1_proximity", |b| {
@@ -1560,10 +1562,10 @@ fn bench_map_spatial_proximity(c: &mut Criterion) {
         })
     });
 
-    // Sparse store: only a few scattered entries
+    // Sparse store: only a few scattered byte-domain entries
     let mut sparse_map = CoordMapN::<2>::new();
-    for p in [4950u16, 5000u16, 5050u16] {
-        for q in [4950u16, 5000u16, 5050u16] {
+    for p in [86u16, 136u16, 186u16] {
+        for q in [86u16, 136u16, 186u16] {
             let key = CoordKey::new([p as u8, q as u8]);
             sparse_map.insert_by_coordkey(&key, b"v".to_vec());
         }
@@ -1703,9 +1705,11 @@ fn bench_coordcube_overhead(c: &mut Criterion) {
 // Spatial/cubevspath
 //   Direct comparison: sequential CoordSpaceN2 lookups vs CoordCube proximity
 //   on the same 10K-entry tree store (9 keys in r=1 neighborhood).
-//   Tree+Path: 9 sequential lookups = 158 ns (17.6 ns each)
-//   Tree+Cube: proximity r=1 = 285 ns (gen 16 ns + 9 lookups 158 ns + push 74 ns + Vec alloc 37 ns)
-//   Sparse store: Tree+Cube = 48.5 ns (vs 158 ns, 3.3x faster)
+//   Tree+Path: 9 sequential lookups = 160.5 ns (17.8 ns each)
+//   Tree+Cube: proximity r=1 = 240.7 ns (+80 ns vs sequential; Vec push/alloc dominated)
+//   Tree+Cube: proximity r=2 = 556.2 ns
+//   Sparse and empty stores finish faster because fewer lookups hit and fewer
+//   entries are pushed; the CoordCubeMap path has no structural short-circuit.
 fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
@@ -1718,9 +1722,9 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
 
     // Dense tree store: 10K entries in a 100x100 region
     let mut map = CoordMapN::<2>::new();
-    let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let center_path = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
-    let fill_ranges = [(4950u16, 5050u16), (4950u16, 5050u16)];
+    let fill_ranges = [(86u16, 186u16), (86u16, 186u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
@@ -1733,7 +1737,7 @@ fn bench_coordcube_path_vs_cube(c: &mut Criterion) {
         .map(CoordKey::from_coord_path)
         .collect();
 
-    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let query_center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 
     // Tree+CoordPath: 9 sequential lookups
     group.bench_function("tree_path_sequential_9", |b| {
@@ -1851,8 +1855,8 @@ fn bench_coordcube_path_baseline(c: &mut Criterion) {
 
 // Spatial/cubemap2
 //   CoordCube proximity on CoordMap2 (dense array, 119 MB pre-zeroed).
-//   dense_r1_proximity:  282 ns  (vs tree 285 ns -- essentially identical)
-//   dense_r2_proximity:  666 ns  (vs tree 626 ns)
+//   dense_r1_proximity:  231.7 ns  (vs tree 237.9 ns)
+//   dense_r2_proximity:  521.7 ns  (vs tree 530.2 ns)
 //   Vec push dominates: lookup cost difference (0.38 vs 0.87 ns) is negligible.
 fn bench_coordcube_map2_proximity(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
@@ -1861,13 +1865,14 @@ fn bench_coordcube_map2_proximity(c: &mut Criterion) {
     use tagma_map::coord_gen::CoordKey;
     use tagma_map::{CoordMap2, CoordMapKey};
 
-    let mid = 5000u16;
+    // Byte-domain center for the CoordMap2 store (map keys are 0..255)
+    let mid = 136u16;
     let mut map = CoordMap2::new();
     let fill_center = CoordCube::<2, 2, 1>::from_path(CoordPath::new([
         Coord::new(mid).unwrap(),
         Coord::new(mid).unwrap(),
     ]));
-    for path in fill_center.bounding_box(&[(4950u16, 5050u16), (4950u16, 5050u16)]) {
+    for path in fill_center.bounding_box(&[(86u16, 186u16), (86u16, 186u16)]) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
     }
@@ -1956,8 +1961,8 @@ fn bench_coordcube_compound(c: &mut Criterion) {
 
 // Spatial/cubevspath/dynmap_baseline
 //   Sequential lookups on DynCoordMap (no CoordCube), for comparison with DynCoordMap proximity.
-//   dynmap_sequential_9:  259 ns  (vs DynCoordMap proximity r=1: 161 ns)
-//   On DynCoordMap, proximity is 1.6x faster than sequential lookups.
+//   dynmap_sequential_9:  262.1 ns  (vs DynCoordMap proximity r=1: 175.6 ns)
+//   On DynCoordMap, proximity is 1.5x faster than sequential lookups.
 fn bench_coordcube_dynmap_baseline(c: &mut Criterion) {
     use tagma_core::{Coord, CoordPath};
     use tagma_map::dyn_coord_map::DynCoordMap;
@@ -2022,15 +2027,15 @@ fn bench_map_spatial_proximity_r5(c: &mut Criterion) {
 
     // Dense store: fill 50x50 region around center
     let mut map = CoordMapN::<2>::new();
-    let center_path = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let center_path = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
     let fill_box = CoordCube::<2, 2, 1>::from_path(center_path);
-    let fill_ranges = [(4975u16, 5025u16), (4975u16, 5025u16)];
+    let fill_ranges = [(111u16, 161u16), (111u16, 161u16)];
     for path in fill_box.bounding_box(&fill_ranges) {
         let key = CoordKey::from_coord_path(&path);
         map.insert_by_coordkey(&key, b"v".to_vec());
     }
 
-    let query_center = CoordPath::<2>::new([Coord::new(5000).unwrap(), Coord::new(5000).unwrap()]);
+    let query_center = CoordPath::<2>::new([Coord::new(136).unwrap(), Coord::new(136).unwrap()]);
 
     group.throughput(criterion::Throughput::Elements(121)); // 11^2
     group.bench_function("dense_r5_proximity", |b| {
@@ -2202,13 +2207,13 @@ fn bench_coordcube_hierarchical(c: &mut Criterion) {
     // Fill a 4-character store (D=2, R=2 → N=4)
     let mut map = CoordMapN::<4>::new();
     let center = CoordPath::<4>::new([
-        Coord::new(5000).unwrap(),
-        Coord::new(5000).unwrap(),
-        Coord::new(5000).unwrap(),
-        Coord::new(5000).unwrap(),
+        Coord::new(136).unwrap(),
+        Coord::new(136).unwrap(),
+        Coord::new(136).unwrap(),
+        Coord::new(136).unwrap(),
     ]);
-    for d0 in [4995u16, 5000u16, 5005u16] {
-        for d1 in [4995u16, 5000u16, 5005u16] {
+    for d0 in [131u16, 136u16, 141u16] {
+        for d1 in [131u16, 136u16, 141u16] {
             let p = CoordPath::<4>::new([
                 Coord::new(d0).unwrap(),
                 Coord::new(d0 + 1).unwrap(),

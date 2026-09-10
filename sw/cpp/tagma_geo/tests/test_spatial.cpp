@@ -164,6 +164,54 @@ void test_cube_proximity() {
   check(clamped.count_paths() == 4 * 4, "proximity clamp count");
 }
 
+void test_proximity_bounded() {
+  // Edge clamp inside a byte-size domain: center 254, radius 5, domain 256.
+  const auto edge_cube = cube_of<2, 2, 1>({254, 254});
+  const auto bounded = tagma_geo::proximity_bounded(edge_cube, 5, 256);
+  check(bounded.count_paths() == 49, "proximity bounded edge count");
+  int seen = 0;
+  bool in_domain = true;
+  for (const tagma::CoordPath<2>& path : bounded) {
+    for (const tagma::Coord& c : path.coords()) {
+      if (c.index() >= 256) in_domain = false;
+    }
+    seen += 1;
+  }
+  check(seen == 49, "proximity bounded edge iteration");
+  check(in_domain, "proximity bounded no wrap below domain");
+
+  // Middle of the domain agrees with the full-domain default.
+  const auto mid_cube = cube_of<2, 2, 1>({136, 136});
+  check(tagma_geo::proximity_bounded(mid_cube, 1, 256).count_paths() == 9,
+        "proximity bounded mid count");
+  check(tagma_geo::proximity(mid_cube, 1).count_paths() == 9,
+        "proximity full mid count");
+
+  // The full-domain default clamps at the top of the Coord index space.
+  const auto top = cube_of<2, 2, 1>({11171, 11171});
+  check(tagma_geo::proximity(top, 3).count_paths() == 16,
+        "proximity full top clamp");
+
+  // Reject an invalid domain.
+  bool threw = false;
+  try {
+    (void)tagma_geo::proximity_bounded(mid_cube, 1, 0);
+  } catch (const std::invalid_argument&) {
+    threw = true;
+  }
+  check(threw, "proximity bounded zero domain throws");
+
+  // Reject an out-of-domain center.
+  threw = false;
+  try {
+    const auto high = cube_of<2, 2, 1>({300, 300});
+    (void)tagma_geo::proximity_bounded(high, 1, 256);
+  } catch (const std::invalid_argument&) {
+    threw = true;
+  }
+  check(threw, "proximity bounded out-of-domain center throws");
+}
+
 void test_hamming() {
   const auto a = cube_of<2, 2, 1>({0, 0});
   const auto b = cube_of<2, 2, 1>({0, 5});
@@ -251,6 +299,7 @@ int main() {
   test_bb_count_paths();
   test_cube_bounding_box_basic();
   test_cube_proximity();
+  test_proximity_bounded();
   test_hamming();
   test_hamming_axes();
   test_euclidean();

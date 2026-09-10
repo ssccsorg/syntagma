@@ -358,6 +358,9 @@ pub type DefaultDynamic = ByteWise;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CoordKey<const N: usize>([u8; N]);
 
+/// The byte-space domain of one [`CoordKey`] character (`0..=255`).
+pub const COORD_KEY_DOMAIN: u16 = 256;
+
 impl<const N: usize> CoordKey<N> {
     /// Creates a `CoordKey` from a byte array of exactly `N` bytes.
     ///
@@ -405,6 +408,42 @@ impl<const N: usize> CoordKey<N> {
     #[inline]
     pub const fn is_empty(&self) -> bool {
         N == 0
+    }
+
+    /// The byte-space domain of one key character (`0..=255`).
+    ///
+    /// [`CoordKey`] addresses one byte per character, while [`CoordPath`]
+    /// carries the full `Coord` index range `[0, 11172)`. Storage-backed
+    /// spatial queries must bound their generated region to this domain so
+    /// that coordinates are not folded onto low byte values.
+    pub const BYTE_DOMAIN: u16 = COORD_KEY_DOMAIN;
+
+    /// Creates a `CoordKey<N>` from a `CoordPath<N>`.
+    ///
+    /// Each character index is projected onto its low byte, so the key
+    /// occupies one byte per character. The projection is exact only inside
+    /// the byte-space domain; callers that need the full coordinate range
+    /// use the path-based APIs instead.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any character index is at or above [`CoordKey::BYTE_DOMAIN`]
+    /// (256). Such a path cannot be represented as a byte key, and silently
+    /// folding it would collide with distinct entries (for example index 0
+    /// and index 256).
+    pub fn from_coord_path(path: &CoordPath<N>) -> Self {
+        let mut bytes = [0u8; N];
+        for (i, coord) in path.coords().iter().enumerate() {
+            assert!(
+                coord.index() < Self::BYTE_DOMAIN,
+                "CoordKey::from_coord_path: character {} index {} exceeds the byte-space domain [0, {})",
+                i,
+                coord.index(),
+                Self::BYTE_DOMAIN
+            );
+            bytes[i] = coord.index() as u8;
+        }
+        CoordKey::new(bytes)
     }
 }
 
