@@ -1088,10 +1088,10 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   N=6, 3^6 (729 paths)           1.71 µs   426 Melem/s
 //
 // Dim scaling (proximity r=2, R=1):   Res scaling (D=1, proximity r=2):
-//   D=1 (5 paths)    33.8 ns          R=1 (5 paths)    34.3 ns
-//   D=2 (25 paths)  126.5 ns          R=2 (25 paths)  127.8 ns
-//   D=3 (125 paths) 441.9 ns          R=3 (125 paths) 447.1 ns
-//   D=4 (625 paths) 1.887 µs
+//   D=1 (5 paths)    34.4 ns          R=1 (5 paths)    34.2 ns
+//   D=2 (25 paths)  129.2 ns          R=2 (25 paths)  130.7 ns
+//   D=3 (125 paths) 448.4 ns          R=3 (125 paths) 447.2 ns
+//   D=4 (625 paths) 1.989 µs
 //   Same N = same throughput: D*R determines cost, not D or R individually.
 //
 // map proximity (CoordCubeMap, CoordMapN<2> tree store; byte-domain fills,
@@ -1120,27 +1120,27 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 //   N=19 map prox r=0      181.9 ns
 //
 // Distance metrics (D=3, single pair, runtime-generated coordinates via PRNG):
-//   hamming:   1.75 ns
-//   manhattan: 2.63 ns
-//   euclidean: 13.5 ns
-//   hamming_r2: 2.31 ns, manhattan_r2: 2.55 ns, euclidean_r2: 13.3 ns
+//   hamming:   1.74 ns
+//   manhattan: 2.61 ns
+//   euclidean: 13.4 ns
+//   hamming_r2: 2.28 ns, manhattan_r2: 2.59 ns, euclidean_r2: 13.2 ns
 //
 // Compound axis query via CoordSet (pre-computed bit sets):
-//   CoordSet bitwise AND   85.7 ns   327 Melem/s    144x vs HashMap
-//   HashMap iterate+filter 12.3 µs   2.28 Melem/s   baseline
+//   CoordSet bitwise AND   84.2 ns  (~154x vs HashMap)
+//   HashMap iterate+filter 13.0 µs  baseline
 //
 // Compound query (proximity + CoordSet filter, avoiding Vec collect):
-//   proximity_r1_gen (Vec collect):         84.0 ns
-//   proximity + filter during iteration:    13.5 ns   (6.2x faster)
-//   coordset_only_axis_3_5:                83.3 ns
+//   proximity_r1_gen (Vec collect):         85.7 ns
+//   proximity + filter during iteration:    14.6 ns   (5.9x faster)
+//   coordset_only_axis_3_5:                90.2 ns
 //
 // Path generation throughput (Melem/s, D=2, R=1):
 //   r=0        r=1       r=2       r=3       r=5
-//   manual:    671       1169      1295      1273      1175   (nested loops)
-//   count():   926       865       696       637       602    (CoordCube, no Vec)
-//   collect():  60.6     103.9     197.8     265.5     365.1  (CoordCube + Vec)
-//   CoordCube API overhead (count vs manual): ~3-10 ns per query
-//   Vec alloc+push overhead (collect vs count): ~76-130 ns per query
+//   manual:    660       1169      1317      1257      1187   (nested loops)
+//   count():   290       712       806       838       726    (CoordCube, no Vec)
+//   collect():  54.5     104.9     193.7     262.3     355.4  (CoordCube + Vec)
+//   CoordCube API overhead (count vs manual): ~2-65 ns per query
+//   Vec alloc+push overhead (collect vs count): ~73-174 ns per query
 //
 // Map2 proximity (dense array, 119 MB):
 //   dense_r1_proximity:     231.7 ns  (vs tree 237.9 ns)
@@ -1155,7 +1155,7 @@ fn bench_coordset_spatial_query(c: &mut Criterion) {
 // Spatial/cubeproximity/radius_N
 //   CoordCube proximity generation: all paths within L∞ radius of center
 //   Measures path generation throughput, NOT storage lookup
-//   r=0: 16.5 ns, r=1: 86.6 ns, r=2: 126.4 ns, r=3: 184.6 ns, r=5: 331.4 ns
+//   r=0: 18.4 ns, r=1: 85.8 ns, r=2: 129.1 ns, r=3: 186.8 ns, r=5: 340.5 ns
 fn bench_coordcube_proximity_radius(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;
@@ -1183,7 +1183,7 @@ fn bench_coordcube_proximity_radius(c: &mut Criterion) {
 // Spatial/cubegen/radius_N
 //   Pure proximity path generation throughput without Vec allocation.
 //   Uses .count() instead of .collect::<Vec<_>>() to measure only generation cost.
-//   r0_count: ~6 ns, r1_count: ~10 ns, r2_count: ~16 ns, r3_count: ~24 ns, r5_count: ~42 ns
+//   r0_count: 3.5 ns, r1_count: 12.6 ns, r2_count: 31.0 ns, r3_count: 58.4 ns, r5_count: 166.7 ns
 fn bench_coordcube_proximity_count(c: &mut Criterion) {
     use tagma_core::{Coord, CoordCube, CoordPath};
     use tagma_geo::spatial::SpatialOps;

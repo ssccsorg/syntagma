@@ -5,7 +5,9 @@
 //!
 //! - **Distance metrics** — Hamming, Euclidean (approx), Manhattan
 //! - **Bounding box** — enumerate all paths within a hyper-rectangle
-//! - **Proximity** — enumerate all paths within an L∞ (Chebyshev) radius
+//! - **Proximity** — enumerate all paths within an L∞ (Chebyshev) radius,
+//!   over the full `Coord` domain or a caller-defined domain via
+//!   [`SpatialOps::proximity_bounded`](spatial::SpatialOps::proximity_bounded)
 //! - **Hamming filtering** — constrain proximity to a Hamming distance
 //!
 //! This crate depends only on [`tagma-core`] and does **not** modify or

@@ -81,7 +81,7 @@ Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero cli
 | CoordMapN\<N\> | Fixed N-byte tree map, CoordSpaceN, sparse | `map/src/coord_map_n.rs` |
 | CoordMap trait | HashMap-compatible: `insert`, `get`, `remove`, `contains_key` via `&str` | `map/src/coord_map.rs` |
 | CoordMapKey\<N\> trait | `_by_coordkey` methods for CoordKey-based access | `map/src/coord_map.rs` |
-| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap | `map/src/coord_cube_map.rs` |
+| CoordCubeMap\<N\> trait | Spatial queries on maps: `proximity` (L∞ radius), `bounding_box_range`. Implemented for CoordMap2, CoordMapN\<N\>, DynCoordMap. Queries operate in the byte-space domain [0, 256); out-of-domain centers and ranges panic | `map/src/coord_cube_map.rs` |
 
 ### tagma-sec: security primitives (requires alloc)
 
@@ -321,11 +321,11 @@ CoordCube is a zero-cost interpretation layer. Creating a CoordCube from CoordPa
 
 | Radius | Paths | Time | Throughput |
 |--------|-------|------|------------|
-| 0 | 1 | 16.5 ns | 60.6 Melem/s |
-| 1 | 9 | 86.6 ns | 103.9 Melem/s |
-| 2 | 25 | 126.4 ns | 197.8 Melem/s |
-| 3 | 49 | 184.6 ns | 265.5 Melem/s |
-| 5 | 121 | 331.4 ns | 365.1 Melem/s |
+| 0 | 1 | 18.4 ns | 54.5 Melem/s |
+| 1 | 9 | 85.8 ns | 104.9 Melem/s |
+| 2 | 25 | 129.1 ns | 193.7 Melem/s |
+| 3 | 49 | 186.8 ns | 262.3 Melem/s |
+| 5 | 121 | 340.5 ns | 355.4 Melem/s |
 
 Baseline (manual loop without CoordCube): 2.51 ns for 9 CoordPath constructions. CoordCube API adds 7.8 ns for iterator infrastructure.
 
@@ -333,19 +333,19 @@ Baseline (manual loop without CoordCube): 2.51 ns for 9 CoordPath constructions.
 
 | Configuration | Paths | Time | Throughput |
 |---------------|-------|------|------------|
-| N=2, D=2, 100x100 | 10,201 | 14.28 µs | 714 Melem/s |
-| N=6, D=6, 3^6 | 729 | 1.70 µs | 427 Melem/s |
+| N=2, D=2, 100x100 | 10,201 | 14.40 µs | 708 Melem/s |
+| N=6, D=6, 3^6 | 729 | 1.70 µs | 429 Melem/s |
 
 ### Dimensional scaling (proximity r=2, R=1)
 
 | D | N | Paths | Time | Throughput |
 |---|---|-------|------|------------|
-| 1 | 1 | 5 | 33.8 ns | 148 Melem/s |
-| 2 | 2 | 25 | 126.5 ns | 198 Melem/s |
-| 3 | 3 | 125 | 441.9 ns | 283 Melem/s |
-| 4 | 4 | 625 | 1.887 µs | 331 Melem/s |
+| 1 | 1 | 5 | 34.4 ns | 145 Melem/s |
+| 2 | 2 | 25 | 129.2 ns | 193 Melem/s |
+| 3 | 3 | 125 | 448.4 ns | 279 Melem/s |
+| 4 | 4 | 625 | 1.989 µs | 314 Melem/s |
 
-N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2 both show ~127 ns).
+N = D * R is the real driver. Identical throughput at same N (D=2,R=1 vs D=1,R=2 both show ~129 ns).
 
 ### Distance metrics (D=3, single pair, runtime-generated coordinates)
 
@@ -386,8 +386,8 @@ Pre-computed per-axis bit sets (19 initial + 21 medial, each 1.4 KB) answer comp
 
 | Implementation | Time | Throughput | vs HashMap |
 |---------------|------|------------|------------|
-| CoordSet bitwise AND | 85.7 ns | 327 Melem/s | **144x** |
-| HashMap iterate+filter | 12.3 µs | 2.28 Melem/s | baseline |
+| CoordSet bitwise AND | 84.2 ns | 333 Melem/s | **154x** |
+| HashMap iterate+filter | 13.0 µs | 2.15 Melem/s | baseline |
 
 ## Benchmark: CoordSetN set operations (N=2, sparse tree)
 
