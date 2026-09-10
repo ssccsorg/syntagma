@@ -21,6 +21,7 @@
     <module>base11172</module>
     <module>tagma-geo</module>
     <module>tagma-sec</module>
+    <module>tagma-map</module>
   </modules>
 
   <properties>

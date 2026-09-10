@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  tagma-map: hashless string-key maps over the tagma-core spaces, with the
+  coordinate generation strategies (CoordKey, ByteWise, CharWise, Prefix,
+  ByteFold) and the spatial queries of CoordCubeMap. Mirrors the C++
+  tagma_map module in sw/cpp/tagma_map.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.ssccs.syntagma</groupId>
+    <artifactId>tagma-java</artifactId>
+    <version>0.1.0</version>
+  </parent>
+
+  <artifactId>tagma-map</artifactId>
+  <name>tagma-map</name>
+  <description>Tagma map: hashless string-key maps and spatial queries (CoordKey, CoordMapN, CoordMap2, DynCoordMap, CoordCubeMap)</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.ssccs.syntagma</groupId>
+      <artifactId>tagma-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ssccs.syntagma</groupId>
+      <artifactId>tagma-geo</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
