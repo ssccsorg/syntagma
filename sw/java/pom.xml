@@ -20,6 +20,7 @@
     <module>tagma-core</module>
     <module>base11172</module>
     <module>tagma-geo</module>
+    <module>tagma-sec</module>
   </modules>
 
   <properties>
