@@ -1,0 +1,5 @@
+# GitHub language statistics (Linguist). The test trees of the ports are the
+# conformance evidence for the Rust reference, not part of the language mix.
+sw/rust/**/tests/**    linguist-detectable=false
+sw/cpp/**/tests/**     linguist-detectable=false
+sw/java/**/src/test/** linguist-detectable=false
