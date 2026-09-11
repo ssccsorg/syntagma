@@ -29,6 +29,12 @@ std::array<uint8_t, 32> sha256(const Bytes& data);
 std::array<uint8_t, 32> keyed_tag(const std::array<uint8_t, 32>& key,
                                   const std::vector<Bytes>& parts);
 
+// Constant-time equality over two 32-byte tags: every byte is inspected and
+// combined without an early exit, so a mismatching tag does not reveal where
+// the difference lies. All verify paths compare tags through this helper
+// rather than std::array::operator==.
+bool tag_equal(const std::array<uint8_t, 32>& a, const std::array<uint8_t, 32>& b);
+
 // Little-endian byte encodings used by seals and receipts.
 Bytes le16(uint16_t v);
 Bytes le64(uint64_t v);

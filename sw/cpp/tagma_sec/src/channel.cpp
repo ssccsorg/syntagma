@@ -23,7 +23,8 @@ SignedEvidence MacChannel::sign(const Bytes& evidence) {
 }
 
 bool MacChannel::verify(const SignedEvidence& signed_evidence) {
-  return keyed_tag(kChannelKey, {signed_evidence.evidence}) == signed_evidence.tag;
+  return tag_equal(keyed_tag(kChannelKey, {signed_evidence.evidence}),
+                   signed_evidence.tag);
 }
 
 Receipt MacChannel::exchange(const Bytes& local, PrincipalId remote, Epoch epoch) {

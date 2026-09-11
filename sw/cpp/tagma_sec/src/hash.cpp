@@ -160,6 +160,14 @@ std::array<uint8_t, 32> keyed_tag(const std::array<uint8_t, 32>& key,
   return hmac_sha256(key, msg);
 }
 
+bool tag_equal(const std::array<uint8_t, 32>& a, const std::array<uint8_t, 32>& b) {
+  uint8_t diff = 0;
+  for (size_t i = 0; i < a.size(); ++i) {
+    diff = static_cast<uint8_t>(diff | (a[i] ^ b[i]));
+  }
+  return diff == 0;
+}
+
 Bytes le16(uint16_t v) {
   return Bytes{static_cast<uint8_t>(v & 0xff), static_cast<uint8_t>(v >> 8)};
 }

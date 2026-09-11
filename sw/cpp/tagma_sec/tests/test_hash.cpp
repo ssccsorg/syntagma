@@ -50,11 +50,22 @@ std::array<uint8_t, 32> key_0b() {
   return key;
 }
 
-void test_sha256_matches_the_fips_180_4_vector() {
-  // FIPS 180-4: SHA-256("abc").
+void test_sha256_matches_the_fips_180_4_vectors() {
+  // FIPS 180-4: SHA-256("abc"), one short block.
   check(hex(sha256(bytes("abc"))) ==
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
         "SHA-256 of abc matches the FIPS 180-4 vector");
+
+  // FIPS 180-4: the 56-byte message, whose padding needs a second block.
+  check(hex(sha256(bytes("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"))) ==
+            "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+        "SHA-256 of the 56-byte FIPS message matches");
+
+  // FIPS 180-4: the 112-byte message, two full blocks plus padding.
+  check(hex(sha256(bytes("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
+                         "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"))) ==
+            "cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1",
+        "SHA-256 of the 112-byte FIPS message matches");
 }
 
 void test_keyed_tag_matches_the_openssl_vector() {
@@ -72,12 +83,12 @@ void test_keyed_tag_concatenates_parts() {
 }  // namespace
 
 int main() {
-  test_sha256_matches_the_fips_180_4_vector();
+  test_sha256_matches_the_fips_180_4_vectors();
   test_keyed_tag_matches_the_openssl_vector();
   test_keyed_tag_concatenates_parts();
 
   if (failures == 0) {
-    std::printf("test_hash: 3 checks passed\n");
+    std::printf("test_hash: 5 checks passed\n");
     return 0;
   }
   std::fprintf(stderr, "test_hash: %d failures\n", failures);

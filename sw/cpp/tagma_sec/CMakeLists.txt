@@ -36,6 +36,18 @@ target_link_libraries(test_hash PRIVATE tagma_sec tagma_core)
 target_compile_options(test_hash PRIVATE -Wall -Wextra)
 add_test(NAME sec_hash_test COMMAND test_hash)
 
+add_executable(test_vectors tests/test_vectors.cpp)
+target_include_directories(test_vectors PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_vectors PRIVATE tagma_sec tagma_core)
+target_compile_options(test_vectors PRIVATE -Wall -Wextra)
+add_test(NAME sec_vectors_test COMMAND test_vectors)
+
+add_executable(test_verification tests/test_verification.cpp)
+target_include_directories(test_verification PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_verification PRIVATE tagma_sec tagma_core)
+target_compile_options(test_verification PRIVATE -Wall -Wextra)
+add_test(NAME sec_verification_test COMMAND test_verification)
+
 add_executable(test_workflow tests/test_workflow.cpp)
 target_include_directories(test_workflow PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(test_workflow PRIVATE tagma_sec tagma_core)
