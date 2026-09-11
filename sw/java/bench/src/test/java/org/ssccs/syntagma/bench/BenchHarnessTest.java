@@ -111,6 +111,20 @@ class BenchHarnessTest {
     }
 
     @Test
+    void rejectsARoundCountThatCannotBeMeasured() {
+        // The settling rounds and the counted rounds share an index range, so a
+        // count that overflows it must be rejected instead of skipping the timed
+        // loop and recording a zero figure.
+        BenchWarmup warmup = new BenchWarmup(0L, 1, 1.0, 0L, Integer.MAX_VALUE);
+        BenchProfile profile = new BenchProfile(OptionalInt.of(1), OptionalInt.of(1), warmup);
+        BenchHarness harness = measured(profile).harness();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> harness.run("unmeasurable", 1, 1, () -> { }),
+                "an unmeasurable round count is a caller error");
+    }
+
+    @Test
     void aScenarioWhoseWarmupNeverSettlesTerminatesAndReportsAValue() {
         // A tolerance of zero demands identical consecutive measurements, which
         // a real clock does not deliver, so the warmup phase can only end at

@@ -27,9 +27,14 @@ import org.ssccs.syntagma.core.Coord;
  * ({@code b & 0xFF}), which is the Rust behavior ({@code b as u16}). The C++
  * reference accumulates into a {@code uint16_t} from a {@code char}, so on a
  * platform where {@code char} is signed the byte is sign-extended before the
- * fold and the two ports disagree for bytes at or above 0x80. This port
- * follows the Rust semantics and records the divergence here instead of
- * reproducing it.
+ * fold, which adds {@code 0xFF00} to that byte's 16-bit pattern. Those blocks
+ * cancel under XOR when an accumulator receives an even number of bytes at or
+ * above 0x80, so the accumulator bit patterns differ only for an odd number of
+ * such bytes, and the C++ accumulator then carries a single extra {@code 0xFF00}
+ * block before the modulo. Folding the bytes C3 BF of U+00FF into two
+ * accumulators diverges, for example, while folding both into one yields 124 in
+ * both ports. This port follows the Rust semantics and records the divergence
+ * here instead of reproducing it.
  *
  * <p>Port of the C++ {@code tagma_map::ByteFold<N>} in
  * {@code sw/cpp/tagma_map/include/tagma_map/coord_gen.h}; the underlying

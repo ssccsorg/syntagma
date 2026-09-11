@@ -154,9 +154,11 @@ class CoordGenTest {
     void byteFoldUsesUnsignedBytes() {
         // The accumulator XORs the unsigned value of each byte, which is the
         // Rust semantics (b as u16). The C++ reference stores the byte in a
-        // char and sign-extends it on a platform where char is signed, so the
-        // two ports disagree for bytes at or above 0x80; this case pins the
-        // unsigned choice for the Java port.
+        // char and sign-extends it on a platform where char is signed, which
+        // adds 0xFF00 to that byte's pattern; the extra blocks cancel in pairs,
+        // so the ports disagree where an accumulator receives an odd number of
+        // bytes at or above 0x80, as here with one byte per accumulator. This
+        // case pins the unsigned choice for the Java port.
         List<Coord> coords = generate(new ByteFold(2), "\u00FF"); // UTF-8: C3 BF
         assertEquals(2, coords.size(), "one accumulator per key byte");
         assertEquals(0xC3, coords.get(0).index(), "first byte unsigned");

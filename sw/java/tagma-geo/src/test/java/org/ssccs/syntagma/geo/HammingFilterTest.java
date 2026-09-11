@@ -77,6 +77,18 @@ class HammingFilterTest {
         assertThrows(IllegalArgumentException.class, () -> new HammingFilter(box, center, -1));
     }
 
+    @Test
+    void validatesInnerIteratorBeforeCenter() {
+        NullPointerException inner = assertThrows(NullPointerException.class,
+                () -> new HammingFilter(null, null, 1));
+        assertEquals("inner", inner.getMessage(), "null inner reported first");
+
+        BoundingBoxIter box = new BoundingBoxIter(new int[][] {{0, 2}, {0, 2}});
+        NullPointerException center = assertThrows(NullPointerException.class,
+                () -> new HammingFilter(box, null, 1));
+        assertEquals("center", center.getMessage(), "null center reported second");
+    }
+
     private static Coord coord(int index) {
         return Coord.fromIndex(index).orElseThrow();
     }

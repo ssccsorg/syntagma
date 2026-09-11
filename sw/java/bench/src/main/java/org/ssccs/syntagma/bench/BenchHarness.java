@@ -108,8 +108,13 @@ public final class BenchHarness {
         warmUp(op, iterations, warmup);
 
         double[] perOpNs = new double[rounds];
-        int timedRounds = warmup.settleRounds() + rounds;
-        for (int r = 0; r < timedRounds; r++) {
+        long timedRounds = (long) warmup.settleRounds() + rounds;
+        if (timedRounds > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "settleRounds " + warmup.settleRounds() + " plus " + rounds
+                            + " rounds exceeds the measurable round count");
+        }
+        for (int r = 0; r < (int) timedRounds; r++) {
             double perOp = (double) roundNanos(op, iterations) / iterations;
             if (r >= warmup.settleRounds()) {
                 perOpNs[r - warmup.settleRounds()] = perOp;

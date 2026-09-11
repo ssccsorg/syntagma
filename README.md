@@ -29,7 +29,7 @@ synTagma (system)
 |----------------|----------|---------|--------------|
 | Rust (reference) | `sw/rust` | core, base11172, geo, map, sec, benches | 360+ unit/integration tests, 26 doc-tests, `./run.sh --check` |
 | C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 16 suites, `sw/cpp/run.sh` |
-| Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 342 JUnit tests, `sw/java/run.sh` |
+| Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 348 JUnit tests, `sw/java/run.sh` |
 
 The ports carry the in-memory contracts and their semantics only. They own no persistence and no on-disk format: materialization, layouts and file formats belong to chton, the Rust storage fabric. The Java dense space therefore allocates lazily off-heap instead of mapping a file, and the reason is recorded in `sw/java/README.md`.
 
@@ -131,7 +131,7 @@ cargo build --no-default-features  # Verify no_alloc build
 Port entry points:
 
 ```sh
-sw/cpp/run.sh              # C++: configure, build, ctest (14 suites)
+sw/cpp/run.sh              # C++: configure, build, ctest (16 suites)
 sw/cpp/run.sh --bench      # C++ benchmarks, JSON under sw/cpp/bench/result/
 sw/java/run.sh             # Java: mvn verify, JDK 21 and Maven required
 sw/java/run.sh --bench     # Java benchmarks, JSON under sw/java/bench/result/

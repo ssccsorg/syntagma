@@ -52,11 +52,12 @@ import org.ssccs.syntagma.map.DynCoordMap;
  *   <li>The {@code csn2 insert all 10k} scenario allocates a whole tree per
  *       round, so its Java figure carries garbage-collection variance: the
  *       standard deviation printed beside it is on the order of the mean, and
- *       the mean is only meaningful with it. Measured once the warmup policy
- *       reaches steady state, the scenario reports about 17.4 ms at five rounds
- *       against about 11.4 ms at twenty, the spread of an allocation-heavy loop
- *       rather than of a cold compiler. The C++ figure has neither source of
- *       variance.</li>
+ *       the mean is only meaningful with it. Measured with the steady-state
+ *       policy, the scenario reports 7.9 to 22.2 ms at five rounds and 9.0 to
+ *       16.8 ms at twenty, a spread between round counts of about 1.25x where
+ *       the fixed warmup call count gave about 2.5x, so the remaining scatter
+ *       is allocation and collection rather than compilation. The C++ figure
+ *       has neither source of variance.</li>
  *   <li>The map scenarios that build keys from raw bytes index those bytes
  *       through {@link CoordKey}, because a Java {@code String} carries
  *       characters and its UTF-8 encoding would turn a byte at or above 0x80
@@ -308,9 +309,11 @@ public final class BenchSuite {
      * two hundred milliseconds and would dominate a placement of a few dozen
      * nanoseconds. The C++ suite creates the space inside the timed body, where
      * the {@code MAP_NORESERVE} mapping commits only the pages it writes. The
-     * first placement of a round therefore lands on the slot that the
-     * materializing placement already filled, and the other 999 are fresh
-     * insertions into the materialized window.
+     * placement before the timed region fills the first slot, so the first op
+     * call re-places one key and inserts the other 999, and every later counted
+     * call re-places all 1000 keys into the materialized window: the timed
+     * figure is the overwrite path, while each C++ call starts from an empty
+     * space.
      */
     private static void csmInsert1000(BenchHarness harness) {
         List<CoordPath> paths = csmPaths3d(1000);

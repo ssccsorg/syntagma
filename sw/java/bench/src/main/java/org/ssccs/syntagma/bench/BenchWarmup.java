@@ -17,10 +17,11 @@ package org.ssccs.syntagma.bench;
  * {@link #minNanos()} is for: a loop that is still interpreted can measure the
  * same slow time round after round, and then drop by an order of magnitude once
  * the compiler reaches it. Measured in this suite, the {@code space entry
- * or_insert 10k} body sits at about 1.0 ms per round for its first fifteen
- * rounds and then falls to about 0.024 ms, so a warmup that stops at the first
- * agreement reports a number the compiler had not touched yet. The floor makes
- * the phase outlast that kind of plateau.
+ * or_insert 10k} body reports about 0.88 ms per round at five rounds and about
+ * 0.33 ms at twenty under the fixed warmup call count, and settles near
+ * 0.010 ms once the compiler has reached it, so a warmup that stops at the
+ * first agreement reports a number the compiler had not touched yet. The floor
+ * makes the phase outlast that kind of plateau.
  *
  * <p>The two caps keep the warmup bounded for a scenario that never settles,
  * either because its work is inherently variable or because the machine is

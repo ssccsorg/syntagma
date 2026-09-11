@@ -167,17 +167,36 @@ class CoordCubeMapTest {
     }
 
     @Test
-    void nonPositiveInterpretationRejected() {
+    void negativeInterpretationRejected() {
         CoordMapN map = new CoordMapN(2);
         assertThrows(IllegalArgumentException.class,
                 () -> CoordCubeMap.proximity(map, CoordPath.fromArray(), 0, -1, 0),
                 "negative dimension count rejected");
         assertThrows(IllegalArgumentException.class,
-                () -> CoordCubeMap.proximity(map, path(5, 5), 1, 0, 2),
-                "zero dimension count rejected");
+                () -> CoordCubeMap.proximity(map, path(5, 5), 1, 0, -1),
+                "negative resolution rejected");
+        // The pair the references cannot express at all: the product matches
+        // the center length, so only the sign check rejects it.
         assertThrows(IllegalArgumentException.class,
-                () -> CoordCubeMap.proximity(map, path(5, 5), 1, 2, 0),
-                "zero resolution rejected");
+                () -> CoordCubeMap.proximity(map, path(5, 5), 0, -2, -1),
+                "negative pair with a matching product rejected");
+    }
+
+    @Test
+    void zeroSizedInterpretationYieldsNoHits() {
+        CoordMapN map = new CoordMapN(2);
+        map.insert("hi", bytes("v"));
+
+        // A zero-sized interpretation is expressible in the references as a
+        // zero-character query and generates no paths.
+        assertTrue(CoordCubeMap.proximity(map, CoordPath.fromArray(), 5, 1, 0).isEmpty(),
+                "zero resolution generates no paths");
+        assertTrue(CoordCubeMap.proximity(map, CoordPath.fromArray(), 5, 0, 0).isEmpty(),
+                "zero dimensions and resolution generate no paths");
+        assertTrue(CoordCubeMap.proximity(map, CoordPath.fromArray(), 5, 0, 2).isEmpty(),
+                "zero dimensions generate no paths");
+        assertTrue(CoordCubeMap.boundingBoxRange(map, new int[0][]).isEmpty(),
+                "zero characters generate no paths");
     }
 
     @Test

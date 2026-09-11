@@ -2,6 +2,7 @@ package org.ssccs.syntagma.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -123,6 +124,20 @@ class CoordSpaceTest {
         });
         assertEquals(1, calls[0], "the factory does not run for the occupied slot");
         assertEquals(Optional.of(7), space.at(a), "the existing value is kept");
+    }
+
+    @Test
+    void orInsertWithRejectsAMissingFactoryAndANullResult() {
+        CoordSpace<Integer> space = new CoordSpace<>();
+        Coord a = coord(0, 0, 0);
+
+        assertThrows(NullPointerException.class, () -> space.entry(a).orInsertWith(null),
+                "a missing factory is a caller error");
+        assertTrue(space.at(a).isEmpty(), "a rejected call leaves the slot vacant");
+
+        assertThrows(NullPointerException.class, () -> space.entry(a).orInsertWith(() -> null),
+                "a factory returning null is a caller error");
+        assertTrue(space.at(a).isEmpty(), "a rejected result leaves the slot vacant");
     }
 
     @Test

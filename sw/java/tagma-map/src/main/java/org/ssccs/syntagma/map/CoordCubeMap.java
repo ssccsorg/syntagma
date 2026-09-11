@@ -107,9 +107,13 @@ public final class CoordCubeMap {
      * whose length is not {@code dimensions * resolution} is still a caller
      * error and is rejected.
      *
+     * <p>A zero-sized interpretation, such as an empty center with a zero
+     * dimension count or resolution, is expressible in the references and
+     * generates no paths, so it yields an empty result as well.
+     *
      * @throws IllegalArgumentException when a center character index is at or
      *         above {@link CoordKey#BYTE_DOMAIN}, when {@code dimensions} or
-     *         {@code resolution} is less than 1, when {@code dimensions *
+     *         {@code resolution} is negative, when {@code dimensions *
      *         resolution} differs from the center length, or when
      *         {@code radius} is negative
      * @throws NullPointerException when {@code map} or {@code center} is null
@@ -119,7 +123,7 @@ public final class CoordCubeMap {
         Objects.requireNonNull(map, "map");
         Objects.requireNonNull(center, "center");
         requireCenterInByteDomain(center);
-        requirePositiveInterpretation(dimensions, resolution);
+        requireNonNegativeInterpretation(dimensions, resolution);
         CoordCube cube = CoordCube.fromPath(dimensions, resolution, center);
         BoundingBoxIter box = SpatialOps.proximityBounded(cube, radius, CoordKey.BYTE_DOMAIN);
         List<Hit> results = new ArrayList<>(capacityHint(box.countPaths()));
@@ -146,7 +150,9 @@ public final class CoordCubeMap {
      * <p>A range set whose length differs from the path length of the store
      * yields an empty result rather than an exception: the generated paths are
      * absent from a store that cannot hold them, as
-     * {@link CoordPathLookup#getByCoordPath(CoordPath)} documents.
+     * {@link CoordPathLookup#getByCoordPath(CoordPath)} documents. An empty
+     * range set is a zero-character query, which the references express as a
+     * zero-sized iterator, and it generates no paths either.
      *
      * @throws IllegalArgumentException when a range bound is outside
      *         {@code [0, CoordKey.BYTE_DOMAIN)}, when a range is not a
@@ -168,17 +174,19 @@ public final class CoordCubeMap {
     }
 
     /**
-     * Rejects a dimension count that is not positive. The references carry both
-     * counts as unsigned template parameters, so a non-positive count cannot be
-     * expressed there; Java would otherwise accept a negative pair whose
-     * product happens to match the center length, and would accept a degenerate
-     * zero-sized query that the caller cannot have meant.
+     * Rejects a negative dimension count or resolution. The references carry
+     * both counts as unsigned template parameters, so a negative count cannot
+     * be expressed there, while Java would otherwise accept a negative pair
+     * whose product happens to match the center length, for example {@code -2}
+     * and {@code -1} with a two-character center. A zero count is expressible
+     * in the references as a zero-sized query, so it follows the normal path
+     * and generates no paths.
      */
-    private static void requirePositiveInterpretation(int dimensions, int resolution) {
-        if (dimensions < 1 || resolution < 1) {
+    private static void requireNonNegativeInterpretation(int dimensions, int resolution) {
+        if (dimensions < 0 || resolution < 0) {
             throw new IllegalArgumentException(
                     "CoordCubeMap::proximity: dimensions " + dimensions + " and resolution "
-                            + resolution + " must both be at least 1");
+                            + resolution + " must not be negative");
         }
     }
 

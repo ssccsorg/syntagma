@@ -1,20 +1,18 @@
 package org.ssccs.syntagma.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -42,12 +40,13 @@ class CoordSpaceMTest {
     }
 
     /**
-     * The slot count derived in the test from the coordinate lattice, so the
-     * capacity assertions do not re-read the constant they check.
+     * The slot count derived in the test from the axis ranges, so the capacity
+     * assertions do not re-read {@link Coord#N_VALID}, which is the constant
+     * they check.
      */
     private static long latticeSlots() {
-        long valid = Coord.N_VALID;
-        return valid * valid * valid;
+        long characters = (long) Coord.INITIAL_MAX * Coord.MEDIAL_MAX * Coord.FINAL_MAX;
+        return characters * characters * characters;
     }
 
     @Test
@@ -304,29 +303,30 @@ class CoordSpaceMTest {
         assertEquals(latticeSlots(), space.capacity(), "capacity survives close");
     }
 
+    /**
+     * The space is anonymous off-heap memory, so the compiled class must not
+     * reach a file API. The check reads the class file, because watching the
+     * shared temporary directory is unreliable: other processes add and remove
+     * entries while a test observes it.
+     */
     @Test
-    void constructionCreatesNoFile() throws IOException {
-        Path workingDirectory = Path.of("").toAbsolutePath();
-        Path temporaryDirectory = Path.of(System.getProperty("java.io.tmpdir"));
-        Set<String> workingBefore = directoryNames(workingDirectory);
-        Set<String> temporaryBefore = directoryNames(temporaryDirectory);
+    void classReferencesNoFileApi() throws IOException {
+        byte[] bytecode;
+        try (InputStream in = CoordSpaceM.class.getResourceAsStream("CoordSpaceM.class")) {
+            assertNotNull(in, "the class file is on the test class path");
+            bytecode = in.readAllBytes();
+        }
+        String pool = new String(bytecode, StandardCharsets.ISO_8859_1);
+        for (String forbidden : List.of("java/nio/file/", "java/io/File", "java/nio/channels/",
+                "MappedByteBuffer")) {
+            assertFalse(pool.contains(forbidden), "no file api reference in the class file: " + forbidden);
+        }
 
         try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
             space.placePath(path3(1, 2, 3), 42);
             assertEquals(Optional.of(42), space.atPath(path3(1, 2, 3)), "the space works without a file");
             space.clear();
             space.placePath(path3(1, 2, 3), 43);
-        }
-
-        assertEquals(workingBefore, directoryNames(workingDirectory), "the working directory gains no entry");
-        Set<String> temporaryAfter = directoryNames(temporaryDirectory);
-        if (!temporaryBefore.equals(temporaryAfter)) {
-            // The temporary directory is shared with the rest of the machine, so an
-            // unrelated process can add or remove an entry inside the window this
-            // test observes. Re-check on a fresh snapshot: an entry the space left
-            // behind is still there, foreign churn that has passed is not.
-            assertEquals(temporaryBefore, directoryNames(temporaryDirectory),
-                    "the temporary directory gains no entry");
         }
     }
 
@@ -352,13 +352,6 @@ class CoordSpaceMTest {
             assertTrue(text.contains("closed: false"), "debug contains the open state");
             space.placePath(path3(1, 1, 1), 1);
             assertTrue(space.toString().contains("len: 1"), "debug follows the length");
-        }
-    }
-
-    private static Set<String> directoryNames(Path directory) throws IOException {
-        try (Stream<Path> entries = Files.list(directory)) {
-            return entries.map(entry -> entry.getFileName().toString())
-                    .collect(Collectors.toCollection(HashSet::new));
         }
     }
 }

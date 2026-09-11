@@ -215,6 +215,28 @@ class SpatialOpsTest {
                 "euclidean widens dimension values with unsigned semantics");
     }
 
+    /**
+     * At a resolution of 9 both the dimension value and the dimension maximum
+     * have bit 63 set, so this case exercises all three unsigned widenings
+     * inside {@code euclideanDistanceApprox} at once. The raw bits are pinned
+     * instead of a decimal: they come from unsigned 64-bit arithmetic, checked
+     * against an out-of-tree build of the C++ {@code tagma_geo} port, which
+     * prints 0x3feed2ca0c09d520 for these cubes. Widening only the maximum
+     * through a signed conversion yields 0x3ff16b45dbecdfce there.
+     */
+    @Test
+    void euclideanLargeResolutionPinsRawBitsOfBothWidenings() {
+        CoordCube zero = cube(1, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        CoordCube wide = cube(1, 9, 5000, 9000, 11000, 3, 7000, 2345, 6789, 4321, 9999);
+        assertEquals(Long.parseUnsignedLong("9427439098413039464"), SpatialOps.dimensionValue(wide, 0),
+                "R=9 dimension value wraps modulo 2^64");
+        assertEquals(Long.parseUnsignedLong("9787307541064318975"), SpatialOps.dimensionMaxValue(9),
+                "R=9 dimension max wraps modulo 2^64");
+        assertEquals(0x3feed2ca0c09d520L,
+                Double.doubleToRawLongBits(SpatialOps.euclideanDistanceApprox(zero, wide)),
+                "euclidean widens the dimension values and the maximum with unsigned semantics");
+    }
+
     @Test
     void proximityHamming() {
         CoordCube cube = cube(2, 1, 5, 10);

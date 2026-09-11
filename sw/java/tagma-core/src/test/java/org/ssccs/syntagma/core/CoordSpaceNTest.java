@@ -101,6 +101,20 @@ class CoordSpaceNTest {
     }
 
     @Test
+    void orInsertWithRejectsAMissingFactoryAndANullResult() {
+        CoordSpaceN<Integer> space = new CoordSpaceN<>(1);
+        Coord c = coord(0);
+
+        assertThrows(NullPointerException.class, () -> space.entry(c).orInsertWith(null),
+                "a missing factory is a caller error");
+        assertTrue(space.at(c).isEmpty(), "a rejected call leaves the slot vacant");
+
+        assertThrows(NullPointerException.class, () -> space.entry(c).orInsertWith(() -> null),
+                "a factory returning null is a caller error");
+        assertTrue(space.at(c).isEmpty(), "a rejected result leaves the slot vacant");
+    }
+
+    @Test
     void depthOnePathAccess() {
         CoordSpaceN<Integer> space = new CoordSpaceN<>(1);
         Coord c = coord(42);

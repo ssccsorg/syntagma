@@ -50,12 +50,17 @@ public final class HammingFilter implements Iterable<CoordPath>, Iterator<CoordP
      *         iterator length or {@code maxDistance} is negative
      */
     public HammingFilter(BoundingBoxIter inner, CoordPath center, int maxDistance) {
-        this(inner, Objects.requireNonNull(center, "center").coords(), maxDistance, null);
+        this(Objects.requireNonNull(inner, "inner"),
+                Objects.requireNonNull(center, "center").coords(), maxDistance, null);
     }
 
+    /**
+     * Internal constructor. Both arguments are already non-null when this
+     * runs: the public constructor checks them in parameter order and
+     * {@link #iterator()} passes validated state. The fields are assigned
+     * after every check, so a rejected construction touches no state.
+     */
     private HammingFilter(BoundingBoxIter inner, Coord[] centerCoords, int maxDistance, CoordPath pending) {
-        this.inner = Objects.requireNonNull(inner, "inner");
-        this.centerCoords = centerCoords;
         if (centerCoords.length != inner.ndim()) {
             throw new IllegalArgumentException(
                     "HammingFilter: center length " + centerCoords.length
@@ -65,6 +70,8 @@ public final class HammingFilter implements Iterable<CoordPath>, Iterator<CoordP
             throw new IllegalArgumentException(
                     "HammingFilter: max distance " + maxDistance + " must not be negative");
         }
+        this.inner = inner;
+        this.centerCoords = centerCoords;
         this.maxDistance = maxDistance;
         this.pending = pending;
     }

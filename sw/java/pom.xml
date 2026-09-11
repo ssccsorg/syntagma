@@ -29,6 +29,10 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <maven.compiler.release>21</maven.compiler.release>
+    <!-- Composed into the surefire argLine below so a caller can still pass
+         -DargLine and tools that add their own (JaCoCo and similar) keep
+         working. -->
+    <argLine></argLine>
     <junit.version>5.10.2</junit.version>
   </properties>
 
@@ -67,7 +71,7 @@
                  memory, and the JVM default for that budget derives from the
                  maximum heap. Pin it so the result does not depend on the
                  runner's heap size. -->
-            <argLine>-XX:MaxDirectMemorySize=3g</argLine>
+            <argLine>${argLine} -XX:MaxDirectMemorySize=3g</argLine>
           </configuration>
         </plugin>
       </plugins>

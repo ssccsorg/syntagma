@@ -35,8 +35,8 @@ sw/java
 ```
 
 The root `run.sh` runs the Java build through `check_java` whenever `mvn` and
-`java` are available, and `run.sh --bench` additionally runs the Java
-benchmark suite through `check_java_bench`. The CI workflows `java` (build and
+`java` are available and the active JDK is 21 or newer, and `run.sh --bench`
+additionally runs the Java benchmark suite through `check_java_bench`. The CI workflows `java` (build and
 test) and `java-bench` (benchmark suite) exercise `sw/java` with JDK 21
 (temurin).
 
@@ -126,16 +126,16 @@ cd sw/java && ./run.sh  # or: mvn -B verify (from sw/java)
 cd sw/java && ./run.sh --bench
 ```
 
-The reactor holds 342 tests, all green.
+The reactor holds 348 tests, all green.
 
 | Module | Tests | Translated from |
 |--------|-------|-----------------|
-| `tagma-core` | 115 | `test_coord.cpp`, `test_core_types.cpp`, `test_coord_cube.cpp`, `test_tree_types.cpp`, `test_coord_space_m.cpp`, plus the Rust-only cases for `DynCoordSpace` |
+| `tagma-core` | 117 | `test_coord.cpp`, `test_core_types.cpp`, `test_coord_cube.cpp`, `test_tree_types.cpp`, `test_coord_space_m.cpp`, plus the Rust-only cases for `DynCoordSpace` |
 | `base11172` | 5 | `test_base11172.cpp` |
-| `tagma-geo` | 46 | `test_spatial.cpp` and the integration suite `sw/rust/geo/tests/spatial_window.rs` |
+| `tagma-geo` | 48 | `test_spatial.cpp` and the integration suite `sw/rust/geo/tests/spatial_window.rs` |
 | `tagma-sec` | 54 | `test_workflow.cpp`, `test_delos.cpp`, `test_scenarios.cpp`, plus the openssl-pinned hash and module-level tag vectors |
-| `tagma-map` | 72 | `test_map.cpp`, `test_cube_map.cpp`, `test_dyn_map.cpp` and the integration suite `sw/rust/map/tests/density_window.rs` |
-| `bench` | 50 | harness coverage: CLI parsing, statistics, JSON shape, warmup policy and profile handling |
+| `tagma-map` | 73 | `test_map.cpp`, `test_cube_map.cpp`, `test_dyn_map.cpp` and the integration suite `sw/rust/map/tests/density_window.rs` |
+| `bench` | 51 | harness coverage: CLI parsing, statistics, JSON shape, warmup policy and profile handling |
 
 Rust-only behaviors that the C++ port does not expose are documented as
 follow-ups rather than invented API surface. The port provides `copy`,
