@@ -105,6 +105,33 @@ class DensityWindowTest {
     }
 
     /**
+     * A radius that reaches far beyond the byte domain is clamped to the domain
+     * window, and the pre-sized result follows the bounded region rather than
+     * the unbounded radius, whose reference formula {@code (2 * radius + 1) ^ N}
+     * sizes the allocation in the tens of billions for this call.
+     */
+    @Test
+    void hugeRadiusStaysBounded() {
+        CoordMapN map = new CoordMapN(2);
+        for (int x = 250; x <= 255; x++) {
+            for (int y = 250; y <= 255; y++) {
+                map.insertByCoordKey(CoordKey.fromCoordPath(path(x, y)), bytes("v"));
+            }
+        }
+
+        // The window of a radius beyond the domain is the whole byte domain per
+        // character, so every stored entry is found and no path leaves the
+        // domain.
+        List<CoordCubeMap.Hit> results = CoordCubeMap.proximity(map, path(255, 255), 50000, 2, 1);
+        assertEquals(36, results.size(), "a radius beyond the domain covers the whole byte domain");
+        for (CoordCubeMap.Hit hit : results) {
+            for (Coord coord : hit.path().coords()) {
+                assertTrue(coord.index() < CoordKey.BYTE_DOMAIN, "generated path stays in the domain");
+            }
+        }
+    }
+
+    /**
      * A center at or above the byte-space domain is a caller error and is
      * rejected instead of silently wrapping onto low bytes.
      */

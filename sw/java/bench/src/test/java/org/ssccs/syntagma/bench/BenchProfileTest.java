@@ -20,7 +20,7 @@ class BenchProfileTest {
 
         assertEquals(100000, profile.iterationsFor(100000), "iterations");
         assertEquals(3, profile.roundsFor(3), "rounds");
-        assertEquals(3, profile.warmupCalls(), "warmup calls");
+        assertEquals(BenchWarmup.steadyState(), profile.warmup(), "warmup policy");
     }
 
     @Test
@@ -29,7 +29,7 @@ class BenchProfileTest {
 
         assertEquals(1, profile.iterationsFor(100000), "iterations");
         assertEquals(1, profile.roundsFor(5), "rounds");
-        assertEquals(1, profile.warmupCalls(), "warmup calls");
+        assertEquals(BenchWarmup.quick(), profile.warmup(), "warmup policy");
     }
 
     @Test
@@ -39,7 +39,7 @@ class BenchProfileTest {
 
         assertEquals(7, profile.iterationsFor(1), "iterations");
         assertEquals(2, profile.roundsFor(5), "rounds");
-        assertEquals(3, profile.warmupCalls(), "warmup calls are not overridable");
+        assertEquals(BenchWarmup.steadyState(), profile.warmup(), "warmup policy is not overridable");
     }
 
     @Test
@@ -49,16 +49,17 @@ class BenchProfileTest {
 
         assertEquals(50, profile.iterationsFor(1), "iterations");
         assertEquals(1, profile.roundsFor(5), "rounds keep the quick value");
+        assertEquals(BenchWarmup.quick(), profile.warmup(), "warmup policy keeps the quick value");
     }
 
     @Test
     void rejectsNonPositiveOverrides() {
         assertThrows(IllegalArgumentException.class,
-                () -> new BenchProfile(OptionalInt.of(0), OptionalInt.empty(), 0));
+                () -> new BenchProfile(OptionalInt.of(0), OptionalInt.empty(), BenchWarmup.quick()));
         assertThrows(IllegalArgumentException.class,
-                () -> new BenchProfile(OptionalInt.empty(), OptionalInt.of(-1), 0));
-        assertThrows(IllegalArgumentException.class,
-                () -> new BenchProfile(OptionalInt.empty(), OptionalInt.empty(), -1));
+                () -> new BenchProfile(OptionalInt.empty(), OptionalInt.of(-1), BenchWarmup.quick()));
+        assertThrows(NullPointerException.class,
+                () -> new BenchProfile(OptionalInt.empty(), OptionalInt.empty(), null));
     }
 
     @Test

@@ -7,10 +7,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * The steady-clock measurement harness: it times a scenario closure
- * {@code iterations} times per round over {@code rounds} rounds and reports
- * the mean nanoseconds per call with the standard deviation of the per-round
- * means.
+ * The steady-clock measurement harness: it warms a scenario up until two
+ * consecutive rounds agree, drops the settling rounds, and reports the mean
+ * nanoseconds per call with the standard deviation of the per-round means over
+ * the counted rounds.
  *
  * <p>Port of the C++ {@code bench} function template in
  * {@code sw/cpp/bench/bench.cpp} together with its {@code g_sink} and
@@ -18,25 +18,49 @@ import java.util.Objects;
  * language has no free functions. The underlying scenario shape is the one of
  * {@code sw/rust/benches/bench.rs}.
  *
- * <p>Two porting differences follow from the language:
+ * <p>A measurement runs in three phases, each of them on whole rounds of
+ * {@code iterations} calls, the batch shape of the C++ harness:
  *
- * <ul>
- *   <li>The explicit warmup phase. Before the timed rounds the harness runs
- *       the scenario {@link BenchProfile#warmupCalls()} times, because the JIT
- *       only compiles and optimizes code that has already executed; a timed
- *       round that pays for first-call compilation measures the compiler.
- *       C++ is compiled ahead of time, so the C++ harness needs the single
- *       warmup call it makes before each round and nothing more; that per-round
- *       call is kept here as well.</li>
- *   <li>The blackhole sink is passed to the scenario through
- *       {@link #sink()} instead of a global variable, so the two directions of
- *       the C++ free function namespace (harness calls the closure, closure
- *       reads the sink) stay explicit.</li>
- *   <li>The clock is {@link System#nanoTime()}, the monotonic Java clock, in
- *       place of {@code std::chrono::steady_clock}. Both report elapsed time
- *       free of wall-clock adjustments, so the nanosecond figures are the same
- *       kind of measurement.</li>
- * </ul>
+ * <ol>
+ *   <li>The warmup phase keeps running rounds until two consecutive rounds
+ *       agree within {@link BenchWarmup#tolerance()}, which is the steady-state
+ *       criterion this port needs and the C++ harness does not: C++ is compiled
+ *       ahead of time, so its single warmup call before each timed round
+ *       suffices, while a Java scenario's first rounds are interpreted, then
+ *       compiled, then recompiled under a better profile. The phase runs at
+ *       least two rounds, because the first one has no predecessor to agree
+ *       with, and agreement ends it once the warmup floor
+ *       {@link BenchWarmup#minNanos()} is spent; it is cut off after
+ *       {@link BenchWarmup#maxRounds()} rounds or
+ *       {@link BenchWarmup#budgetNanos()}, so a scenario that never settles
+ *       still terminates. The C++ per-round warmup call is subsumed by this
+ *       phase and is not repeated, which saves one full body execution per
+ *       round.</li>
+ *   <li>The settling phase runs {@link BenchWarmup#settleRounds()} further
+ *       rounds and discards them. That is the first timed round of the
+ *       measurement budget, dropped so the clock interval that follows the
+ *       warmup phase never enters the mean.</li>
+ *   <li>The measurement phase times the counted rounds and records their mean
+ *       and their population standard deviation.</li>
+ * </ol>
+ *
+ * <p>A Java figure still carries a JIT-dependent component the C++ figure does
+ * not. The compiler keeps profiling after the warmup phase, a deoptimization or
+ * a later recompilation can move a counted round by a few percent, and the
+ * platform is shared with the rest of the process, so a Java mean is an upper
+ * bound on the steady-state cost where the ahead-of-time compiled C++ mean is
+ * essentially flat. The reported standard deviation is where that residual
+ * spread shows; two Java runs on the same machine can differ by a few percent
+ * even when the scenario is stable, and the C++ suite is the reference for
+ * absolute figures.
+ *
+ * <p>Two further porting differences follow from the language: the blackhole
+ * sink is passed to the scenario through {@link #sink()} instead of a global
+ * variable, so the two directions of the C++ free function namespace (harness
+ * calls the closure, closure reads the sink) stay explicit; and the clock is
+ * {@link System#nanoTime()}, the monotonic Java clock, in place of
+ * {@code std::chrono::steady_clock}, which reports the same kind of elapsed
+ * time free of wall-clock adjustments.
  *
  * <p>The harness is not thread-safe, mirroring the C++ process-wide globals.
  */
@@ -79,22 +103,54 @@ public final class BenchHarness {
         Objects.requireNonNull(op, "op");
         int iterations = profile.iterationsFor(baseIterations);
         int rounds = profile.roundsFor(baseRounds);
-        for (int i = 0; i < profile.warmupCalls(); i++) {
-            op.run();
-        }
+        BenchWarmup warmup = profile.warmup();
+
+        warmUp(op, iterations, warmup);
+
         double[] perOpNs = new double[rounds];
-        for (int r = 0; r < rounds; r++) {
-            op.run(); // the single warmup call the C++ harness makes per round
-            long start = System.nanoTime();
-            for (int i = 0; i < iterations; i++) {
-                op.run();
+        int timedRounds = warmup.settleRounds() + rounds;
+        for (int r = 0; r < timedRounds; r++) {
+            double perOp = (double) roundNanos(op, iterations) / iterations;
+            if (r >= warmup.settleRounds()) {
+                perOpNs[r - warmup.settleRounds()] = perOp;
             }
-            long end = System.nanoTime();
-            perOpNs[r] = (double) (end - start) / iterations;
         }
         BenchResult result = BenchResult.statistics(name, perOpNs);
         results.add(result);
         out.printf(LINE_FORMAT, name, result.meanNs(), result.stddevNs());
+    }
+
+    /**
+     * Runs whole warmup rounds until the floor {@link BenchWarmup#minNanos()}
+     * is spent and two consecutive rounds agree, or until the round cap or the
+     * warmup budget cuts the phase off. The first round never agrees, because it
+     * has no predecessor, so a measurement is never taken from a completely
+     * cold process.
+     */
+    private static void warmUp(Runnable op, int iterations, BenchWarmup warmup) {
+        double previousNsPerOp = Double.NaN;
+        long spentNanos = 0L;
+        for (int round = 1; round <= warmup.maxRounds(); round++) {
+            long elapsed = roundNanos(op, iterations);
+            spentNanos += elapsed;
+            double currentNsPerOp = (double) elapsed / iterations;
+            if (spentNanos >= warmup.minNanos() && warmup.agrees(previousNsPerOp, currentNsPerOp)) {
+                return;
+            }
+            if (spentNanos >= warmup.budgetNanos()) {
+                return;
+            }
+            previousNsPerOp = currentNsPerOp;
+        }
+    }
+
+    /** Times one round of {@code iterations} calls and returns its wall-clock nanoseconds. */
+    private static long roundNanos(Runnable op, int iterations) {
+        long start = System.nanoTime();
+        for (int i = 0; i < iterations; i++) {
+            op.run();
+        }
+        return System.nanoTime() - start;
     }
 
     /** The sink the scenarios accumulate their work into. */

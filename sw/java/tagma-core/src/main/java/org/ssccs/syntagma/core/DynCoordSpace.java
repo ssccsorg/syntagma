@@ -17,9 +17,12 @@ import java.util.Optional;
  * written consume nodes.
  *
  * <p>A path index can hold a value and a deeper subtree at the same time (the
- * C++ {@code kBoth} slot, the Rust {@code Slot::Both}), so a placement never
- * displaces deeper paths and a removal of a prefix value preserves the paths
- * below it.
+ * C++ {@code kBoth} slot, the Rust {@code Slot::Both}), which is how a value
+ * placed above existing entries keeps them. The references define the
+ * displacement rules and the port mirrors them: placing a value at a path whose
+ * slot holds a subtree alone replaces that slot with a leaf and drops the
+ * subtree, while removing the value of a both slot keeps the subtree and leaves
+ * a node.
  *
  * <p>Port of the C++ {@code tagma::DynCoordSpace<V>} in
  * {@code sw/cpp/tagma_core/include/tagma_core/dyn_coord_space.h}; the underlying
@@ -198,9 +201,11 @@ public final class DynCoordSpace<V> {
                     return Optional.of(previous);
                 }
                 case NODE -> {
-                    // The node held no value at this level; keep its subtree.
-                    slot.kind = Slot.Kind.BOTH;
-                    slot.value = value;
+                    // Mirrors both references: the node is replaced by a leaf
+                    // and its subtree is dropped.
+                    Slot<V> leaf = new Slot<>(Slot.Kind.LEAF);
+                    leaf.value = value;
+                    slots[index] = leaf;
                     return Optional.empty();
                 }
             }

@@ -14,12 +14,11 @@ import javax.crypto.spec.SecretKeySpec;
  * <p>The Rust reference uses blake3 keyed hashing. The C++ port replaces it
  * with SHA-256 and HMAC-SHA-256 over the concatenated parts, keeping the same
  * interfaces and semantics: a 32-byte keyed commitment, tamper evidence, keyed
- * binding, and recompute-and-compare verification. The 32-byte key is a key
- * shorter than the 64-byte SHA-256 block, so HMAC zero-pads it to the block
- * length before mixing the inner and outer pads. Java mirrors the C++
- * implementation through the JDK and produces the same bytes, so tags written
- * by one port verify in the other and match any standard HMAC-SHA-256
- * implementation.
+ * binding, and recompute-and-compare verification. The key is shorter than the
+ * 64-byte SHA-256 block, so HMAC zero-pads it to the block length before
+ * mixing the inner and outer pads. Java mirrors the C++ implementation through
+ * the JDK and produces the same bytes, so tags written by one port verify in
+ * the other and match any standard HMAC-SHA-256 implementation.
  *
  * <p>Port of the hash helpers in the C++ {@code tagma_sec/hash.h} in
  * {@code sw/cpp/tagma_sec}; the underlying behavior mirrors {@code keyed_tag}

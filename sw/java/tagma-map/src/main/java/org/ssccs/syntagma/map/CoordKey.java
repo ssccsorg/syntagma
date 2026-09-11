@@ -12,8 +12,11 @@ import org.ssccs.syntagma.core.CoordPath;
  * the same length.
  *
  * <p>Unlike {@link Prefix} (which truncates arbitrary strings) the key carries
- * the exact length as immutable instance state, so a key can never hold a
- * different number of bytes than the store that owns it expects.
+ * its own byte length as immutable instance state, so the length travels with
+ * the key instead of living in the type. The references tie key and store
+ * together in the type system, which makes a mismatch impossible to express;
+ * Java checks the match at use time, where a store rejects a key it cannot
+ * hold and the path lookup surface reports such a path as absent.
  *
  * <p>The byte-space domain of one key character is {@link #BYTE_DOMAIN} (256):
  * every key character addresses one byte. A {@link CoordPath} index at or above

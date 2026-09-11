@@ -43,8 +43,20 @@ import org.ssccs.syntagma.map.DynCoordMap;
  *       coordinate advances by {@code 11172^2} slots, would need hundreds of
  *       gigabytes of direct memory; the mmap-backed references reserve the
  *       whole region once and pay only for the pages they touch.
- *       try-with-resources drops the windows at the end of every round, which
- *       is the C++ destructor equivalent.</li>
+ *       try-with-resources drops the windows when the scenario ends, which is
+ *       the C++ destructor equivalent.</li>
+ *   <li>The {@code csm insert 1k n3} scenario materializes its slot window
+ *       before the timed region, so the recorded number is the cost of the
+ *       placements rather than the cost of the window reservation. Its javadoc
+ *       states exactly what that region contains.</li>
+ *   <li>The {@code csn2 insert all 10k} scenario allocates a whole tree per
+ *       round, so its Java figure carries garbage-collection variance: the
+ *       standard deviation printed beside it is on the order of the mean, and
+ *       the mean is only meaningful with it. Measured once the warmup policy
+ *       reaches steady state, the scenario reports about 17.4 ms at five rounds
+ *       against about 11.4 ms at twenty, the spread of an allocation-heavy loop
+ *       rather than of a cold compiler. The C++ figure has neither source of
+ *       variance.</li>
  *   <li>The map scenarios that build keys from raw bytes index those bytes
  *       through {@link CoordKey}, because a Java {@code String} carries
  *       characters and its UTF-8 encoding would turn a byte at or above 0x80
@@ -287,16 +299,30 @@ public final class BenchSuite {
         return out;
     }
 
+    /**
+     * The {@code csm insert 1k n3} scenario. The measured region contains the
+     * 1000 placements and nothing else: the space and its first slot window are
+     * materialized before the harness starts timing, because the Java
+     * {@code CoordSpaceM} reserves a window of about two gigabytes of direct
+     * memory on first touch and faults its pages, which costs on the order of
+     * two hundred milliseconds and would dominate a placement of a few dozen
+     * nanoseconds. The C++ suite creates the space inside the timed body, where
+     * the {@code MAP_NORESERVE} mapping commits only the pages it writes. The
+     * first placement of a round therefore lands on the slot that the
+     * materializing placement already filled, and the other 999 are fresh
+     * insertions into the materialized window.
+     */
     private static void csmInsert1000(BenchHarness harness) {
         List<CoordPath> paths = csmPaths3d(1000);
-        harness.run("csm insert 1k n3", 1, 5, () -> {
-            try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
+        try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
+            space.placePath(paths.get(0), 1); // materialize the first window before timing
+            harness.run("csm insert 1k n3", 1, 5, () -> {
                 for (CoordPath path : paths) {
                     space.placePath(path, 1);
                 }
                 harness.sink().add(space.size());
-            }
-        });
+            });
+        }
     }
 
     private static void csmGet1000(BenchHarness harness) {

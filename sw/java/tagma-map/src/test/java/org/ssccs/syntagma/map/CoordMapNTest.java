@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.ssccs.syntagma.core.Coord;
 import org.ssccs.syntagma.core.CoordPath;
+import org.ssccs.syntagma.core.CoordSpaceN;
 
 /**
  * Translation of the {@code CoordMapN} cases of the C++ test suite
@@ -22,8 +23,10 @@ import org.ssccs.syntagma.core.CoordPath;
  * {@code sw/rust/map/tests/basic.rs} ({@code mapn_insert_returns_previous},
  * {@code mapn_contains_key}, {@code mapn_wrong_length},
  * {@code mapn_by_coordkey}) and with the Java runtime checks that replace the
- * const generic {@code N} of the references. The Rust {@code Default} cases
- * have no Java counterpart: the constructor is the empty-state entry point.
+ * const generic {@code N} of the references: the path lookup surface reports a
+ * path the store cannot hold as absent, while the coordinate-key surface and
+ * the space itself reject the mismatch. The Rust {@code Default} cases have no
+ * Java counterpart: the constructor is the empty-state entry point.
  */
 class CoordMapNTest {
 
@@ -70,8 +73,17 @@ class CoordMapNTest {
     }
 
     @Test
-    void wrongDepthKeysRejected() {
+    void wrongDepthKeys() {
         CoordMapN map = new CoordMapN(2);
+
+        // The lookup surface reports a path it cannot hold as absent, so a
+        // query whose center has the wrong length yields no hits instead of an
+        // exception raised from inside the query loop.
+        assertTrue(map.getByCoordPath(path(1, 2, 3)).isEmpty(), "long path is absent");
+        assertTrue(map.getByCoordPath(path(1)).isEmpty(), "short path is absent");
+
+        // The CoordKey surface delegates straight to the space and keeps its
+        // rejection, the references' compile-time check made runtime.
         assertThrows(IllegalArgumentException.class,
                 () -> map.getByCoordKey(new CoordKey(new byte[] {'a'})),
                 "coordkey depth mismatch get");
@@ -79,8 +91,11 @@ class CoordMapNTest {
                 () -> map.insertByCoordKey(new CoordKey(new byte[] {'a', 'b', 'c'}), bytes("v")),
                 "coordkey depth mismatch insert");
         assertThrows(IllegalArgumentException.class,
-                () -> map.getByCoordPath(CoordPath.fromArray(Coord.fromIndex(1).orElseThrow())),
-                "path depth mismatch lookup");
+                () -> map.removeByCoordKey(new CoordKey(new byte[] {'a', 'b', 'c'})),
+                "coordkey depth mismatch remove");
+        assertThrows(IllegalArgumentException.class,
+                () -> new CoordSpaceN<byte[]>(2).atPath(path(1, 2, 3)),
+                "direct space lookup still rejects the mismatch");
     }
 
     @Test
@@ -152,6 +167,14 @@ class CoordMapNTest {
 
     private static byte[] bytes(String text) {
         return text.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static CoordPath path(int... indices) {
+        Coord[] coords = new Coord[indices.length];
+        for (int i = 0; i < indices.length; i++) {
+            coords[i] = Coord.fromIndex(indices[i]).orElseThrow();
+        }
+        return CoordPath.fromArray(coords);
     }
 
     private static void assertValue(byte[] expected, Optional<byte[]> actual, String message) {

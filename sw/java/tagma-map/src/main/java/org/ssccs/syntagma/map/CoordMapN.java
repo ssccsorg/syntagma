@@ -122,8 +122,23 @@ public class CoordMapN implements CoordMapKey, CoordPathLookup {
     // Path lookup and iteration
     // ------------------------------------------------------------------
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>A path whose length differs from the depth of the store is absent
+     * rather than an error, which is what {@link CoordPathLookup} documents.
+     * The generated paths of a {@link CoordCubeMap} query follow the query
+     * geometry, so a center that cannot address this store yields no hits
+     * instead of an exception raised from inside the query loop.
+     * {@link CoordSpaceN} itself keeps the rejection for callers that address
+     * it directly.
+     */
     @Override
     public Optional<byte[]> getByCoordPath(CoordPath path) {
+        Objects.requireNonNull(path, "path");
+        if (path.length() != space.depth()) {
+            return Optional.empty();
+        }
         return space.atPath(path).map(byte[]::clone);
     }
 

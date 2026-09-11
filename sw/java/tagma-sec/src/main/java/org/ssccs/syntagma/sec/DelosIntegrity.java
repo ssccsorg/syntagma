@@ -1,6 +1,6 @@
 package org.ssccs.syntagma.sec;
 
-import java.util.Arrays;
+import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.Optional;
 import org.ssccs.syntagma.core.Coord;
@@ -14,6 +14,11 @@ import org.ssccs.syntagma.core.CoordPath;
  * little-endian epoch, and the little-endian coordinate indices, in that
  * order. {@code refresh} rejects a target epoch that is not newer than the
  * binding epoch.
+ *
+ * <p>Tag comparison goes through {@link MessageDigest#isEqual}, which inspects
+ * every byte without an early exit, so a mismatch does not reveal where the
+ * difference lies. {@code Arrays.equals} is avoided in verification paths for
+ * that reason.
  *
  * <p>Port of the C++ {@code tagma_sec::DelosIntegrity} in
  * {@code sw/cpp/tagma_sec/include/tagma_sec/delos.h}; the underlying behavior
@@ -41,7 +46,7 @@ public final class DelosIntegrity implements Integrity {
     @Override
     public boolean verify(byte[] record, CoordPath path, long principal, long epoch, Seal seal) {
         Objects.requireNonNull(seal, "seal");
-        return Arrays.equals(seal(record, path, principal, epoch).tag(), seal.tag());
+        return MessageDigest.isEqual(seal(record, path, principal, epoch).tag(), seal.tag());
     }
 
     @Override

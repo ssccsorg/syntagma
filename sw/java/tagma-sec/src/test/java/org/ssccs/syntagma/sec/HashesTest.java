@@ -2,6 +2,7 @@ package org.ssccs.syntagma.sec;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.ssccs.syntagma.sec.Fixtures.hex;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -25,14 +26,6 @@ import org.junit.jupiter.api.Test;
  * digest, which the second keyed vector below pins.
  */
 class HashesTest {
-
-    private static byte[] hex(String text) {
-        byte[] out = new byte[text.length() / 2];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = (byte) Integer.parseInt(text.substring(2 * i, 2 * i + 2), 16);
-        }
-        return out;
-    }
 
     private static byte[] ascii(String text) {
         return text.getBytes(StandardCharsets.US_ASCII);

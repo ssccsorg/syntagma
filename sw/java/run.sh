@@ -14,6 +14,9 @@ cd "$(dirname "$0")"
 
 case "${1:-}" in
     --bench|-b)
+        # The benchmark suite materializes CoordSpaceM windows of up to 2 GiB
+        # of direct memory, and exec:java runs inside this JVM.
+        export MAVEN_OPTS="${MAVEN_OPTS:-} -XX:MaxDirectMemorySize=3g"
         # exec:java resolves the module dependencies from the local
         # repository, so package the reactor first. Tests are skipped here
         # because the benchmark profile is the work in this path.

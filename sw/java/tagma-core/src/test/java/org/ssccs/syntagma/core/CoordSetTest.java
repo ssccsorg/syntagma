@@ -97,7 +97,8 @@ class CoordSetTest {
 
     @Test
     void capacityConstant() {
-        assertEquals(Coord.N_VALID, CoordSet.capacity());
+        int lattice = Coord.INITIAL_MAX * Coord.MEDIAL_MAX * Coord.FINAL_MAX;
+        assertEquals(lattice, CoordSet.capacity());
     }
 
     @Test

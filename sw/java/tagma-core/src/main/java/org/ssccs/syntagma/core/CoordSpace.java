@@ -275,9 +275,18 @@ public final class CoordSpace<V> {
             return new ValueRef<>(space, coord);
         }
 
-        /** Like {@link #orInsert(Object)} but computes the value lazily. */
+        /**
+         * Like {@link #orInsert(Object)} but calls {@code factory} only when the
+         * slot is vacant, mirroring the C++ {@code or_insert_with} and the Rust
+         * {@code or_insert_with}, which evaluate the factory inside the vacant
+         * branch.
+         */
         public ValueRef<V> orInsertWith(Supplier<V> factory) {
-            return orInsert(Objects.requireNonNull(factory.get(), "factory returned null"));
+            Objects.requireNonNull(factory, "factory");
+            if (!space.occupied(coord)) {
+                space.place(coord, Objects.requireNonNull(factory.get(), "factory returned null"));
+            }
+            return new ValueRef<>(space, coord);
         }
     }
 }

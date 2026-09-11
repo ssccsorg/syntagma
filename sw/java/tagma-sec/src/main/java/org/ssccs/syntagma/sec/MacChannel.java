@@ -1,6 +1,6 @@
 package org.ssccs.syntagma.sec;
 
-import java.util.Arrays;
+import java.security.MessageDigest;
 import java.util.Objects;
 
 /**
@@ -11,6 +11,11 @@ import java.util.Objects;
  * {@code verifyReceipt} decodes the tail of the signed evidence and checks it
  * against the receipt fields before verifying the tag, so tampering with
  * either the evidence or the recorded remote and epoch is detected.
+ *
+ * <p>Tag comparison goes through {@link MessageDigest#isEqual}, which inspects
+ * every byte without an early exit, so a mismatch does not reveal where the
+ * difference lies. {@code Arrays.equals} is avoided in verification paths for
+ * that reason.
  *
  * <p>Port of the C++ {@code tagma_sec::MacChannel} in
  * {@code sw/cpp/tagma_sec/include/tagma_sec/channel.h}; the underlying
@@ -31,7 +36,7 @@ public final class MacChannel implements Channel {
     public boolean verify(SignedEvidence signedEvidence) {
         Objects.requireNonNull(signedEvidence, "signedEvidence");
         byte[] expected = Hashes.keyedTag(CHANNEL_KEY, signedEvidence.evidence());
-        return Arrays.equals(expected, signedEvidence.tag());
+        return MessageDigest.isEqual(expected, signedEvidence.tag());
     }
 
     @Override

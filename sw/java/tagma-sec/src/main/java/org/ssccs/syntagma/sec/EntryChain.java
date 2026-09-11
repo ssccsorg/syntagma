@@ -1,6 +1,6 @@
 package org.ssccs.syntagma.sec;
 
-import java.util.Arrays;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.OptionalLong;
 
@@ -14,6 +14,8 @@ import java.util.OptionalLong;
  * {@code verify_entries} in {@code sw/rust/sec/src/audit.rs}.
  *
  * <p>Package-private: the shared helper is not part of the module interface.
+ * Commitments are compared through {@link MessageDigest#isEqual}, which
+ * inspects every byte without an early exit.
  */
 final class EntryChain {
 
@@ -23,7 +25,7 @@ final class EntryChain {
     static boolean verify(List<Entry> entries) {
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
-            if (!Arrays.equals(Hashes.sha256(entry.payload()), entry.event().payloadHash())) {
+            if (!MessageDigest.isEqual(Hashes.sha256(entry.payload()), entry.event().payloadHash())) {
                 return false;
             }
             if (i > 0) {

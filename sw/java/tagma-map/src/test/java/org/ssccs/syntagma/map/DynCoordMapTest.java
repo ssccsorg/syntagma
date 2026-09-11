@@ -20,10 +20,12 @@ import org.ssccs.syntagma.core.CoordPath;
  * {@code test_dyn_iter}, {@code test_dyn_long_key_roundtrip}), extended with
  * the Rust-only cases of {@code sw/rust/map/tests/basic.rs}
  * ({@code dyn_contains_key}, {@code dyn_nonexistent_key},
- * {@code dyn_roundtrip_large_key}). The {@code test_dyn_coord_space} part of
- * the C++ suite covers {@code tagma::DynCoordSpace}, a tagma-core type whose
- * cases are already translated by
- * {@code org.ssccs.syntagma.core.DynCoordSpaceTest}.
+ * {@code dyn_roundtrip_large_key}). The iterator hands out the stored byte key
+ * as a {@link CoordKey}, the counterpart of the byte vector the Rust iterator
+ * yields, so the key round-trips for non-ASCII text as well. The
+ * {@code test_dyn_coord_space} part of the C++ suite covers
+ * {@code tagma::DynCoordSpace}, a tagma-core type whose cases are already
+ * translated by {@code org.ssccs.syntagma.core.DynCoordSpaceTest}.
  */
 class DynCoordMapTest {
 
@@ -96,12 +98,30 @@ class DynCoordMapTest {
         DynCoordMap map = new DynCoordMap();
         map.insert("abc", bytes("123"));
         map.insert("def", bytes("456"));
-        List<Map.Entry<String, byte[]>> entries = map.iter();
+        List<Map.Entry<CoordKey, byte[]>> entries = map.iter();
         assertEquals(2, entries.size(), "dyn iter size");
-        assertEquals("abc", entries.get(0).getKey(), "dyn iter first in ascending order");
+        assertEquals(new CoordKey(bytes("abc")), entries.get(0).getKey(),
+                "dyn iter first in ascending order");
         assertArrayEquals(bytes("123"), entries.get(0).getValue(), "dyn iter first value");
-        assertEquals("def", entries.get(1).getKey(), "dyn iter second in ascending order");
+        assertEquals(new CoordKey(bytes("def")), entries.get(1).getKey(),
+                "dyn iter second in ascending order");
         assertArrayEquals(bytes("456"), entries.get(1).getValue(), "dyn iter second value");
+    }
+
+    @Test
+    void iterKeysRoundTripNonAscii() {
+        // The iterated key is the stored byte key, so it round-trips whatever
+        // the inserted text was; the caller recovers the text by decoding the
+        // bytes with the encoding it inserted under.
+        DynCoordMap map = new DynCoordMap();
+        map.insert("\uD55C\uAE00", bytes("v"));
+
+        List<Map.Entry<CoordKey, byte[]>> entries = map.iter();
+        assertEquals(1, entries.size(), "dyn unicode iter size");
+        CoordKey key = entries.get(0).getKey();
+        assertArrayEquals(bytes("\uD55C\uAE00"), key.bytes(), "dyn unicode iter key bytes");
+        assertValue(bytes("v"), map.get(new String(key.bytes(), StandardCharsets.UTF_8)),
+                "dyn unicode iter key round trip");
     }
 
     @Test

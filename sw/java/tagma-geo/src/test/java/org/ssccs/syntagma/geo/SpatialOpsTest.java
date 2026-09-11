@@ -181,6 +181,40 @@ class SpatialOpsTest {
                 "manhattan base-11172 value");
     }
 
+    /**
+     * Pins the wrapped large-resolution values against unsigned 64-bit
+     * arithmetic instead of the implementation formulas. The C++ and Rust doc
+     * comments claim a maximum of zero for a resolution of 5 or more while
+     * their code wraps, so the values pinned here are the code's behavior:
+     * {@code 11172^5 - 1} reduced modulo 2^64 is 8021531685948761087, and
+     * {@code 5000 + 9000*11172 + 11000*11172^2 + 3*11172^3 + 7000*11172^4}
+     * reduced modulo 2^64 is 16815300444229692264.
+     */
+    @Test
+    void largeResolutionValuesWrapLikeUnsignedArithmetic() {
+        CoordCube zero = cube(1, 5, 0, 0, 0, 0, 0);
+        CoordCube wide = cube(1, 5, 5000, 9000, 11000, 3, 7000);
+        assertEquals(Long.parseUnsignedLong("16815300444229692264"), SpatialOps.dimensionValue(wide, 0),
+                "dimension value wraps modulo 2^64");
+        assertEquals(Long.parseUnsignedLong("16815300444229692264"), SpatialOps.manhattanDistance(zero, wide),
+                "manhattan distance wraps modulo 2^64");
+        assertEquals(8021531685948761087L, SpatialOps.dimensionMaxValue(5),
+                "dimension max wraps modulo 2^64");
+    }
+
+    /**
+     * The resolution-5 dimension value has bit 63 set, so widening it with
+     * signed semantics flips its sign and yields 0.20338305617337937 for these
+     * cubes where the unsigned reference conversions yield 2.0962705257008323.
+     */
+    @Test
+    void euclideanLargeResolutionUsesUnsignedWidening() {
+        CoordCube zero = cube(1, 5, 0, 0, 0, 0, 0);
+        CoordCube wide = cube(1, 5, 5000, 9000, 11000, 3, 7000);
+        assertEquals(2.0962705257008323, SpatialOps.euclideanDistanceApprox(zero, wide), 1e-9,
+                "euclidean widens dimension values with unsigned semantics");
+    }
+
     @Test
     void proximityHamming() {
         CoordCube cube = cube(2, 1, 5, 10);

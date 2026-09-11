@@ -1,14 +1,16 @@
 package org.ssccs.syntagma.map;
 
 /**
- * The failure taxonomy of coordinate generation.
+ * The failure taxonomy of coordinate generation, kept in the public surface to
+ * mirror the reference taxonomy: no type or method of this module produces or
+ * consumes a {@code GenError}.
  *
- * <p>Every strategy rejects the empty key ({@link #EMPTY_KEY}); a strategy with
- * a fixed depth can also report a key longer than it can fold
- * ({@link #KEY_TOO_LONG}). The Java strategy surface reports these failures as
- * {@code Optional.empty()}, the mapping of the C++ {@code std::optional}
- * return, mirroring the C++ port, which declares the same enum and also
- * reports failure through the optional return.
+ * <p>The strategy surface reports a rejected key as {@code Optional.empty()},
+ * the mapping of the C++ {@code std::optional} return, and a key of the wrong
+ * length throws {@link IllegalArgumentException} from the member that detects
+ * it. The two members therefore name the failures the references classify, not
+ * failures this port returns: the empty key, and the oversize key that the Rust
+ * {@code CoordKey} reports as {@code KeyTooLong}.
  *
  * <p>Port of the C++ {@code tagma_map::GenError} in
  * {@code sw/cpp/tagma_map/include/tagma_map/coord_gen.h}; the underlying

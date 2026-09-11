@@ -41,12 +41,21 @@ class CoordSpaceMTest {
         return CoordPath.fromArray(coord(a), coord(b), coord(c));
     }
 
+    /**
+     * The slot count derived in the test from the coordinate lattice, so the
+     * capacity assertions do not re-read the constant they check.
+     */
+    private static long latticeSlots() {
+        long valid = Coord.N_VALID;
+        return valid * valid * valid;
+    }
+
     @Test
     void placeAndAt() {
         try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
             assertTrue(space.isEmpty(), "new space is empty");
             assertEquals(0L, space.size(), "new space len is zero");
-            assertEquals(CoordSpaceM.SLOT_COUNT, space.capacity(), "fixed capacity");
+            assertEquals(latticeSlots(), space.capacity(), "fixed capacity");
             CoordPath p = path3(1, 2, 3);
             assertTrue(space.atPath(p).isEmpty(), "at_path on empty slot");
             assertTrue(space.placePath(p, 42).isEmpty(), "place returns no previous");
@@ -90,7 +99,7 @@ class CoordSpaceMTest {
             assertEquals(0, space.allocatedWindows(), "clear drops the windows");
             assertTrue(space.atPath(path3(1, 1, 1)).isEmpty(), "cleared slot one");
             assertTrue(space.atPath(path3(2, 2, 2)).isEmpty(), "cleared slot two");
-            assertEquals(CoordSpaceM.SLOT_COUNT, space.capacity(), "capacity survives clear");
+            assertEquals(latticeSlots(), space.capacity(), "capacity survives clear");
             assertEquals(Optional.empty(), space.placePath(path3(3, 3, 3), 33), "clear leaves the space usable");
             assertEquals(Optional.of(33), space.atPath(path3(3, 3, 3)), "reuse after clear");
         }
@@ -182,9 +191,15 @@ class CoordSpaceMTest {
             assertEquals(0, space.allocatedWindows(), "reads and failed vacates materialize nothing");
             assertTrue(space.isEmpty(), "nothing was placed");
 
-            space.retain((path, value) -> false);
-            assertEquals(0, space.allocatedWindows(), "retain materializes nothing");
-            assertEquals(CoordSpaceM.SLOT_COUNT, space.capacity(), "capacity is independent of allocation");
+            space.placePath(path3(0, 0, 0), 1);
+            space.placePath(path3(0, 0, 1), 2);
+            space.retain((path, value) -> value == 2);
+            assertEquals(1L, space.size(), "retain filters a materialized window");
+            assertTrue(space.atPath(path3(0, 0, 0)).isEmpty(), "the failing value is gone");
+            assertEquals(Optional.of(2), space.atPath(path3(0, 0, 1)), "the matching value stays");
+            assertTrue(space.atPath(path3(11171, 11171, 11171)).isEmpty(), "the last region is still vacant");
+            assertEquals(1, space.allocatedWindows(), "retain materializes no additional window");
+            assertEquals(latticeSlots(), space.capacity(), "capacity is independent of allocation");
         }
     }
 
@@ -286,7 +301,7 @@ class CoordSpaceMTest {
         space.close();
         assertEquals(0L, space.size(), "closing twice is harmless");
         assertEquals(3, space.depth(), "shape accessors survive close");
-        assertEquals(CoordSpaceM.SLOT_COUNT, space.capacity(), "capacity survives close");
+        assertEquals(latticeSlots(), space.capacity(), "capacity survives close");
     }
 
     @Test
@@ -299,13 +314,20 @@ class CoordSpaceMTest {
         try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
             space.placePath(path3(1, 2, 3), 42);
             assertEquals(Optional.of(42), space.atPath(path3(1, 2, 3)), "the space works without a file");
+            space.clear();
+            space.placePath(path3(1, 2, 3), 43);
         }
 
         assertEquals(workingBefore, directoryNames(workingDirectory), "the working directory gains no entry");
-        Set<String> temporaryNew = directoryNames(temporaryDirectory);
-        temporaryNew.removeAll(temporaryBefore);
-        assertEquals(List.of(), temporaryNew.stream().filter(name -> name.startsWith("coord-space-m-")).toList(),
-                "the temporary directory gains no space file");
+        Set<String> temporaryAfter = directoryNames(temporaryDirectory);
+        if (!temporaryBefore.equals(temporaryAfter)) {
+            // The temporary directory is shared with the rest of the machine, so an
+            // unrelated process can add or remove an entry inside the window this
+            // test observes. Re-check on a fresh snapshot: an entry the space left
+            // behind is still there, foreign churn that has passed is not.
+            assertEquals(temporaryBefore, directoryNames(temporaryDirectory),
+                    "the temporary directory gains no entry");
+        }
     }
 
     @Test

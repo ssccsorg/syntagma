@@ -26,7 +26,14 @@ import org.ssccs.syntagma.core.CoordPath;
 public final class HammingFilter implements Iterable<CoordPath>, Iterator<CoordPath> {
 
     private final BoundingBoxIter inner;
-    private final CoordPath center;
+
+    /**
+     * Snapshot of the center coordinates. {@code CoordPath.coords()} returns a
+     * defensive copy, so taking it once here keeps a clone per candidate out
+     * of the filter loop.
+     */
+    private final Coord[] centerCoords;
+
     private final int maxDistance;
 
     /** The next matching path, when a previous look-ahead already found it. */
@@ -43,15 +50,15 @@ public final class HammingFilter implements Iterable<CoordPath>, Iterator<CoordP
      *         iterator length or {@code maxDistance} is negative
      */
     public HammingFilter(BoundingBoxIter inner, CoordPath center, int maxDistance) {
-        this(inner, center, maxDistance, null);
+        this(inner, Objects.requireNonNull(center, "center").coords(), maxDistance, null);
     }
 
-    private HammingFilter(BoundingBoxIter inner, CoordPath center, int maxDistance, CoordPath pending) {
+    private HammingFilter(BoundingBoxIter inner, Coord[] centerCoords, int maxDistance, CoordPath pending) {
         this.inner = Objects.requireNonNull(inner, "inner");
-        this.center = Objects.requireNonNull(center, "center");
-        if (center.length() != inner.ndim()) {
+        this.centerCoords = centerCoords;
+        if (centerCoords.length != inner.ndim()) {
             throw new IllegalArgumentException(
-                    "HammingFilter: center length " + center.length()
+                    "HammingFilter: center length " + centerCoords.length
                             + " must equal the iterator length " + inner.ndim());
         }
         if (maxDistance < 0) {
@@ -99,12 +106,11 @@ public final class HammingFilter implements Iterable<CoordPath>, Iterator<CoordP
      */
     @Override
     public Iterator<CoordPath> iterator() {
-        return new HammingFilter(inner.copy(), center, maxDistance, pending);
+        return new HammingFilter(inner.copy(), centerCoords, maxDistance, pending);
     }
 
     private int hammingToCenter(CoordPath candidate) {
         Coord[] candidateCoords = candidate.coords();
-        Coord[] centerCoords = center.coords();
         int distance = 0;
         for (int i = 0; i < candidateCoords.length; i++) {
             if (!candidateCoords[i].equals(centerCoords[i])) {

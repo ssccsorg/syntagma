@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.ssccs.syntagma.sec.Fixtures.bytes;
+import static org.ssccs.syntagma.sec.Fixtures.hex;
 import static org.ssccs.syntagma.sec.Fixtures.path;
 import static org.ssccs.syntagma.sec.Fixtures.withBothStacks;
 
@@ -337,9 +338,13 @@ class WorkflowTest {
                     SecStack.routeUpdate(stack, att, path(1, 2, 3), record, 50);
             assertTrue(res.isPresent(), "update accepted");
             if (res.isPresent()) {
-                assertArrayEquals(Hashes.sha256(record),
+                // Pinned against an independent OpenSSL computation of
+                // sha256("route-v1"); recomputing it with Hashes.sha256 would
+                // make the assertion unable to fail on a wrong commitment.
+                assertArrayEquals(
+                        hex("3e1acf18e9b268eb42f54230cd96c449d2bb6248a13e1d3f55322e7bfd66985e"),
                         res.orElseThrow().event().payloadHash(),
-                        "audit entry commits to the record payload");
+                        "audit entry commits to the pinned record payload");
             }
         });
     }

@@ -28,8 +28,8 @@ synTagma (system)
 | Implementation | Location | Modules | Verification |
 |----------------|----------|---------|--------------|
 | Rust (reference) | `sw/rust` | core, base11172, geo, map, sec, benches | 360+ unit/integration tests, 26 doc-tests, `./run.sh --check` |
-| C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 14 suites, `sw/cpp/run.sh` |
-| Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 307 JUnit tests, `sw/java/run.sh` |
+| C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 16 suites, `sw/cpp/run.sh` |
+| Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 341 JUnit tests, `sw/java/run.sh` |
 
 The ports carry the in-memory contracts and their semantics only. They own no persistence and no on-disk format: materialization, layouts and file formats belong to chton, the Rust storage fabric. The Java dense space therefore allocates lazily off-heap instead of mapping a file, and the reason is recorded in `sw/java/README.md`.
 

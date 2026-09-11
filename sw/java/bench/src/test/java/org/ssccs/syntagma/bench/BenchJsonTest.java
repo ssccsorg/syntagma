@@ -78,9 +78,18 @@ class BenchJsonTest {
         BenchJson.write(target, "20260101-000000", "abc1234",
                 List.of(new BenchResult("scenario", 3.5, 0.5)));
 
-        assertEquals(BenchJson.render("20260101-000000", "abc1234",
-                List.of(new BenchResult("scenario", 3.5, 0.5))),
-                Files.readString(target, StandardCharsets.UTF_8), "written document");
+        // The literal document of the references, not what render returns: a
+        // broken renderer has to fail this case, not be echoed back by it.
+        String expected = String.join("\n",
+                "{",
+                "  \"timestamp\": \"20260101-000000\",",
+                "  \"commit\": \"abc1234\",",
+                "  \"benchmarks\": {",
+                "    \"scenario\": {\"mean_ns\": 3.5, \"stddev_ns\": 0.5}",
+                "  }",
+                "}",
+                "");
+        assertEquals(expected, Files.readString(target, StandardCharsets.UTF_8), "written document");
     }
 
     @Test

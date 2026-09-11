@@ -1,6 +1,6 @@
 package org.ssccs.syntagma.sec;
 
-import java.util.Arrays;
+import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.Optional;
 import org.ssccs.syntagma.core.Coord;
@@ -10,6 +10,11 @@ import org.ssccs.syntagma.core.CoordPath;
  * Integrity seal for the legacy pattern: binds the record and the path only.
  * The principal and the epoch do not participate, so a legacy seal stays valid
  * across epoch changes and refreshes re-emit the identical tag.
+ *
+ * <p>Tag comparison goes through {@link MessageDigest#isEqual}, which inspects
+ * every byte without an early exit, so a mismatch does not reveal where the
+ * difference lies. {@code Arrays.equals} is avoided in verification paths for
+ * that reason.
  *
  * <p>Port of the C++ {@code tagma_sec::LegacyIntegrity} in
  * {@code sw/cpp/tagma_sec/include/tagma_sec/legacy.h}; the underlying behavior
@@ -36,7 +41,7 @@ public final class LegacyIntegrity implements Integrity {
     @Override
     public boolean verify(byte[] record, CoordPath path, long principal, long epoch, Seal seal) {
         Objects.requireNonNull(seal, "seal");
-        return Arrays.equals(seal(record, path, 0, 0).tag(), seal.tag());
+        return MessageDigest.isEqual(seal(record, path, 0, 0).tag(), seal.tag());
     }
 
     @Override

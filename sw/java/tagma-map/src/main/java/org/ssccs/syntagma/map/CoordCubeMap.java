@@ -39,6 +39,16 @@ import org.ssccs.syntagma.geo.SpatialOps;
  */
 public final class CoordCubeMap {
 
+    /**
+     * The largest list capacity requested up front. Java list capacities are
+     * {@code int}, and an allocation at the array-size limit throws
+     * {@link OutOfMemoryError} before a single path is stored, so the hint is
+     * clamped instead of being scaled with the query area. Beyond this ceiling
+     * the amortised growth of the result list costs less than a speculative
+     * allocation of the same size.
+     */
+    private static final int MAX_CAPACITY_HINT = 1 << 20;
+
     private CoordCubeMap() {
     }
 
@@ -87,14 +97,21 @@ public final class CoordCubeMap {
      *
      * <p>Generation is bounded to {@link CoordKey#BYTE_DOMAIN}, so a radius
      * that crosses the domain edge clamps instead of wrapping. The result is
-     * pre-sized with the saturating capacity computation of the Rust port,
-     * {@code (2 * radius + 1) ^ N}.
+     * pre-sized with the exact number of paths the bounded region generates, so
+     * a radius far beyond the byte domain cannot inflate the allocation.
+     *
+     * <p>A center that cannot address the store yields an empty result rather
+     * than an exception: a path whose length differs from the path length of
+     * the store is absent by definition, as
+     * {@link CoordPathLookup#getByCoordPath(CoordPath)} documents. A center
+     * whose length is not {@code dimensions * resolution} is still a caller
+     * error and is rejected.
      *
      * @throws IllegalArgumentException when a center character index is at or
-     *         above {@link CoordKey#BYTE_DOMAIN}, when {@code dimensions *
-     *         resolution} differs from the center length, when
-     *         {@code radius} is negative, or when a dimension count is not
-     *         positive
+     *         above {@link CoordKey#BYTE_DOMAIN}, when {@code dimensions} or
+     *         {@code resolution} is less than 1, when {@code dimensions *
+     *         resolution} differs from the center length, or when
+     *         {@code radius} is negative
      * @throws NullPointerException when {@code map} or {@code center} is null
      */
     public static List<Hit> proximity(CoordPathLookup map, CoordPath center, int radius,
@@ -102,9 +119,10 @@ public final class CoordCubeMap {
         Objects.requireNonNull(map, "map");
         Objects.requireNonNull(center, "center");
         requireCenterInByteDomain(center);
+        requirePositiveInterpretation(dimensions, resolution);
         CoordCube cube = CoordCube.fromPath(dimensions, resolution, center);
         BoundingBoxIter box = SpatialOps.proximityBounded(cube, radius, CoordKey.BYTE_DOMAIN);
-        List<Hit> results = new ArrayList<>(capacityHint(radius, center.length()));
+        List<Hit> results = new ArrayList<>(capacityHint(box.countPaths()));
         for (CoordPath path : box) {
             Optional<byte[]> value = map.getByCoordPath(path);
             if (value.isPresent()) {
@@ -122,7 +140,13 @@ public final class CoordCubeMap {
      *
      * <p>The result is pre-sized with the exact path count of
      * {@link BoundingBoxIter#countPaths()}, which saturates on overflow, as in
-     * the C++ port.
+     * the C++ port, and is then clamped to
+     * {@link #MAX_CAPACITY_HINT}.
+     *
+     * <p>A range set whose length differs from the path length of the store
+     * yields an empty result rather than an exception: the generated paths are
+     * absent from a store that cannot hold them, as
+     * {@link CoordPathLookup#getByCoordPath(CoordPath)} documents.
      *
      * @throws IllegalArgumentException when a range bound is outside
      *         {@code [0, CoordKey.BYTE_DOMAIN)}, when a range is not a
@@ -141,6 +165,21 @@ public final class CoordCubeMap {
             }
         }
         return results;
+    }
+
+    /**
+     * Rejects a dimension count that is not positive. The references carry both
+     * counts as unsigned template parameters, so a non-positive count cannot be
+     * expressed there; Java would otherwise accept a negative pair whose
+     * product happens to match the center length, and would accept a degenerate
+     * zero-sized query that the caller cannot have meant.
+     */
+    private static void requirePositiveInterpretation(int dimensions, int resolution) {
+        if (dimensions < 1 || resolution < 1) {
+            throw new IllegalArgumentException(
+                    "CoordCubeMap::proximity: dimensions " + dimensions + " and resolution "
+                            + resolution + " must both be at least 1");
+        }
     }
 
     /**
@@ -186,37 +225,17 @@ public final class CoordCubeMap {
     }
 
     /**
-     * The saturating capacity computation of the Rust port,
-     * {@code (2 * radius + 1) ^ characters}, clamped to the {@code int}
-     * capacity of a Java list. A saturating value above
-     * {@link Integer#MAX_VALUE} would exhaust memory during generation long
-     * before the exact capacity mattered.
+     * The capacity requested up front for a result list, from the exact number
+     * of paths the query will generate.
+     *
+     * <p>The Rust port pre-sizes proximity with the unclamped upper bound
+     * {@code (2 * radius + 1) ^ N}; the bounded region of a store query is a
+     * subset of that bound, and a radius far beyond the byte domain makes the
+     * two differ by many orders of magnitude, so Java uses the count the
+     * iterator actually yields and clamps it to {@link #MAX_CAPACITY_HINT} for
+     * the {@code int} capacity of a Java list.
      */
-    private static int capacityHint(int radius, int characters) {
-        long base = saturatingAdd(saturatingMul(2L, radius), 1L);
-        return capacityHint(saturatingPow(base, characters));
-    }
-
     private static int capacityHint(long paths) {
-        return (int) Math.min(paths, Integer.MAX_VALUE);
-    }
-
-    private static long saturatingMul(long a, long b) {
-        if (a == 0 || b == 0) {
-            return 0L;
-        }
-        return a > Long.MAX_VALUE / b ? Long.MAX_VALUE : a * b;
-    }
-
-    private static long saturatingAdd(long a, long b) {
-        return a > Long.MAX_VALUE - b ? Long.MAX_VALUE : a + b;
-    }
-
-    private static long saturatingPow(long base, int exponent) {
-        long result = 1L;
-        for (int i = 0; i < exponent; i++) {
-            result = saturatingMul(result, base);
-        }
-        return result;
+        return (int) Math.min(paths, (long) MAX_CAPACITY_HINT);
     }
 }

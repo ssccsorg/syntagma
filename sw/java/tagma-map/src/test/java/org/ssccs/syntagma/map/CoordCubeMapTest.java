@@ -167,6 +167,39 @@ class CoordCubeMapTest {
     }
 
     @Test
+    void nonPositiveInterpretationRejected() {
+        CoordMapN map = new CoordMapN(2);
+        assertThrows(IllegalArgumentException.class,
+                () -> CoordCubeMap.proximity(map, CoordPath.fromArray(), 0, -1, 0),
+                "negative dimension count rejected");
+        assertThrows(IllegalArgumentException.class,
+                () -> CoordCubeMap.proximity(map, path(5, 5), 1, 0, 2),
+                "zero dimension count rejected");
+        assertThrows(IllegalArgumentException.class,
+                () -> CoordCubeMap.proximity(map, path(5, 5), 1, 2, 0),
+                "zero resolution rejected");
+    }
+
+    @Test
+    void wrongLengthCenterYieldsNoHits() {
+        CoordMap2 map = new CoordMap2();
+        map.insert("hi", bytes("v"));
+
+        // A center that cannot address the store is absent by definition, so
+        // the query reports no hits instead of an exception.
+        assertTrue(CoordCubeMap.proximity(map, path(1, 2, 3), 0, 3, 1).isEmpty(),
+                "longer center cannot address the store");
+        assertTrue(CoordCubeMap.proximity(map, path(1), 0, 1, 1).isEmpty(),
+                "shorter center cannot address the store");
+        assertTrue(CoordCubeMap.boundingBoxRange(map, new int[][] {{1, 2}, {1, 2}, {1, 2}}).isEmpty(),
+                "longer range set cannot address the store");
+
+        // The store itself is reachable with a matching center.
+        assertEquals(1, CoordCubeMap.proximity(map, path('h', 'i'), 0, 2, 1).size(),
+                "matching center finds the entry");
+    }
+
+    @Test
     void hitEqualityIsValueBased() {
         CoordCubeMap.Hit a = new CoordCubeMap.Hit(path(5, 5), bytes("v"));
         CoordCubeMap.Hit b = new CoordCubeMap.Hit(path(5, 5), bytes("v"));

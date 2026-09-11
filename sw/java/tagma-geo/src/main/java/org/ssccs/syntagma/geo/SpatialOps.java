@@ -17,7 +17,8 @@ import org.ssccs.syntagma.core.CoordCube;
  *
  * <p>Dimension values are little-endian base-11172 integers. For a resolution
  * of 5 or more the 64-bit accumulation wraps, which matches the documented
- * reference limitation.
+ * reference limitation; the wrapped bit pattern is read with unsigned
+ * semantics wherever it is widened to {@code double}.
  *
  * <p>Port of the C++ free functions in
  * {@code sw/cpp/tagma_geo/include/tagma_geo/spatial.h}; the underlying
@@ -152,7 +153,10 @@ public final class SpatialOps {
     /**
      * The maximum value of a single dimension, {@code 11172^resolution - 1}.
      * For a resolution of 5 or more the accumulation wraps modulo 2^64 exactly
-     * as the C++ and Rust references do.
+     * as the reference code does. The C++ and Rust doc comments claim a result
+     * of zero for that range, which their code does not produce: 11172^5 - 1
+     * reduced modulo 2^64 is 8021531685948761087, and that wrapped value is
+     * what the test suite pins.
      *
      * @throws IllegalArgumentException when {@code resolution} is negative
      */
@@ -228,16 +232,20 @@ public final class SpatialOps {
      * {@code [0, 1]} before the distance is accumulated, and the square root
      * uses {@link #sqrtApprox(double)}.
      *
+     * <p>Dimension values are widened to {@code double} with unsigned 64-bit
+     * semantics, as the reference conversions do, so a wrapped value with
+     * bit 63 set keeps its magnitude instead of flipping sign.
+     *
      * @throws IllegalArgumentException when the cubes do not share
      *         {@code N}, {@code D} and {@code R}
      */
     public static double euclideanDistanceApprox(CoordCube a, CoordCube b) {
         requireCompatible(a, b, "euclideanDistanceApprox");
-        double maxValue = dimensionMaxValue(a.resolution());
+        double maxValue = unsignedToDouble(dimensionMaxValue(a.resolution()));
         double sumOfSquares = 0.0;
         for (int dim = 0; dim < a.ndim(); dim++) {
-            double valueA = dimensionValue(a, dim);
-            double valueB = dimensionValue(b, dim);
+            double valueA = unsignedToDouble(dimensionValue(a, dim));
+            double valueB = unsignedToDouble(dimensionValue(b, dim));
             double difference = (valueA - valueB) / maxValue;
             sumOfSquares += difference * difference;
         }
@@ -264,6 +272,32 @@ public final class SpatialOps {
             sum += Long.compareUnsigned(valueA, valueB) >= 0 ? valueA - valueB : valueB - valueA;
         }
         return sum;
+    }
+
+    /**
+     * The double nearest to the unsigned 64-bit interpretation of
+     * {@code value}, rounding half to even, mirroring a C++
+     * {@code static_cast<double>} of a {@code std::uint64_t} and a Rust
+     * {@code u64 as f64} conversion.
+     *
+     * <p>Java has no unsigned conversion, and the signed widening of
+     * {@code value} would move every bit pattern with bit 63 set down by 2^64,
+     * turning a large positive reference value into a negative one.
+     */
+    private static double unsignedToDouble(long value) {
+        if (value >= 0) {
+            return value;
+        }
+        // Values with bit 63 set are in [2^63, 2^64), where the double spacing
+        // is 2^11. The kept part is a multiple of 2^11 below 2^63 and the sum
+        // is exactly representable, so only the discarded 11 bits can round.
+        long discarded = value & 0x7FFL;
+        long kept = value & Long.MAX_VALUE & ~0x7FFL;
+        double result = 0x1.0p63 + kept;
+        if (discarded > 0x400L || (discarded == 0x400L && (value & 0x800L) != 0)) {
+            result += 0x1.0p11;
+        }
+        return result;
     }
 
     /**

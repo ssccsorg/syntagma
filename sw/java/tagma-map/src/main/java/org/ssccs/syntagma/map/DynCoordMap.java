@@ -1,6 +1,5 @@
 package org.ssccs.syntagma.map;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -83,23 +82,27 @@ public final class DynCoordMap implements CoordMap, CoordPathLookup {
 
     /**
      * All {@code (key, value)} pairs in depth-first coordinate-ascending order.
-     * Keys are reconstructed from the stored byte-wise path and decoded as
-     * ISO-8859-1, so each character is the stored byte value of the references
-     * ({@code std::string} and {@code Vec<u8>}). The references hand out
-     * pointers into the store; Java hands out copies, so an iterated value is
-     * never shared with the store.
+     * The key is the stored byte key itself, as a {@link CoordKey}, which is
+     * the counterpart of the {@code (Vec<u8>, &[u8])} item of the Rust
+     * iterator and the same key form as {@link CoordMapN#iter()}.
+     *
+     * <p>A {@code String} key cannot be handed out instead: the stored key is a
+     * byte string, and decoding it as text loses the original text for every
+     * non-ASCII key, so the caller decodes {@link CoordKey#bytes()} with the
+     * encoding it inserted under. The references hand out pointers into the
+     * store; Java hands out copies, so an iterated value is never shared with
+     * the store.
      */
-    public List<Map.Entry<String, byte[]>> iter() {
+    public List<Map.Entry<CoordKey, byte[]>> iter() {
         List<Map.Entry<List<Coord>, byte[]>> entries = space.entries();
-        List<Map.Entry<String, byte[]>> out = new ArrayList<>(entries.size());
+        List<Map.Entry<CoordKey, byte[]>> out = new ArrayList<>(entries.size());
         for (Map.Entry<List<Coord>, byte[]> entry : entries) {
             List<Coord> coords = entry.getKey();
-            byte[] key = new byte[coords.size()];
-            for (int i = 0; i < key.length; i++) {
-                key[i] = (byte) coords.get(i).index();
+            int[] indices = new int[coords.size()];
+            for (int i = 0; i < indices.length; i++) {
+                indices[i] = coords.get(i).index();
             }
-            out.add(Map.entry(new String(key, StandardCharsets.ISO_8859_1),
-                    entry.getValue().clone()));
+            out.add(Map.entry(CoordKey.fromIndices(indices), entry.getValue().clone()));
         }
         return out;
     }

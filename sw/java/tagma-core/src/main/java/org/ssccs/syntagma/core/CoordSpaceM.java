@@ -39,15 +39,21 @@ import java.util.function.BiPredicate;
  *
  * <p>Accounting and release. Direct buffers are accounted against
  * {@code -XX:MaxDirectMemorySize}, whose default is derived from the maximum
- * heap, so a consumer that places values across many windows must raise that
- * limit; a placement that cannot reserve its window raises
- * {@link OutOfMemoryError}. Java cannot release off-heap memory
- * deterministically before the FFM API, so {@link #close()} drops the window
- * references and the buffers become unreachable: their memory returns to the
- * operating system when the {@code Cleaner} that the buffer implementation
- * registers runs, typically at the next garbage collection. {@link #clear()}
- * drops them the same way, so a cleared space reads as freshly zero-filled
- * memory again.
+ * heap. The space needs at least one window before it can hold a value, about
+ * 2 GiB for the 32-bit value mapping, so the budget has to exceed one window
+ * before the first placement. The build pins the floor at
+ * {@code -XX:MaxDirectMemorySize=3g} for the test and benchmark JVMs of
+ * {@code sw/java}, and {@code sw/java/run.sh} exports the same value for
+ * {@code --bench}, because the JVM default depends on the runner's heap size;
+ * a caller running outside the build has to set the value explicitly, and a
+ * consumer that places values across many windows has to raise it further. A
+ * placement that cannot reserve its window raises {@link OutOfMemoryError}.
+ * Java cannot release off-heap memory deterministically before the FFM API, so
+ * {@link #close()} drops the window references and the buffers become
+ * unreachable: their memory returns to the operating system when the
+ * {@code Cleaner} that the buffer implementation registers runs, typically at
+ * the next garbage collection. {@link #clear()} drops them the same way, so a
+ * cleared space reads as freshly zero-filled memory again.
  *
  * <p>The C++ port omits the Rust {@code Clone} and {@code PartialEq}, because a
  * byte-wise copy or comparison would walk the multi-terabyte region page by

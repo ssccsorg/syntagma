@@ -94,8 +94,10 @@ class CoordTest {
 
     @Test
     void constants() {
-        assertEquals(65536 - Coord.N_VALID, Coord.INVALID_MARGIN, "invalidity margin constant");
-        assertEquals(65536, Coord.TOTAL, "total states constant");
+        int lattice = Coord.INITIAL_MAX * Coord.MEDIAL_MAX * Coord.FINAL_MAX;
+        assertEquals(lattice, Coord.N_VALID, "lattice size derived from the axis ranges");
+        assertEquals(1 << 16, Coord.TOTAL, "total 16-bit states");
+        assertEquals(Coord.TOTAL - lattice, Coord.INVALID_MARGIN, "invalidity margin constant");
     }
 
     @Test

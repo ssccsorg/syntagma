@@ -30,6 +30,15 @@ final class Fixtures {
         return CoordPath.fromArray(coords);
     }
 
+    /** Decodes a lowercase hex string into the bytes it spells. */
+    static byte[] hex(String text) {
+        byte[] out = new byte[text.length() / 2];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = (byte) Integer.parseInt(text.substring(2 * i, 2 * i + 2), 16);
+        }
+        return out;
+    }
+
     /** Runs the given scenario against both stack implementations. */
     static void withBothStacks(Consumer<SecStack> scenario) {
         scenario.accept(SecStack.legacy());

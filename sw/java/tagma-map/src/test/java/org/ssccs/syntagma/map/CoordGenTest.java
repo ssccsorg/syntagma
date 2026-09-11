@@ -1,15 +1,17 @@
 package org.ssccs.syntagma.map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.ssccs.syntagma.core.Coord;
@@ -45,8 +47,25 @@ class CoordGenTest {
 
     @Test
     void byteWiseIsInjective() {
-        assertNotEquals(ByteWise.INSTANCE.generate("hello"), ByteWise.INSTANCE.generate("world"),
-                "different keys must produce different paths");
+        // Keys that share their leading bytes: a first-byte-only or truncating
+        // mapping would collapse them.
+        String[] keys = {"ab", "ac", "ba", "abc"};
+        Set<List<Coord>> paths = new HashSet<>();
+        for (String key : keys) {
+            paths.add(generate(ByteWise.INSTANCE, key));
+        }
+        assertEquals(keys.length, paths.size(), "different keys must produce different paths");
+
+        // Strong form: every key survives in a store and is retrievable by its
+        // own key.
+        DynCoordMap map = new DynCoordMap();
+        for (int i = 0; i < keys.length; i++) {
+            map.insert(keys[i], new byte[] {(byte) ('1' + i)});
+        }
+        assertEquals(keys.length, map.len(), "shared-prefix keys coexist");
+        for (int i = 0; i < keys.length; i++) {
+            assertValue(new byte[] {(byte) ('1' + i)}, map.get(keys[i]), "key " + keys[i]);
+        }
     }
 
     @Test
@@ -85,8 +104,18 @@ class CoordGenTest {
 
     @Test
     void charWiseIsInjective() {
-        assertNotEquals(CharWise.INSTANCE.generate("hello"), CharWise.INSTANCE.generate("world"),
-                "different keys must produce different paths");
+        // The same shared-prefix set: "ab" and "ac" share the whole first
+        // scalar pair, "ba" collides under a scalar-set mapping, and "abc"
+        // under a pair-truncating one.
+        String[] keys = {"ab", "ac", "ba", "abc"};
+        Set<List<Coord>> paths = new HashSet<>();
+        for (String key : keys) {
+            paths.add(generate(CharWise.INSTANCE, key));
+        }
+        assertEquals(keys.length, paths.size(), "different keys must produce different paths");
+        assertEquals(generate(CharWise.INSTANCE, "ab").subList(0, 2),
+                generate(CharWise.INSTANCE, "ac").subList(0, 2),
+                "the shared scalar prefix maps to the same pair");
     }
 
     @Test
@@ -184,5 +213,10 @@ class CoordGenTest {
 
     private static List<Coord> generate(CoordGen strategy, String key) {
         return strategy.generate(key).orElseThrow();
+    }
+
+    private static void assertValue(byte[] expected, Optional<byte[]> actual, String message) {
+        assertTrue(actual.isPresent(), message + ": value present");
+        assertArrayEquals(expected, actual.orElseThrow(), message);
     }
 }

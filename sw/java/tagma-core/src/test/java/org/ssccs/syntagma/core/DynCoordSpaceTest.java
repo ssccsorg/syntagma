@@ -115,15 +115,17 @@ class DynCoordSpaceTest {
     }
 
     @Test
-    void prefixInsertAfterDeeperPath() {
+    void prefixInsertDropsDeeperSubtree() {
         DynCoordSpace<Integer> space = new DynCoordSpace<>();
         space.place(path(0, 1), 2);
-        space.place(path(0), 1);
-        assertEquals(Optional.of(1), space.at(path(0)), "node is promoted to both, prefix value stored");
-        assertEquals(Optional.of(2), space.at(path(0, 1)), "deeper path survives the promotion");
-        assertEquals(2, space.entryCount(), "entry count after promotion");
-        assertEquals(Optional.of(2), space.vacate(path(0, 1)), "vacate the deeper value");
-        assertEquals(Optional.of(1), space.at(path(0)), "prefix value survives the deeper removal");
+        assertEquals(Optional.of(2), space.at(path(0, 1)), "deeper path present before the prefix insert");
+
+        assertEquals(Optional.empty(), space.place(path(0), 1), "prefix insert reports no previous value");
+        assertEquals(Optional.of(1), space.at(path(0)), "the prefix value is stored");
+        assertTrue(space.at(path(0, 1)).isEmpty(), "the node was replaced by a leaf, the deeper path is gone");
+        assertEquals(1, space.entryCount(), "entry count after the node replacement");
+        assertEquals(Optional.empty(), space.vacate(path(0, 1)), "vacate of the dropped deeper path");
+        assertEquals(Optional.of(1), space.at(path(0)), "the prefix value stays");
     }
 
     @Test

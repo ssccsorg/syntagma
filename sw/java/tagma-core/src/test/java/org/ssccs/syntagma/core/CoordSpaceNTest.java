@@ -73,6 +73,33 @@ class CoordSpaceNTest {
         assertTrue(space.isEmpty() && space.size() == 0, "n1 clear");
     }
 
+    /**
+     * The factory runs only for a vacant slot, mirroring the C++
+     * {@code or_insert_with} and the Rust {@code or_insert_with}, which
+     * evaluate it inside the vacant branch; {@link CoordSpace.Entry} carries
+     * the same guarantee.
+     */
+    @Test
+    void orInsertWithEvaluatesOnlyWhenVacant() {
+        CoordSpaceN<Integer> space = new CoordSpaceN<>(1);
+        Coord c = coord(0);
+        int[] calls = {0};
+
+        space.entry(c).orInsertWith(() -> {
+            calls[0] += 1;
+            return 5;
+        });
+        assertEquals(1, calls[0], "the factory runs for the vacant slot");
+        assertEquals(Optional.of(5), space.at(c), "the factory value is stored");
+
+        space.entry(c).orInsertWith(() -> {
+            calls[0] += 1;
+            return 6;
+        });
+        assertEquals(1, calls[0], "the factory does not run for the occupied slot");
+        assertEquals(Optional.of(5), space.at(c), "the existing value is kept");
+    }
+
     @Test
     void depthOnePathAccess() {
         CoordSpaceN<Integer> space = new CoordSpaceN<>(1);

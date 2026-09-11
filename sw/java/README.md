@@ -84,9 +84,11 @@ returning one hit, and the rejection of a path index of 256.
 | `CoordKey<N>` | `CoordKey` | The key length becomes instance state; `BYTE_DOMAIN` carries the domain contract, and `bytes()` returns a defensive copy where the C++ returns a const reference |
 | `type DefaultDynamic = ByteWise` | `CoordGen.DEFAULT_DYNAMIC` | Java has no type aliases, so the alias is the interface constant holding `ByteWise.INSTANCE` |
 | `CoordMap2` | `CoordMap2` | `CoordMapN` fixed at depth 2 over the lazy `CoordSpaceN<2>` tree, following the C++ reference; the Java core has no dense depth-2 space |
-| blake3 keyed hashing (Rust) | SHA-256 and RFC 2104 HMAC-SHA-256 | The C++ port already made this substitution and documented it; Java uses `MessageDigest` and `Mac`, and the produced bytes are identical to C++ |
+| blake3 keyed hashing (Rust) | SHA-256 and RFC 2104 HMAC-SHA-256 | The C++ port already made this substitution and documented it; Java uses `MessageDigest` and `Mac`, the produced bytes are identical to C++, and both ports pin module-level seal, receipt, channel and audit vectors that were computed with openssl |
 | `tagma_sec` types | records and final classes | `std::optional<T>` maps to `Optional<T>` / `OptionalLong`; 32-byte tags and payloads are copied in and cloned out |
-| `tagma_bench` (`--json`, `--commit`, `--timestamp`) | `tagma-bench` (same flags) | The harness adds an explicit warmup phase, because the JIT only optimizes code that has already run, plus `--quick`, `--iterations` and `--rounds` for smoke runs |
+| `tagma_bench` (`--json`, `--commit`, `--timestamp`) | `tagma-bench` (same flags) | The harness warms up to a steady state, because the JIT only optimizes code that has already run (a one-second floor with five-percent agreement and two settling rounds), and it pins `-XX:MaxDirectMemorySize=3g` because the mapped space materializes a window on first touch; `--quick`, `--iterations` and `--rounds` remain for smoke runs |
+| `DynCoordMap` iterator keys (`std::string` of the raw bytes) | `Map.Entry<CoordKey, byte[]>` | A Java `String` re-encodes as UTF-8 on the way back into the store and would not round-trip a non-ASCII key, so the iterator yields the validated byte key instead |
+| `CoordPathLookup` (the depth lives in the type) | a length mismatch is an absent path | The references cannot express the mismatch; the Java lookup returns `Optional.empty()`, while the coordinate-key surface keeps the runtime rejection of the underlying space |
 
 Method names follow Java conventions (`size`, `isEmpty`, `copy`, `union`)
 and map one-to-one onto the C++/Rust names documented in each class.
@@ -118,22 +120,22 @@ the C++/Rust tests require an iteration surface.
 ./run.sh --check        # requires JDK 21 + Maven on PATH
 
 # Direct:
-cd sw/java && ./run.sh  # or: mvn -f sw/java/pom.xml verify
+cd sw/java && ./run.sh  # or: mvn -B verify (from sw/java)
 
 # Benchmark suite (writes bench/result/bench-<timestamp>-<commit>.json):
 cd sw/java && ./run.sh --bench
 ```
 
-The reactor holds 307 tests, all green.
+The reactor holds 341 tests, all green.
 
 | Module | Tests | Translated from |
 |--------|-------|-----------------|
-| `tagma-core` | 113 | `test_coord.cpp`, `test_core_types.cpp`, `test_coord_cube.cpp`, `test_tree_types.cpp`, `test_coord_space_m.cpp`, plus the Rust-only cases for `DynCoordSpace` |
+| `tagma-core` | 115 | `test_coord.cpp`, `test_core_types.cpp`, `test_coord_cube.cpp`, `test_tree_types.cpp`, `test_coord_space_m.cpp`, plus the Rust-only cases for `DynCoordSpace` |
 | `base11172` | 5 | `test_base11172.cpp` |
-| `tagma-geo` | 44 | `test_spatial.cpp` and the integration suite `sw/rust/geo/tests/spatial_window.rs` |
-| `tagma-sec` | 38 | `test_workflow.cpp`, `test_delos.cpp`, `test_scenarios.cpp`, plus pinned hash vectors |
-| `tagma-map` | 67 | `test_map.cpp`, `test_cube_map.cpp`, `test_dyn_map.cpp` and the integration suite `sw/rust/map/tests/density_window.rs` |
-| `bench` | 40 | harness coverage: CLI parsing, statistics, JSON shape and profile handling |
+| `tagma-geo` | 46 | `test_spatial.cpp` and the integration suite `sw/rust/geo/tests/spatial_window.rs` |
+| `tagma-sec` | 54 | `test_workflow.cpp`, `test_delos.cpp`, `test_scenarios.cpp`, plus the openssl-pinned hash and module-level tag vectors |
+| `tagma-map` | 71 | `test_map.cpp`, `test_cube_map.cpp`, `test_dyn_map.cpp` and the integration suite `sw/rust/map/tests/density_window.rs` |
+| `bench` | 50 | harness coverage: CLI parsing, statistics, JSON shape, warmup policy and profile handling |
 
 Rust-only behaviors that the C++ port does not expose are documented as
 follow-ups rather than invented API surface. The port provides `copy`,
