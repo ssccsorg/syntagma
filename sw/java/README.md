@@ -126,7 +126,7 @@ cd sw/java && ./run.sh  # or: mvn -B verify (from sw/java)
 cd sw/java && ./run.sh --bench
 ```
 
-The reactor holds 341 tests, all green.
+The reactor holds 342 tests, all green.
 
 | Module | Tests | Translated from |
 |--------|-------|-----------------|
@@ -134,7 +134,7 @@ The reactor holds 341 tests, all green.
 | `base11172` | 5 | `test_base11172.cpp` |
 | `tagma-geo` | 46 | `test_spatial.cpp` and the integration suite `sw/rust/geo/tests/spatial_window.rs` |
 | `tagma-sec` | 54 | `test_workflow.cpp`, `test_delos.cpp`, `test_scenarios.cpp`, plus the openssl-pinned hash and module-level tag vectors |
-| `tagma-map` | 71 | `test_map.cpp`, `test_cube_map.cpp`, `test_dyn_map.cpp` and the integration suite `sw/rust/map/tests/density_window.rs` |
+| `tagma-map` | 72 | `test_map.cpp`, `test_cube_map.cpp`, `test_dyn_map.cpp` and the integration suite `sw/rust/map/tests/density_window.rs` |
 | `bench` | 50 | harness coverage: CLI parsing, statistics, JSON shape, warmup policy and profile handling |
 
 Rust-only behaviors that the C++ port does not expose are documented as
