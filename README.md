@@ -21,6 +21,20 @@ synTagma (system)
 - tagma-sec -- security primitives for coordination traffic: authority (CoordPath Exact/Prefix scope authorization), integrity (epoch-bound seals), audit (chained evidence log with inclusion proofs), channel (non-repudiation receipts). Depends on tagma-core. Defined in `docs/spec/tagma-sec.md`.
 - synTagma coordination layer -- recursive coordinate space expansion, physical topology mapping, distributed routing, and consistency protocol. Defined in the [synTagma](https://docs.ssccs.org/projects/syntagma).
 
+## Implementations
+
+`sw/rust` is the reference implementation and the product surface. Two mirror ports exist so other ecosystems can adopt the same primitive; the C++ port is in turn the primary reference for the Java port.
+
+| Implementation | Location | Modules | Verification |
+|----------------|----------|---------|--------------|
+| Rust (reference) | `sw/rust` | core, base11172, geo, map, sec, benches | 360+ unit/integration tests, 26 doc-tests, `./run.sh --check` |
+| C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 16 suites, `sw/cpp/run.sh` |
+| Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 348 JUnit tests, `sw/java/run.sh` |
+
+The ports carry the in-memory contracts and their semantics only. They own no persistence and no on-disk format: materialization, layouts and file formats belong to chton, the Rust storage fabric. The Java dense space therefore allocates lazily off-heap instead of mapping a file, and the reason is recorded in `sw/java/README.md`.
+
+Where a port must change bytes or behavior, the difference is recorded next to the affected type. The tagma-sec hash layer is the largest one: the Rust crate binds seals, receipts and audit commitments with blake3 keyed hashing, while the C++ and Java ports use SHA-256 for commitments and RFC 2104 HMAC-SHA-256 for keyed tags.
+
 ## Tagma primitive: Feature levels
 
 Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-default-features`), all Tagma types are `no_std` + `no_alloc`.
@@ -44,7 +58,7 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 | CoordSpace\<V\> | Single-character direct-address table. Inline `[Option<V>; 11172]` -- zero heap. O(1), no hashing, no collisions | `core/src/coord_space.rs` |
 | base11172 | Self-validating serialization: arbitrary bytes to composition-block strings | `base11172/src/lib.rs` |
 
-Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero clippy warnings. CI runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification).
+Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero clippy warnings. The Rust job runs `cargo fmt --check`, `cargo clippy`, `cargo build --release`, `cargo test --release`, `cargo build --no-default-features` (no_alloc verification) and the MCU target check. The `cpp`, `java`, `cpp-bench` and `java-bench` jobs cover the ports, and `hw` covers the RTL verification.
 
 ### Requires alloc (default feature)
 
@@ -57,7 +71,7 @@ Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero cli
 | CoordSpaceN12\<V\> | 12-character ($2.41 \times 10^{67}$). Type alias for `CoordSpaceN<12, V>` | `core/src/coord_space_n.rs` |
 | CoordSpaceN19\<V\> | 19-character ($\approx 2^{256}$, SHA-256-scale). Type alias for `CoordSpaceN<19, V>` | `core/src/coord_space_n.rs` |
 | CoordSpace2\<V\> | N=2 dense heap, 124M slots, single `alloc_zeroed`, true Tagma identity | `core/src/coord_space_dense.rs` |
-| CoordSpaceM\<N, V\> | N≥3 mmap-backed dense (feature: `mmap`). Virtual address reservation with `MAP_NORESERVE` | `core/src/coord_space_m.rs` |
+| CoordSpaceM\<N, V\> | N≥3 dense over anonymous demand-paged memory (feature: `mmap`). Reserves virtual address space with `MAP_NORESERVE` and commits touched pages, which extends the same 1:1 coordinate addressing past heap limits | `core/src/coord_space_m.rs` |
 | CoordSpaceM3\<V\> | N=3 mmap dense. Type alias for `CoordSpaceM<3, V>` | `core/src/coord_space_m.rs` |
 | CoordSetN\<N\> | Sparse N-dimensional set over CoordPath\<N\>. Union, intersection, difference, subset, disjoint. Heap-backed bit tree. | `core/src/coord_set_n.rs` |
 | DynCoordSpace\<V\> | Variable-depth trie, `&[Coord]` runtime path. Mixed-depth slot (Both) preserves shallow values | `core/src/dyn_coord_space.rs` |
@@ -93,12 +107,14 @@ Test coverage: 360+ unit/integration tests + 26 doc-tests, all passing. Zero cli
 | Audit trait | append, verify_chain, prove (inclusion proof), export (evidence bundle) | `sec/src/audit.rs` |
 | Channel trait | sign, verify, exchange (receipt binding evidence, remote, epoch), verify_receipt | `sec/src/channel.rs` |
 
+The Rust crate binds seals, receipts and audit commitments with blake3 keyed hashing. The C++ and Java ports use SHA-256 commitments and RFC 2104 HMAC-SHA-256 keyed tags; the interfaces and the security semantics are identical, and the two ports produce byte-identical values that match a standard HMAC implementation.
+
 ## Quick start
 
 ```sh
 git clone https://github.com/ssccsorg/syntagma
 cd syntagma
-./run.sh                # fmt -> clippy -> build -> test -> no_alloc check
+./run.sh --check        # Rust fmt/clippy/build/test + C++ ctest + Java verify
 ```
 
 Or directly:
@@ -110,6 +126,15 @@ cargo bench -- spatial     # 18 CoordCube and spatial query benchmarks
 cargo bench -- stress      # 500k mixed-operation stress benchmark
 cargo bench -- sec         # tagma-sec security layer benchmarks (21)
 cargo build --no-default-features  # Verify no_alloc build
+```
+
+Port entry points:
+
+```sh
+sw/cpp/run.sh              # C++: configure, build, ctest (16 suites)
+sw/cpp/run.sh --bench      # C++ benchmarks, JSON under sw/cpp/bench/result/
+sw/java/run.sh             # Java: mvn verify, JDK 21 and Maven required
+sw/java/run.sh --bench     # Java benchmarks, JSON under sw/java/bench/result/
 ```
 
 ## Usage
@@ -469,6 +494,8 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 - [Tagma-ID](https://docs.ssccs.org/projects/syntagma/tagma/id) -- Content-addressable identity without hash functions
 - [Specification](docs/spec/coord-space.md) -- Language-independent Tagma coordinate space definition
 - [Specification (tagma-sec)](docs/spec/tagma-sec.md) -- Security layer: authority, integrity, audit, channel, hybrid confidentiality
+- [C++ port](sw/cpp) -- C++17 mirror of the same modules, the primary reference for the Java port
+- [Java port](sw/java/README.md) -- Java 21 mirror of core, base11172, geo, map, sec and the benchmark suite, with the porting differences and the byte-space domain contract
 - [Hardware verification](hw/README.md) -- RTL decoder, exhaustive verification (11,172 vectors, formal equivalence), FPGA PnR, Sky130 standard cell report
 - [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
 - [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter

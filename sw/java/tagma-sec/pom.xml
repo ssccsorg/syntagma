@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  tagma-sec: the security layer (authority, integrity, audit, channel) with
+  the legacy and tagma-sec (Delos) implementations, the SecStack composition
+  and the route-update workflow. Mirrors the C++ tagma_sec module in
+  sw/cpp/tagma_sec.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.ssccs.syntagma</groupId>
+    <artifactId>tagma-java</artifactId>
+    <version>0.1.0</version>
+  </parent>
+
+  <artifactId>tagma-sec</artifactId>
+  <name>tagma-sec</name>
+  <description>Tagma security layer: authority, integrity, audit, channel, and the route-update workflow</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.ssccs.syntagma</groupId>
+      <artifactId>tagma-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

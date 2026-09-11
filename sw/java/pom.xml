@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  tagma-java: the Tagma coordinate engine, ported to Java 21.
+  Mirrors the C++ port under sw/cpp (itself a mirror of sw/rust).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.ssccs.syntagma</groupId>
+  <artifactId>tagma-java</artifactId>
+  <version>0.1.0</version>
+  <packaging>pom</packaging>
+
+  <name>tagma-java</name>
+  <description>Tagma coordinate engine Java implementation, mirroring the C++ port in sw/cpp</description>
+
+  <modules>
+    <module>tagma-core</module>
+    <module>base11172</module>
+    <module>tagma-geo</module>
+    <module>tagma-sec</module>
+    <module>tagma-map</module>
+    <module>bench</module>
+  </modules>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <!-- Composed into the surefire argLine below so a caller can still pass
+         -DargLine and tools that add their own (JaCoCo and similar) keep
+         working. -->
+    <argLine></argLine>
+    <junit.version>5.10.2</junit.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+          <configuration>
+            <release>${maven.compiler.release}</release>
+            <compilerArgs>
+              <arg>-Xlint:all</arg>
+            </compilerArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.2.5</version>
+          <configuration>
+            <trimStackTrace>false</trimStackTrace>
+            <!-- CoordSpaceM materializes one window of up to 2 GiB of direct
+                 memory, and the JVM default for that budget derives from the
+                 maximum heap. Pin it so the result does not depend on the
+                 runner's heap size. -->
+            <argLine>${argLine} -XX:MaxDirectMemorySize=3g</argLine>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

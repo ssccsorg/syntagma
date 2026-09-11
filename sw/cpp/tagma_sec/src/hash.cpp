@@ -119,14 +119,18 @@ class Sha256 {
   size_t block_len_ = 0;
 };
 
-// HMAC-SHA-256 (RFC 2104), internal to this translation unit.
+// RFC 2104 HMAC-SHA-256, internal to this translation unit. The 32-byte key
+// is shorter than the 64-byte SHA-256 block, so it is zero-padded to the
+// block length and every byte of the resulting block is mixed with the inner
+// (0x36) and outer (0x5c) pad constants.
 std::array<uint8_t, 32> hmac_sha256(const std::array<uint8_t, 32>& key,
                                     const Bytes& msg) {
   std::array<uint8_t, 64> ipad{};
   std::array<uint8_t, 64> opad{};
-  for (size_t i = 0; i < 32; ++i) {
-    ipad[i] = key[i] ^ 0x36;
-    opad[i] = key[i] ^ 0x5c;
+  for (size_t i = 0; i < ipad.size(); ++i) {
+    const uint8_t k = i < key.size() ? key[i] : 0;
+    ipad[i] = static_cast<uint8_t>(k ^ 0x36);
+    opad[i] = static_cast<uint8_t>(k ^ 0x5c);
   }
   Sha256 inner;
   inner.update(ipad.data(), ipad.size());
@@ -154,6 +158,14 @@ std::array<uint8_t, 32> keyed_tag(const std::array<uint8_t, 32>& key,
   msg.reserve(total);
   for (const auto& p : parts) msg.insert(msg.end(), p.begin(), p.end());
   return hmac_sha256(key, msg);
+}
+
+bool tag_equal(const std::array<uint8_t, 32>& a, const std::array<uint8_t, 32>& b) {
+  uint8_t diff = 0;
+  for (size_t i = 0; i < a.size(); ++i) {
+    diff = static_cast<uint8_t>(diff | (a[i] ^ b[i]));
+  }
+  return diff == 0;
 }
 
 Bytes le16(uint16_t v) {

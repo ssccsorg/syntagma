@@ -67,7 +67,7 @@ Seal DelosIntegrity::seal(const Bytes& record, const Path& path,
 
 bool DelosIntegrity::verify(const Bytes& record, const Path& path,
                             PrincipalId principal, Epoch epoch, const Seal& seal) {
-  return this->seal(record, path, principal, epoch).tag == seal.tag;
+  return tag_equal(this->seal(record, path, principal, epoch).tag, seal.tag);
 }
 
 std::optional<Seal> DelosIntegrity::refresh(const Bytes& record, const Path& path,

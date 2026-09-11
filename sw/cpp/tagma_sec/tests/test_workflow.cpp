@@ -26,6 +26,17 @@ void check(bool condition, const char* message) {
 
 Bytes bytes(const std::string& s) { return Bytes(s.begin(), s.end()); }
 
+std::string to_hex(const std::array<uint8_t, 32>& tag) {
+  static const char* digits = "0123456789abcdef";
+  std::string out;
+  out.reserve(tag.size() * 2);
+  for (uint8_t b : tag) {
+    out.push_back(digits[b >> 4]);
+    out.push_back(digits[b & 0x0f]);
+  }
+  return out;
+}
+
 Path path(const std::vector<uint16_t>& idxs) {
   Path p;
   for (uint16_t i : idxs) p.push_back(*tagma::Coord::from_index(i));
@@ -314,8 +325,12 @@ void test_audit_event_commits_to_record_payload() {
     const auto res = route_update(stack, att, path({1, 2, 3}), record, 50);
     check(res.has_value(), "update accepted");
     if (res) {
-      check(res->event.payload_hash == sha256(record),
-            "audit entry commits to the record payload");
+      // Pinned against an independent OpenSSL computation of
+      // sha256("route-v1"); recomputing it with sha256() would make the
+      // assertion unable to fail when the commitment is wrong.
+      check(to_hex(res->event.payload_hash) ==
+                "3e1acf18e9b268eb42f54230cd96c449d2bb6248a13e1d3f55322e7bfd66985e",
+            "audit entry commits to the pinned record payload");
     }
   });
 }

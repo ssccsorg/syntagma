@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  base11172: Tagma native serialization format. Encodes arbitrary byte
+  sequences into self-validating compositional character strings.
+  Mirrors the C++ base11172 module in sw/cpp/base11172.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.ssccs.syntagma</groupId>
+    <artifactId>tagma-java</artifactId>
+    <version>0.1.0</version>
+  </parent>
+
+  <artifactId>base11172</artifactId>
+  <name>base11172</name>
+  <description>Tagma native serialization format over the composition-block alphabet</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.ssccs.syntagma</groupId>
+      <artifactId>tagma-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

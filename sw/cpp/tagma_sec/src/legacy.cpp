@@ -61,7 +61,7 @@ Seal LegacyIntegrity::seal(const Bytes& record, const Path& path, PrincipalId,
 
 bool LegacyIntegrity::verify(const Bytes& record, const Path& path, PrincipalId,
                              Epoch, const Seal& seal) {
-  return this->seal(record, path, 0, 0).tag == seal.tag;
+  return tag_equal(this->seal(record, path, 0, 0).tag, seal.tag);
 }
 
 std::optional<Seal> LegacyIntegrity::refresh(const Bytes& record, const Path& path,

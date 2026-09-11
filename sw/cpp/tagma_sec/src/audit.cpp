@@ -10,10 +10,11 @@ namespace {
 
 // Shared verification: payload commitments and prev links. The first entry
 // may carry a prev link to an entry outside the bundle, so internal
-// consistency is checked from the second entry onward.
+// consistency is checked from the second entry onward. Commitments are
+// compared in constant time through tag_equal.
 bool verify_entries(const std::vector<Entry>& entries) {
   for (size_t i = 0; i < entries.size(); ++i) {
-    if (sha256(entries[i].payload) != entries[i].event.payload_hash) return false;
+    if (!tag_equal(sha256(entries[i].payload), entries[i].event.payload_hash)) return false;
     if (i > 0) {
       if (!entries[i].event.prev.has_value()) return false;
       if (entries[i].event.prev.value() != entries[i - 1].event.id) return false;
