@@ -36,10 +36,15 @@ import org.ssccs.syntagma.map.DynCoordMap;
  * <p>Porting differences, all of them deliberate:
  *
  * <ul>
- *   <li>The mapped {@code CoordSpaceM} scenarios close the space with
- *       try-with-resources. The C++ suite relies on the destructor to unmap and
- *       to delete the temporary file; Java has no destructor and a leaked
- *       mapping would keep one temporary file per round alive.</li>
+ *   <li>The {@code CoordSpaceM} scenarios keep their paths inside the first
+ *       window and close the space with try-with-resources. The space is
+ *       anonymous off-heap memory that materializes one window per touched
+ *       window, so the reference {@code paths_3d} addresses, whose leading
+ *       coordinate advances by {@code 11172^2} slots, would need hundreds of
+ *       gigabytes of direct memory; the mmap-backed references reserve the
+ *       whole region once and pay only for the pages they touch.
+ *       try-with-resources drops the windows at the end of every round, which
+ *       is the C++ destructor equivalent.</li>
  *   <li>The map scenarios that build keys from raw bytes index those bytes
  *       through {@link CoordKey}, because a Java {@code String} carries
  *       characters and its UTF-8 encoding would turn a byte at or above 0x80
@@ -60,9 +65,9 @@ public final class BenchSuite {
     /**
      * Runs every scenario family in the order of the C++ {@code main}:
      * {@code CoordSpaceN}, the dense {@code CoordSpace}, {@code CoordSetN}, the
-     * mapped {@code CoordSpaceM}, the spatial queries and distance metrics of
-     * {@code tagma-geo}, and the {@code tagma-map} insert, get and spatial
-     * scenarios.
+     * anonymous off-heap {@code CoordSpaceM}, the spatial queries and distance
+     * metrics of {@code tagma-geo}, and the {@code tagma-map} insert, get and
+     * spatial scenarios.
      *
      * @throws NullPointerException when {@code harness} is null
      */
@@ -257,11 +262,33 @@ public final class BenchSuite {
     }
 
     // ------------------------------------------------------------------
-    // core: CoordSpaceM (file-mapped)
+    // core: CoordSpaceM (anonymous off-heap)
     // ------------------------------------------------------------------
 
+    /**
+     * The dense-space paths of the csm scenarios. The reference scenarios walk
+     * {@link BenchInputs#paths3d}, whose leading coordinate advances by
+     * {@code 11172^2} slots, so 1000 paths span about 623 GB of the slot
+     * region. The anonymous-mapping references pay only for the pages they
+     * write, while the Java port materializes one window per touched window and
+     * accounts it against {@code -XX:MaxDirectMemorySize}, so that span would
+     * need 291 windows, about 582 GiB. The scenarios therefore keep the
+     * 1000-insert and 1000-lookup workload and place the same number of
+     * distinct 3D addresses inside the first window, advancing the leading
+     * coordinate over a range that fits and the second coordinate for the rest,
+     * so the writes stay spread out instead of walking the space sequentially.
+     */
+    private static List<CoordPath> csmPaths3d(int count) {
+        List<CoordPath> out = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            out.add(CoordPath.fromArray(BenchInputs.coord(i % 4),
+                    BenchInputs.coord((i / 4) % Coord.N_VALID), BenchInputs.coord(0)));
+        }
+        return out;
+    }
+
     private static void csmInsert1000(BenchHarness harness) {
-        List<CoordPath> paths = BenchInputs.paths3d(1000);
+        List<CoordPath> paths = csmPaths3d(1000);
         harness.run("csm insert 1k n3", 1, 5, () -> {
             try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
                 for (CoordPath path : paths) {
@@ -273,7 +300,7 @@ public final class BenchSuite {
     }
 
     private static void csmGet1000(BenchHarness harness) {
-        List<CoordPath> paths = BenchInputs.paths3d(1000);
+        List<CoordPath> paths = csmPaths3d(1000);
         try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
             for (CoordPath path : paths) {
                 space.placePath(path, 1);

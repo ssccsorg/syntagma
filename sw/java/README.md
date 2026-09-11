@@ -13,7 +13,7 @@ Every module of the reference implementations is covered.
 
 | Module | Types |
 |--------|-------|
-| `tagma-core` | `Coord`, `CoordPath`, `CoordSet`, `CoordSpace<V>`, `CoordCube`, `CoordSpaceN`, `CoordSetN`, `DynCoordSpace`, `CoordSpaceM` |
+| `tagma-core` | `Coord`, `CoordPath`, `CoordSet`, `CoordSpace<V>`, `CoordCube`, `CoordSpaceN`, `CoordSetN`, `DynCoordSpace`, `CoordSpaceM` (anonymous off-heap) |
 | `base11172` | `Base11172` serialization |
 | `tagma-geo` | `BoundingBoxIter`, `HammingFilter`, `SpatialOps` (proximity, bounding box, Hamming filtering, distance metrics, dimension values) |
 | `tagma-map` | `CoordKey`, the coordinate generation strategies, `CoordMap`, `CoordMapKey`, `CoordPathLookup`, `CoordMapN`, `CoordMap2`, `DynCoordMap`, `CoordCubeMap` |
@@ -77,7 +77,7 @@ returning one hit, and the rejection of a path index of 256.
 | `CoordSpaceN<N, V>` | `CoordSpaceN` | Depth and value width are instance state; a wrong path length, an out-of-range depth and set operations across depths throw `IllegalArgumentException` |
 | `CoordSetN<N>` | `CoordSetN` | Same instance-state mapping; content equality mirrors the C++ `operator==` |
 | `DynCoordSpace<V>` | `DynCoordSpace` | Depth-flexible space with the same placement and iteration surface |
-| `CoordSpaceM<N, V>` (`mmap`) | `CoordSpaceM` (`java.nio`) | `mmap` maps to `FileChannel.map` plus `MappedByteBuffer`: the file carries a validated header (magic, version, depth, stride, value tag, engaged count), the region is mapped in windows on first use, and `force()` and `close()` expose durability. Values are limited to the fixed-width primitives selected by a `Class<V>` token, because mapped bytes cannot hold arbitrary objects. Single-writer ownership is documented; the class carries no cross-process synchronization and no write-ahead protocol |
+| `CoordSpaceM<N, V>` (anonymous `mmap`) | `CoordSpaceM` (off-heap direct buffers) | The references reserve the whole slot region with one anonymous mapping and let the kernel commit pages on write. Java has no portable anonymous mapping, so the port materializes the region window by window with `ByteBuffer.allocateDirect` on first touch, each window sized to the largest multiple of the slot stride that fits a direct buffer. The space is anonymous and in-memory only: it owns no file, no header and no on-disk format, because materialization, layouts and formats belong to chton. Values are limited to the fixed-width primitives selected by a `Class<V>` token, because a direct buffer cannot hold arbitrary objects. The buffers are accounted against `-XX:MaxDirectMemorySize`, and a placement materializes its whole window where the reference commits only the touched pages |
 | `tagma_geo` free functions | `SpatialOps` static facade | Java cannot add methods to `CoordCube`, so the Rust `SpatialOps` trait and the C++ free functions become static methods |
 | `BoundingBoxIter<N>::count_paths` | `BoundingBoxIter.countPaths()` -> `long` | Saturates at `Long.MAX_VALUE` where the references saturate at `SIZE_MAX` / `usize::MAX`; the `N == 0` case returns 0 |
 | `HammingFilter<N>` | `HammingFilter` | The constructor skip becomes a `hasNext()` look-ahead with single-element buffering |

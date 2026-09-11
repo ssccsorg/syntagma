@@ -1,21 +1,35 @@
 package org.ssccs.syntagma.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
  * Translation of the C++ suite
- * {@code sw/cpp/tagma_core/tests/test_coord_space_m.cpp}, extended with the
- * cases of the Rust suite {@code sw/rust/core/tests/coord_space_m.rs} and with
- * the file-backed behaviors that replace the Unix-only anonymous mapping.
+ * {@code sw/cpp/tagma_core/tests/test_coord_space_m.cpp} and of the Rust suite
+ * {@code sw/rust/core/tests/coord_space_m.rs}, with the file lifecycle replaced
+ * by the anonymous off-heap guarantees of the Java port.
+ *
+ * <p>The path fixtures stay inside the first window of the space. The
+ * references reserve the whole slot region with one anonymous mapping and pay
+ * only for the pages they write, so a path like {@code (i, i + 1, i + 2)}
+ * crosses windows for free there; the Java port materializes a whole window per
+ * touched window, so the inherited fixtures would need tens of gigabytes of
+ * direct memory. The slot semantics under test are the same, only the addresses
+ * are confined.
  */
 class CoordSpaceMTest {
 
@@ -70,8 +84,10 @@ class CoordSpaceMTest {
             space.placePath(path3(1, 1, 1), 11);
             space.placePath(path3(2, 2, 2), 22);
             assertEquals(2L, space.size(), "len before clear");
+            assertEquals(1, space.allocatedWindows(), "both values share the first window");
             space.clear();
             assertEquals(0L, space.size(), "len after clear");
+            assertEquals(0, space.allocatedWindows(), "clear drops the windows");
             assertTrue(space.atPath(path3(1, 1, 1)).isEmpty(), "cleared slot one");
             assertTrue(space.atPath(path3(2, 2, 2)).isEmpty(), "cleared slot two");
             assertEquals(CoordSpaceM.SLOT_COUNT, space.capacity(), "capacity survives clear");
@@ -115,6 +131,7 @@ class CoordSpaceMTest {
             assertTrue(space.isEmpty(), "default constructor is empty");
             assertEquals(3, space.depth(), "default constructor depth");
             assertEquals(0L, space.size(), "default constructor length");
+            assertEquals(0, space.allocatedWindows(), "the constructor allocates no window");
         }
     }
 
@@ -122,100 +139,95 @@ class CoordSpaceMTest {
     void multipleCoords() {
         try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
             for (int i = 0; i < 100; i++) {
-                space.placePath(path3(i, i + 1, i + 2), i);
+                space.placePath(path3(0, 0, i), i);
             }
             assertEquals(100L, space.size(), "len after many places");
+            assertEquals(1, space.allocatedWindows(), "the paths share the first window");
             for (int i = 0; i < 100; i++) {
-                assertEquals(Optional.of(i), space.atPath(path3(i, i + 1, i + 2)), "value at index " + i);
+                assertEquals(Optional.of(i), space.atPath(path3(0, 0, i)), "value at index " + i);
             }
         }
     }
 
     @Test
     void valuesCoverFixedWidthTypes() {
-        try (CoordSpaceM<Short> shorts = new CoordSpaceM<>(3, Short.class);
-                CoordSpaceM<Long> longs = new CoordSpaceM<>(3, Long.class);
-                CoordSpaceM<Double> doubles = new CoordSpaceM<>(3, Double.class);
-                CoordSpaceM<Boolean> booleans = new CoordSpaceM<>(3, Boolean.class)) {
-            CoordPath p = path3(1, 1, 1);
-            assertEquals(Optional.empty(), shorts.placePath(p, (short) -7), "short slot place");
-            assertEquals(Optional.of((short) -7), shorts.atPath(p), "short slot value");
-            longs.placePath(p, 1L << 40);
-            assertEquals(Optional.of(1L << 40), longs.atPath(p), "long slot value");
-            doubles.placePath(p, Math.PI);
-            assertEquals(Optional.of(Math.PI), doubles.atPath(p), "double slot value");
-            booleans.placePath(p, false);
-            assertEquals(Optional.of(false), booleans.atPath(p), "false payload is not the vacant marker");
-            booleans.placePath(p, true);
-            assertEquals(Optional.of(true), booleans.atPath(p), "true payload");
+        CoordPath p = path3(1, 1, 1);
+        try (CoordSpaceM<Short> space = new CoordSpaceM<>(3, Short.class)) {
+            assertEquals(Optional.empty(), space.placePath(p, (short) -7), "short slot place");
+            assertEquals(Optional.of((short) -7), space.atPath(p), "short slot value");
+        }
+        try (CoordSpaceM<Long> space = new CoordSpaceM<>(3, Long.class)) {
+            space.placePath(p, 1L << 40);
+            assertEquals(Optional.of(1L << 40), space.atPath(p), "long slot value");
+        }
+        try (CoordSpaceM<Double> space = new CoordSpaceM<>(3, Double.class)) {
+            space.placePath(p, Math.PI);
+            assertEquals(Optional.of(Math.PI), space.atPath(p), "double slot value");
+        }
+        try (CoordSpaceM<Boolean> space = new CoordSpaceM<>(3, Boolean.class)) {
+            space.placePath(p, false);
+            assertEquals(Optional.of(false), space.atPath(p), "false payload is not the vacant marker");
+            space.placePath(p, true);
+            assertEquals(Optional.of(true), space.atPath(p), "true payload");
         }
     }
 
     @Test
-    void distantSlotInAnotherWindow() throws IOException {
-        Path file = Files.createTempFile("coord-space-m-distant", ".bin");
-        try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class, file)) {
-            CoordPath last = path3(11171, 11171, 11171);
-            assertEquals(Optional.empty(), space.placePath(last, 7), "place in the last window");
-            space.placePath(path3(0, 0, 0), 8);
-            assertEquals(2L, space.size(), "len across windows");
-            assertEquals(Optional.of(7), space.atPath(last), "value in the last window");
-            assertEquals(Optional.of(8), space.atPath(path3(0, 0, 0)), "value in the first window");
+    void untouchedRegionReadsVacant() {
+        try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
+            assertTrue(space.atPath(path3(0, 0, 0)).isEmpty(), "untouched first slot");
+            assertTrue(space.atPath(path3(5000, 5000, 5000)).isEmpty(), "untouched middle slot");
+            assertTrue(space.atPath(path3(11171, 11171, 11171)).isEmpty(), "untouched last slot");
+            assertTrue(space.vacatePath(path3(0, 0, 0)).isEmpty(), "vacate of an untouched slot");
+            assertEquals(0, space.allocatedWindows(), "reads and failed vacates materialize nothing");
+            assertTrue(space.isEmpty(), "nothing was placed");
 
-            space.retain((path, value) -> value == 8);
-            assertEquals(1L, space.size(), "retain across windows");
-            assertTrue(space.atPath(last).isEmpty(), "retain dropped the distant value");
-            assertEquals(Optional.of(8), space.atPath(path3(0, 0, 0)), "retain kept the near value");
-
-            assertTrue(space.atPath(path3(5000, 5000, 5000)).isEmpty(),
-                    "a covered but never written window reads as vacant");
-            assertEquals(1L, space.size(), "reading a covered window does not change the count");
-        } finally {
-            Files.deleteIfExists(file);
+            space.retain((path, value) -> false);
+            assertEquals(0, space.allocatedWindows(), "retain materializes nothing");
+            assertEquals(CoordSpaceM.SLOT_COUNT, space.capacity(), "capacity is independent of allocation");
         }
     }
 
     @Test
-    void valuesPersistAcrossReopen() throws IOException {
-        Path file = Files.createTempFile("coord-space-m-persist", ".bin");
-        try {
-            CoordPath p = path3(10, 20, 30);
-            try (CoordSpaceM<Integer> writer = new CoordSpaceM<>(3, Integer.class, file)) {
-                writer.placePath(p, 42);
-                writer.placePath(path3(1, 1, 1), 1);
-                assertEquals(2L, writer.size(), "writer length");
-            }
-            try (CoordSpaceM<Integer> reader = new CoordSpaceM<>(3, Integer.class, file)) {
-                assertEquals(2L, reader.size(), "reader restores the engaged count");
-                assertEquals(Optional.of(42), reader.atPath(p), "reader sees the persisted value");
-                assertEquals(Optional.of(1), reader.atPath(path3(1, 1, 1)), "reader sees the second value");
-                assertEquals(Optional.of(42), reader.vacatePath(p), "reader can vacate");
-                assertEquals(1L, reader.size(), "vacate changes the persisted count");
-            }
-            try (CoordSpaceM<Integer> reader = new CoordSpaceM<>(3, Integer.class, file)) {
-                assertEquals(1L, reader.size(), "third open sees the vacate");
-                assertTrue(reader.atPath(path3(10, 20, 30)).isEmpty(), "vacated slot stays vacant");
-            }
-        } finally {
-            Files.deleteIfExists(file);
+    void windowMaterializedOnFirstTouch() {
+        try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
+            assertEquals(0, space.allocatedWindows(), "a fresh space materializes nothing");
+            space.placePath(path3(0, 0, 1), 1);
+            assertEquals(1, space.allocatedWindows(), "the first placement materializes its window");
+            space.placePath(path3(0, 1, 0), 2);
+            assertEquals(1, space.allocatedWindows(), "a placement in a materialized window adds none");
+            assertTrue(space.atPath(path3(3000, 0, 0)).isEmpty(), "a distant read finds a vacant region");
+            assertEquals(1, space.allocatedWindows(), "reads never materialize a window");
+            space.vacatePath(path3(0, 0, 1));
+            assertEquals(1, space.allocatedWindows(), "vacate keeps the window materialized");
+            space.clear();
+            assertEquals(0, space.allocatedWindows(), "clear drops every window");
+            space.placePath(path3(0, 0, 1), 3);
+            assertEquals(1, space.allocatedWindows(), "a cleared space materializes again");
         }
     }
 
     @Test
-    void clearPersistsAcrossReopen() throws IOException {
-        Path file = Files.createTempFile("coord-space-m-clear", ".bin");
-        try {
-            try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class, file)) {
-                space.placePath(path3(1, 2, 3), 42);
-                space.clear();
-            }
-            try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class, file)) {
-                assertTrue(space.isEmpty(), "cleared space reopens empty");
-                assertEquals(0L, space.size(), "cleared space length after reopen");
-                assertTrue(space.atPath(path3(1, 2, 3)).isEmpty(), "cleared slot after reopen");
-            }
-        } finally {
-            Files.deleteIfExists(file);
+    void lastWindowHoldsValues() {
+        try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
+            CoordPath last = path3(Coord.N_VALID - 1, Coord.N_VALID - 1, Coord.N_VALID - 1);
+            assertEquals(Optional.empty(), space.placePath(last, 7), "place in the partial last window");
+            assertEquals(1, space.allocatedWindows(), "the last window materializes on first touch");
+            assertEquals(Optional.of(7), space.atPath(last), "value at the last slot");
+            assertEquals(1L, space.size(), "len after the distant placement");
+            assertTrue(space.atPath(path3(5000, 5000, 5000)).isEmpty(), "a window in between stays vacant");
+            assertEquals(1, space.allocatedWindows(), "reading a window in between materializes nothing");
+
+            List<CoordPath> visited = new ArrayList<>();
+            space.retain((path, value) -> {
+                visited.add(path);
+                return true;
+            });
+            assertEquals(List.of(last), visited, "retain walks only materialized windows");
+            assertEquals(1L, space.size(), "retain kept the value");
+
+            assertEquals(Optional.of(7), space.vacatePath(last), "vacate at the last slot");
+            assertTrue(space.isEmpty(), "empty after vacating the distant value");
         }
     }
 
@@ -242,48 +254,6 @@ class CoordSpaceMTest {
     }
 
     @Test
-    void valueTypeMismatchRejectedOnReopen() throws IOException {
-        Path file = Files.createTempFile("coord-space-m-mismatch", ".bin");
-        try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class, file)) {
-            space.placePath(path3(1, 1, 1), 1);
-        } finally {
-            assertThrows(IllegalArgumentException.class,
-                    () -> new CoordSpaceM<Long>(3, Long.class, file), "value type mismatch rejected");
-            Files.deleteIfExists(file);
-        }
-    }
-
-    @Test
-    void foreignFileRejected() throws IOException {
-        Path file = Files.createTempFile("coord-space-m-foreign", ".bin");
-        try {
-            Files.write(file, new byte[4096]);
-            assertThrows(IllegalArgumentException.class,
-                    () -> new CoordSpaceM<Integer>(3, Integer.class, file), "foreign header rejected");
-            Files.write(file, new byte[10]);
-            assertThrows(IllegalArgumentException.class,
-                    () -> new CoordSpaceM<Integer>(3, Integer.class, file), "short file rejected");
-        } finally {
-            Files.deleteIfExists(file);
-        }
-    }
-
-    @Test
-    void accessAfterCloseRejected() {
-        CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class);
-        space.placePath(path3(1, 1, 1), 1);
-        space.close();
-        space.close();
-        CoordPath p = path3(1, 1, 1);
-        assertThrows(IllegalStateException.class, () -> space.atPath(p), "atPath after close");
-        assertThrows(IllegalStateException.class, () -> space.placePath(p, 1), "placePath after close");
-        assertThrows(IllegalStateException.class, () -> space.vacatePath(p), "vacatePath after close");
-        assertThrows(IllegalStateException.class, space::clear, "clear after close");
-        assertThrows(IllegalStateException.class, () -> space.retain((path, value) -> true), "retain after close");
-        assertThrows(IllegalStateException.class, space::force, "force after close");
-    }
-
-    @Test
     void argumentsValidated() {
         try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
             CoordPath shortPath = CoordPath.fromArray(coord(1), coord(1));
@@ -296,14 +266,77 @@ class CoordSpaceMTest {
     }
 
     @Test
-    void toStringMentionsShape() {
+    void closeDropsWindowsAndRejectsAccess() {
+        CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class);
+        CoordPath p = path3(1, 1, 1);
+        space.placePath(p, 1);
+        assertEquals(1, space.allocatedWindows(), "materialized before close");
+
+        space.close();
+        assertEquals(0, space.allocatedWindows(), "close drops the window references");
+        assertEquals(0L, space.size(), "a closed space reports length zero");
+        assertTrue(space.isEmpty(), "a closed space reports empty");
+        assertThrows(IllegalStateException.class, () -> space.atPath(p), "atPath after close");
+        assertThrows(IllegalStateException.class, () -> space.placePath(p, 1), "placePath after close");
+        assertThrows(IllegalStateException.class, () -> space.vacatePath(p), "vacatePath after close");
+        assertThrows(IllegalStateException.class, space::clear, "clear after close");
+        assertThrows(IllegalStateException.class, () -> space.retain((path, value) -> true),
+                "retain after close");
+
+        space.close();
+        assertEquals(0L, space.size(), "closing twice is harmless");
+        assertEquals(3, space.depth(), "shape accessors survive close");
+        assertEquals(CoordSpaceM.SLOT_COUNT, space.capacity(), "capacity survives close");
+    }
+
+    @Test
+    void constructionCreatesNoFile() throws IOException {
+        Path workingDirectory = Path.of("").toAbsolutePath();
+        Path temporaryDirectory = Path.of(System.getProperty("java.io.tmpdir"));
+        Set<String> workingBefore = directoryNames(workingDirectory);
+        Set<String> temporaryBefore = directoryNames(temporaryDirectory);
+
+        try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
+            space.placePath(path3(1, 2, 3), 42);
+            assertEquals(Optional.of(42), space.atPath(path3(1, 2, 3)), "the space works without a file");
+        }
+
+        assertEquals(workingBefore, directoryNames(workingDirectory), "the working directory gains no entry");
+        Set<String> temporaryNew = directoryNames(temporaryDirectory);
+        temporaryNew.removeAll(temporaryBefore);
+        assertEquals(List.of(), temporaryNew.stream().filter(name -> name.startsWith("coord-space-m-")).toList(),
+                "the temporary directory gains no space file");
+    }
+
+    @Test
+    void noFileOrFormatSurfaceExists() {
+        Constructor<?>[] constructors = CoordSpaceM.class.getConstructors();
+        assertEquals(1, constructors.length, "exactly one public constructor");
+        assertEquals(List.of(int.class, Class.class), List.of(constructors[0].getParameterTypes()),
+                "the constructor takes the depth and the value type token only");
+        assertThrows(NoSuchMethodException.class, () -> CoordSpaceM.class.getMethod("file"),
+                "no file accessor");
+        assertThrows(NoSuchMethodException.class, () -> CoordSpaceM.class.getMethod("force"),
+                "no durability operation");
+        assertTrue(AutoCloseable.class.isAssignableFrom(CoordSpaceM.class), "the space stays closable");
+    }
+
+    @Test
+    void debugFormat() {
         try (CoordSpaceM<Integer> space = new CoordSpaceM<>(3, Integer.class)) {
             String text = space.toString();
             assertTrue(text.contains("CoordSpaceM"), "debug contains the type name");
             assertTrue(text.contains("len: 0"), "debug contains the length");
+            assertTrue(text.contains("closed: false"), "debug contains the open state");
             space.placePath(path3(1, 1, 1), 1);
             assertTrue(space.toString().contains("len: 1"), "debug follows the length");
-            assertFalse(space.file().toString().isEmpty(), "backing file is exposed");
+        }
+    }
+
+    private static Set<String> directoryNames(Path directory) throws IOException {
+        try (Stream<Path> entries = Files.list(directory)) {
+            return entries.map(entry -> entry.getFileName().toString())
+                    .collect(Collectors.toCollection(HashSet::new));
         }
     }
 }

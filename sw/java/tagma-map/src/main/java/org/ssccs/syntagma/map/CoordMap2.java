@@ -9,9 +9,10 @@ package org.ssccs.syntagma.map;
  * (a 119 MB single allocation) for O(1) lookup. The C++ port keeps the API and
  * the behavior but backs the map with the lazy {@code CoordSpaceN<2>} tree, so
  * memory stays proportional to the entries; the Java core has no dense
- * depth-2 space either, its only dense space being the depth-3 file-mapped
- * {@code CoordSpaceM}. This port therefore follows the C++ deviation, and
- * {@link CoordMapN} fixed at depth 2 is the whole implementation.
+ * depth-2 space either, its only dense space being the depth-3 anonymous
+ * off-heap {@code CoordSpaceM}. This port therefore follows the C++
+ * deviation, and {@link CoordMapN} fixed at depth 2 is the whole
+ * implementation.
  *
  * <p>Port of the C++ {@code tagma_map::CoordMap2} in
  * {@code sw/cpp/tagma_map/include/tagma_map/coord_map2.h}; the underlying
