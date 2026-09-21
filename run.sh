@@ -92,6 +92,16 @@ check_checks() {
     # storage path (chton, nex) consumes on device.
     echo "--- riscv32imac-unknown-none-elf check (MCU target) ---"
     (cd sw/rust && cargo check -p tagma-core -p tagma-geo -p tagma-map --target riscv32imac-unknown-none-elf)
+    # The no-allocator member is linked rather than only checked. The link fails
+    # with "no global memory allocator found but one is required" if anything
+    # underneath reaches for the allocator, so the property is a fact about the
+    # artifact rather than a claim. linkcheck is its own workspace (see the exclude
+    # note in sw/rust/Cargo.toml), because a build that also selects tagma-geo or
+    # tagma-map would unify tagma-core's alloc on.
+    echo "--- no-allocator link (no global allocator, no OS) ---"
+    (cd sw/rust/verify/linkcheck && cargo fmt --check)
+    (cd sw/rust/verify/linkcheck && cargo clippy --target riscv32imac-unknown-none-elf -- -D warnings)
+    (cd sw/rust/verify/linkcheck && cargo build --target riscv32imac-unknown-none-elf)
     check_cpp
     check_java
     check_hw

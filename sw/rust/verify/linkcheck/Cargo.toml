@@ -1,0 +1,12 @@
+[package]
+name = "tagma-linkcheck"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Link check: the no-allocator member of the family, linked for a target with no operating system"
+
+[dependencies]
+# Named here rather than inherited, because this crate is excluded from the
+# workspace so that no other member can turn tagma-core's alloc on and make the
+# link pass or fail for the wrong reason.
+tagma-matrix = { path = "../../matrix" }
