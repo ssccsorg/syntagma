@@ -9,6 +9,13 @@ members = [
     "matrix",
     "sec",
 ]
+# The link check stands outside the workspace on purpose. It links tagma-matrix into
+# a program with no operating system and no global allocator, and that link only
+# succeeds while nothing in the build turns tagma-core's alloc on. As a member it
+# would be selected alongside tagma-geo and tagma-map by any workspace-wide build,
+# which is exactly the combination that fails the link for a reason that has
+# nothing to do with the crate under check. run.sh builds it on its own.
+exclude = ["linkcheck"]
 
 [workspace.dependencies]
 tagma-core = { path = "core" }

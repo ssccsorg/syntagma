@@ -29,7 +29,7 @@ synTagma (system)
 
 | Implementation | Location | Modules | Verification |
 |----------------|----------|---------|--------------|
-| Rust (reference) | `sw/rust` | core, base11172, geo, map, matrix, sec, benches | 360+ unit/integration tests, 26 doc-tests, `./run.sh --check` |
+| Rust (reference) | `sw/rust` | core, base11172, geo, map, matrix, sec, benches, linkcheck | 360+ unit/integration tests, 26 doc-tests, `./run.sh --check` |
 | C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 16 suites, `sw/cpp/run.sh` |
 | Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 348 JUnit tests, `sw/java/run.sh` |
 
@@ -122,7 +122,7 @@ The Rust crate binds seals, receipts and audit commitments with blake3 keyed has
 | gemv | `y[i] = sum over j of a[i, j] * x[j]`, `i8` by `i8` into `i32`, with no allocator | `matrix/src/gemv.rs` |
 | encode_into, encoded_len, decode | The wire form: a nine-byte header, then two coordinates and a value per element. A reader refuses a stream it cannot account for, naming the reason | `matrix/src/wire.rs` |
 
-This is the family member that takes no allocator: `tagma-core` is taken with `default-features = false`, and the crate builds for a target with no operating system. It has no C++ or Java port.
+This is the family member that takes no allocator: `tagma-core` is taken with `default-features = false`, and the crate builds for a target with no operating system. It has no C++ or Java port. `sw/rust/linkcheck` links it into a program that has no operating system and no global allocator, so the absence of an allocator is a fact about a linked artifact rather than a claim about source.
 
 Relocation invariance is what the crate exists to make checkable. The same logical matrix in row-major and in column-major order answers the same coordinates with the same values, produces a byte-identical product, and writes identical bytes, which is what lets a value move between devices without changing its identity.
 
