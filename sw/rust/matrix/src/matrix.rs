@@ -2,8 +2,6 @@
 
 use core::marker::PhantomData;
 
-use tagma_core::Coord;
-
 use crate::elements::Elements;
 use crate::order::{Order, RowMajor};
 
@@ -16,19 +14,18 @@ use crate::order::{Order, RowMajor};
 ///
 /// Both dimensions are bounded by the coordinate space. A matrix larger than the
 /// space fails to compile rather than truncating an address.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+///
+/// This type is not `Copy`. A buffer can run to kilobytes, and a copy that happens
+/// because a value was used after being passed would be invisible, which is the
+/// cost [`MatrixRef`](crate::MatrixRef) exists to avoid. A second matrix is made
+/// with `clone`, and the call site says so.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Matrix<const R: usize, const C: usize, O: Order = RowMajor> {
     data: [[i8; C]; R],
     order: PhantomData<O>,
 }
 
 impl<const R: usize, const C: usize, O: Order> Matrix<R, C, O> {
-    /// Fails the build when a dimension exceeds the coordinate space.
-    const ADDRESSABLE: () = assert!(
-        R <= Coord::N_VALID && C <= Coord::N_VALID,
-        "tagma-matrix: a dimension exceeds the coordinate space"
-    );
-
     /// Wraps a buffer whose bytes are already in `O` order.
     pub fn new(data: [[i8; C]; R]) -> Self {
         let () = Self::ADDRESSABLE;
@@ -39,23 +36,44 @@ impl<const R: usize, const C: usize, O: Order> Matrix<R, C, O> {
     }
 
     /// The element at row `i`, column `j`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `i` is at or above `R` or `j` at or above `C`. The flat offset of
+    /// a position outside the matrix is another position's offset, so reading it
+    /// unchecked answers with a value that belongs to a different coordinate.
     #[inline]
     pub fn get(&self, i: usize, j: usize) -> i8 {
-        let offset = O::offset(R, C, i, j);
-        self.data[offset / C][offset % C]
+        assert!(i < R && j < C, "tagma-matrix: position outside the matrix");
+        self.read(i, j)
     }
 
     /// Sets the element at row `i`, column `j`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `i` is at or above `R` or `j` at or above `C`.
     #[inline]
     pub fn set(&mut self, i: usize, j: usize, value: i8) {
+        assert!(i < R && j < C, "tagma-matrix: position outside the matrix");
         let offset = O::offset(R, C, i, j);
         self.data[offset / C][offset % C] = value;
+    }
+
+    /// The element at a position already known to be inside the matrix.
+    ///
+    /// The coordinate surface and the product call this, having established the
+    /// range themselves.
+    #[inline]
+    fn read(&self, i: usize, j: usize) -> i8 {
+        let offset = O::offset(R, C, i, j);
+        self.data[offset / C][offset % C]
     }
 }
 
 impl<const R: usize, const C: usize, O: Order> Elements<R, C, O> for Matrix<R, C, O> {
     #[inline]
     fn element(&self, i: usize, j: usize) -> i8 {
-        self.get(i, j)
+        self.read(i, j)
     }
 }

@@ -1,7 +1,8 @@
 //! # tagma-matrix: Coordinate-addressed matrices for Tagma
 //!
-//! Rank-2 `i8` elements addressed by a [`CoordPath`], the integer product over
-//! them, and a wire form that moves a matrix to another device.
+//! Rank-2 `i8` elements addressed by a [`CoordPath`](tagma_core::CoordPath), the
+//! integer product over them, and a wire form that moves a matrix to another
+//! device.
 //!
 //! An element's address is its coordinate, so the physical order of the backing
 //! bytes is not part of that address, and the same coordinate reads the same value
@@ -26,5 +27,3 @@ pub use crate::matrix::Matrix;
 pub use crate::order::{ColMajor, Order, RowMajor};
 pub use crate::view::MatrixRef;
 pub use crate::wire::{DecodeError, EncodeError};
-
-pub use tagma_core::{Coord, CoordPath};

@@ -3,33 +3,8 @@
 
 mod common;
 
-use tagma_matrix::{gemv, Coord, CoordPath, Elements, Matrix, Order};
-
-/// The product written as the plainest possible loop, reading every element
-/// through its coordinate rather than through the order-resolved index, so the
-/// two access paths are checked against each other.
-fn reference<const R: usize, const C: usize, O: Order>(
-    a: &Matrix<R, C, O>,
-    x: &[i8; C],
-) -> [i32; R] {
-    let mut y = [0i32; R];
-    for (i, out) in y.iter_mut().enumerate() {
-        let mut accumulator: i32 = 0;
-        for (j, activation) in x.iter().enumerate() {
-            let path = match a.path_of(i, j) {
-                Some(path) => path,
-                None => panic!("reference: position {i}, {j} is outside the matrix"),
-            };
-            let weight = match a.at(path) {
-                Some(weight) => weight,
-                None => panic!("reference: coordinate {path} names no element"),
-            };
-            accumulator += i32::from(weight) * i32::from(*activation);
-        }
-        *out = accumulator;
-    }
-    y
-}
+use tagma_core::{Coord, CoordPath};
+use tagma_matrix::{gemv, Elements, Matrix};
 
 #[test]
 fn the_product_matches_the_scalar_reference_bit_for_bit() {
@@ -42,7 +17,7 @@ fn the_product_matches_the_scalar_reference_bit_for_bit() {
     let mut y = [0i32; R];
     gemv(&a, &x, &mut y);
 
-    assert_eq!(y, reference(&a, &x));
+    assert_eq!(y, common::reference(&a, &x));
 }
 
 #[test]
@@ -74,4 +49,23 @@ fn a_position_outside_the_matrix_has_no_coordinate() {
     let row = Coord::new(R as u16).expect("in range");
     let column = Coord::new(0).expect("in range");
     assert_eq!(a.at(CoordPath::new([row, column])), None);
+}
+
+#[test]
+fn a_matrix_can_be_written_through_its_index_surface() {
+    const R: usize = 3;
+    const C: usize = 2;
+
+    let mut a = Matrix::<R, C>::new([[0i8; C]; R]);
+    for i in 0..R {
+        for j in 0..C {
+            a.set(i, j, common::value_at(i, j));
+        }
+    }
+
+    for i in 0..R {
+        for j in 0..C {
+            assert_eq!(a.get(i, j), common::value_at(i, j));
+        }
+    }
 }
