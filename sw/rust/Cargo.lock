@@ -614,6 +614,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tagma-matrix"
+version = "0.1.0"
+dependencies = [
+ "tagma-core",
+]
+
+[[package]]
 name = "tagma-sec"
 version = "0.1.0"
 dependencies = [

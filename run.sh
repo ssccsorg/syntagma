@@ -92,6 +92,10 @@ check_checks() {
     # storage path (chton, nex) consumes on device.
     echo "--- riscv32imac-unknown-none-elf check (MCU target) ---"
     (cd sw/rust && cargo check -p tagma-core -p tagma-geo -p tagma-map --target riscv32imac-unknown-none-elf)
+    # tagma-matrix is the member that takes no allocator, so it is checked alone:
+    # feature unification with the members above would turn tagma-core's alloc on
+    # and hide the property the check exists for.
+    (cd sw/rust && cargo check -p tagma-matrix --target riscv32imac-unknown-none-elf)
     check_cpp
     check_java
     check_hw

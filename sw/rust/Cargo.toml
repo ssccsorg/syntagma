@@ -6,6 +6,7 @@ members = [
     "benches",
     "geo",
     "map",
+    "matrix",
     "sec",
 ]
 
@@ -13,5 +14,6 @@ members = [
 tagma-core = { path = "core" }
 tagma-geo = { path = "geo" }
 tagma-map = { path = "map" }
+tagma-matrix = { path = "matrix" }
 tagma-sec = { path = "sec" }
 blake3 = "1"

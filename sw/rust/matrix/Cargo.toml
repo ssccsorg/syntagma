@@ -1,0 +1,12 @@
+[package]
+name = "tagma-matrix"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Coordinate-addressed matrices for Tagma: rank-2 integer elements, the product over them, and a wire form"
+
+[dependencies]
+# The workspace entry leaves `tagma-core`'s defaults on, which `tagma-geo` and
+# `tagma-sec` rely on. This is the member that takes no allocator, so it names the
+# path itself rather than inheriting that choice.
+tagma-core = { path = "../core", default-features = false }
