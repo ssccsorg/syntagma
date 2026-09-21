@@ -9,4 +9,4 @@ description = "Link check: the no-allocator member of the family, linked for a t
 # Named here rather than inherited, because this crate is excluded from the
 # workspace so that no other member can turn tagma-core's alloc on and make the
 # link pass or fail for the wrong reason.
-tagma-matrix = { path = "../matrix" }
+tagma-matrix = { path = "../../matrix" }

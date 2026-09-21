@@ -15,7 +15,9 @@ members = [
 # would be selected alongside tagma-geo and tagma-map by any workspace-wide build,
 # which is exactly the combination that fails the link for a reason that has
 # nothing to do with the crate under check. run.sh builds it on its own.
-exclude = ["linkcheck"]
+# It sits under verify/ so the checks that stand outside the workspace have one
+# home to grow into.
+exclude = ["verify/linkcheck"]
 
 [workspace.dependencies]
 tagma-core = { path = "core" }

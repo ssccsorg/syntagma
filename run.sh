@@ -99,9 +99,9 @@ check_checks() {
     # note in sw/rust/Cargo.toml), because a build that also selects tagma-geo or
     # tagma-map would unify tagma-core's alloc on.
     echo "--- no-allocator link (no global allocator, no OS) ---"
-    (cd sw/rust/linkcheck && cargo fmt --check)
-    (cd sw/rust/linkcheck && cargo clippy --target riscv32imac-unknown-none-elf -- -D warnings)
-    (cd sw/rust/linkcheck && cargo build --target riscv32imac-unknown-none-elf)
+    (cd sw/rust/verify/linkcheck && cargo fmt --check)
+    (cd sw/rust/verify/linkcheck && cargo clippy --target riscv32imac-unknown-none-elf -- -D warnings)
+    (cd sw/rust/verify/linkcheck && cargo build --target riscv32imac-unknown-none-elf)
     check_cpp
     check_java
     check_hw
