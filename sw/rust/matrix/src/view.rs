@@ -2,17 +2,18 @@
 
 use core::marker::PhantomData;
 
-use crate::elements::Elements;
+use crate::elements::{addressable, Elements};
 use crate::order::{Order, RowMajor};
 
 /// A rank-2 matrix that borrows its buffer.
 ///
 /// For weights that live in flash. Reading them through this type copies
 /// nothing, which an owned matrix cannot promise, so the weights stay where the
-/// linker put them.
+/// linker put them. It writes them out through the same trait method an owned
+/// matrix uses, so sending them costs no copy either.
 ///
 /// Both dimensions are bounded by the coordinate space, as they are for an owned
-/// matrix, and are checked by the same constant.
+/// matrix, and they are asserted the same way.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MatrixRef<'a, const R: usize, const C: usize, O: Order = RowMajor> {
     data: &'a [[i8; C]; R],
@@ -22,7 +23,7 @@ pub struct MatrixRef<'a, const R: usize, const C: usize, O: Order = RowMajor> {
 impl<'a, const R: usize, const C: usize, O: Order> MatrixRef<'a, R, C, O> {
     /// Borrows a buffer whose bytes are already in `O` order.
     pub fn new(data: &'a [[i8; C]; R]) -> Self {
-        let () = Self::ADDRESSABLE;
+        const { addressable(R, C) };
         Self {
             data,
             order: PhantomData,

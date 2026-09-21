@@ -115,12 +115,12 @@ The Rust crate binds seals, receipts and audit commitments with blake3 keyed has
 
 | Type | Description | File |
 |------|-------------|------|
-| Matrix\<R, C, O\> | Rank-2 `i8` elements addressed by `CoordPath<2>`. The physical order of the backing bytes is a type parameter and the offset is computed from it, so a coordinate names an element rather than a byte. A position outside the matrix panics rather than resolving to another element's offset, and the type is `Clone` but not `Copy`, so a second buffer is made on purpose | `matrix/src/matrix.rs` |
-| MatrixRef\<'a, R, C, O\> | The same read surface over a borrowed buffer, for weights that live in read-only memory and must not be copied into RAM | `matrix/src/view.rs` |
+| Matrix\<R, C, O\> | Rank-2 `i8` elements addressed by `CoordPath<2>`. The physical order of the backing bytes is a type parameter and the offset is computed from it, so a coordinate names an element rather than a byte. A position outside the matrix panics rather than resolving to another element's offset | `matrix/src/matrix.rs` |
+| MatrixRef\<'a, R, C, O\> | The same read surface over a borrowed buffer, for weights that live in read-only memory and must not be copied into RAM. It writes through the same trait method the owned type uses, so sending those weights costs no copy either | `matrix/src/view.rs` |
 | Order trait | `offset(rows, cols, i, j)`, implemented by RowMajor and ColMajor | `matrix/src/order.rs` |
-| Elements trait | `element(i, j)`, with `path_of` and `at` derived from it, so a product reads an owned matrix or a borrowed one. `ADDRESSABLE` states the bound on both dimensions once, and every derived method names it, so an implementor outside the coordinate space fails to build | `matrix/src/elements.rs` |
+| Elements trait | `element(i, j)`, with `path_of`, `at`, `encoded_len` and `encode_into` derived from it, so one set of operations serves an owned matrix and a borrowed one. The bound on both dimensions is asserted by every constructor and every derived method, so an implementor outside the coordinate space fails to build | `matrix/src/elements.rs` |
 | gemv | `y[i] = sum over j of a[i, j] * x[j]`, `i8` by `i8` into `i32`, with no allocator | `matrix/src/gemv.rs` |
-| encode_into, encoded_len, decode | The wire form: a nine-byte header, then two coordinates and a value per element. A reader refuses a stream it cannot account for, naming the reason | `matrix/src/wire.rs` |
+| decode | The reading half of the wire form: a nine-byte header, then two coordinates and a value per element. A reader refuses a stream it cannot account for, naming the reason. It is the one direction that needs an owner, so it is an associated function of the owned type | `matrix/src/wire.rs` |
 
 This is the family member that takes no allocator: `tagma-core` is taken with `default-features = false`, and the crate builds for a target with no operating system. It has no C++ or Java port. `sw/rust/verify/linkcheck` links it into a program that has no operating system and no global allocator, so the absence of an allocator is a fact about a linked artifact rather than a claim about source.
 

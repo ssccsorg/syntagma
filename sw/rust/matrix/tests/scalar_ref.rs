@@ -69,3 +69,21 @@ fn a_matrix_can_be_written_through_its_index_surface() {
         }
     }
 }
+
+/// The type is `Copy`, as the family's other fixed-size types are, so a copy is a
+/// second buffer rather than a second name for one.
+#[test]
+fn a_copy_is_independent_of_its_source() {
+    let mut a = common::row_major::<2, 3>();
+    let mut b = a;
+
+    assert_eq!(a, b);
+
+    a.set(0, 0, 99);
+    b.set(1, 2, -99);
+
+    assert_eq!(a.get(0, 0), 99);
+    assert_eq!(b.get(0, 0), common::value_at(0, 0));
+    assert_eq!(b.get(1, 2), -99);
+    assert_eq!(a.get(1, 2), common::value_at(1, 2));
+}

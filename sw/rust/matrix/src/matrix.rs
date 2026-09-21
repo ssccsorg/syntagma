@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use crate::elements::Elements;
+use crate::elements::{addressable, Elements};
 use crate::order::{Order, RowMajor};
 
 /// A rank-2 matrix that owns its buffer.
@@ -15,11 +15,10 @@ use crate::order::{Order, RowMajor};
 /// Both dimensions are bounded by the coordinate space. A matrix larger than the
 /// space fails to compile rather than truncating an address.
 ///
-/// This type is not `Copy`. A buffer can run to kilobytes, and a copy that happens
-/// because a value was used after being passed would be invisible, which is the
-/// cost [`MatrixRef`](crate::MatrixRef) exists to avoid. A second matrix is made
-/// with `clone`, and the call site says so.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A matrix is `Copy`, as the family's other fixed-size types are. A copy
+/// duplicates the whole buffer, so a large matrix is a value to borrow or to read
+/// through [`MatrixRef`](crate::MatrixRef) rather than to pass around by value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Matrix<const R: usize, const C: usize, O: Order = RowMajor> {
     data: [[i8; C]; R],
     order: PhantomData<O>,
@@ -28,7 +27,7 @@ pub struct Matrix<const R: usize, const C: usize, O: Order = RowMajor> {
 impl<const R: usize, const C: usize, O: Order> Matrix<R, C, O> {
     /// Wraps a buffer whose bytes are already in `O` order.
     pub fn new(data: [[i8; C]; R]) -> Self {
-        let () = Self::ADDRESSABLE;
+        const { addressable(R, C) };
         Self {
             data,
             order: PhantomData,

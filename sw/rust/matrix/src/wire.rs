@@ -8,8 +8,12 @@
 //! not know, a shape that disagrees with the matrix being filled, a length the
 //! shape does not account for, or a record whose coordinate names another element
 //! than its own position.
+//!
+//! The writing half is a method on the [`Elements`](crate::Elements) trait, since
+//! reading the elements is all it takes, and it lives here so that the layout and
+//! the constants describing it stay in one place.
 
-use crate::elements::coord_of;
+use crate::elements::{coord_of, Elements};
 use crate::matrix::Matrix;
 use crate::order::Order;
 
@@ -66,45 +70,47 @@ pub enum DecodeError {
     CoordinateMismatch,
 }
 
+/// The bytes a stream of an `R` by `C` matrix occupies.
+pub(crate) fn encoded_len<const R: usize, const C: usize>() -> usize {
+    HEADER_LEN + R * C * RECORD_LEN
+}
+
+/// Writes the elements of `a` as their coordinates and their values.
+pub(crate) fn encode<const R: usize, const C: usize, O: Order, E: Elements<R, C, O>>(
+    a: &E,
+    out: &mut [u8],
+) -> Result<usize, EncodeError> {
+    let needed = encoded_len::<R, C>();
+    if out.len() < needed {
+        return Err(EncodeError::BufferTooSmall {
+            needed,
+            available: out.len(),
+        });
+    }
+
+    out[0..4].copy_from_slice(&MAGIC);
+    out[4] = VERSION;
+    out[5..7].copy_from_slice(&(R as u16).to_le_bytes());
+    out[7..9].copy_from_slice(&(C as u16).to_le_bytes());
+
+    let mut cursor = HEADER_LEN;
+    for i in 0..R {
+        for j in 0..C {
+            out[cursor..cursor + 2].copy_from_slice(&coord_of(i).index().to_le_bytes());
+            out[cursor + 2..cursor + 4].copy_from_slice(&coord_of(j).index().to_le_bytes());
+            out[cursor + 4] = a.element(i, j) as u8;
+            cursor += RECORD_LEN;
+        }
+    }
+
+    Ok(needed)
+}
+
 impl<const R: usize, const C: usize, O: Order> Matrix<R, C, O> {
-    /// The bytes a stream of this matrix occupies.
-    pub fn encoded_len() -> usize {
-        HEADER_LEN + R * C * RECORD_LEN
-    }
-
-    /// Writes the matrix as its coordinates and their values.
-    ///
-    /// Elements are written in logical order, so two matrices with the same
-    /// logical content write the same bytes whatever order their own storage
-    /// uses.
-    pub fn encode_into(&self, out: &mut [u8]) -> Result<usize, EncodeError> {
-        let needed = Self::encoded_len();
-        if out.len() < needed {
-            return Err(EncodeError::BufferTooSmall {
-                needed,
-                available: out.len(),
-            });
-        }
-
-        out[0..4].copy_from_slice(&MAGIC);
-        out[4] = VERSION;
-        out[5..7].copy_from_slice(&(R as u16).to_le_bytes());
-        out[7..9].copy_from_slice(&(C as u16).to_le_bytes());
-
-        let mut cursor = HEADER_LEN;
-        for i in 0..R {
-            for j in 0..C {
-                out[cursor..cursor + 2].copy_from_slice(&coord_of(i).index().to_le_bytes());
-                out[cursor + 2..cursor + 4].copy_from_slice(&coord_of(j).index().to_le_bytes());
-                out[cursor + 4] = self.get(i, j) as u8;
-                cursor += RECORD_LEN;
-            }
-        }
-
-        Ok(needed)
-    }
-
     /// Reads a matrix from a stream, placing every value at its coordinate.
+    ///
+    /// Reading in is the one direction that needs an owner, which is why it is
+    /// here and not on the trait.
     pub fn decode(src: &[u8]) -> Result<Self, DecodeError> {
         if src.len() < HEADER_LEN {
             return Err(DecodeError::TooShort);
@@ -122,7 +128,7 @@ impl<const R: usize, const C: usize, O: Order> Matrix<R, C, O> {
             return Err(DecodeError::ShapeMismatch { rows, cols });
         }
 
-        let needed = Self::encoded_len();
+        let needed = encoded_len::<R, C>();
         if src.len() < needed {
             return Err(DecodeError::Truncated);
         }

@@ -5,7 +5,7 @@
 
 mod common;
 
-use tagma_matrix::{DecodeError, EncodeError, Matrix, RowMajor};
+use tagma_matrix::{DecodeError, Elements, EncodeError, Matrix, RowMajor};
 
 const R: usize = 4;
 const C: usize = 3;
