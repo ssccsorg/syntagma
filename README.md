@@ -126,6 +126,8 @@ This is the family member that takes no allocator: `tagma-core` is taken with `d
 
 Relocation invariance is what the crate exists to make checkable. The same logical matrix in row-major and in column-major order answers the same coordinates with the same values, produces a byte-identical product, and writes identical bytes, which is what lets a value move between devices without changing its identity.
 
+A dimension outside the coordinate space, and a zero dimension, are refused by an assertion that every constructor and every derived method carries, so the type fails to build rather than truncating an address. The assertion relates two const generic parameters, so it is evaluated at codegen: a build reports it, and `cargo check` on its own does not.
+
 ## Quick start
 
 ```sh
