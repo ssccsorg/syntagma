@@ -4,6 +4,25 @@
 // The comparison that matters is `matrix/gemv_addressed` against `matrix/gemv_flat`.
 // The flat loop is what an engine that addresses elements by offset writes, so the
 // gap between the two is the price of an element's address being its coordinate.
+//
+// Baseline, recorded so that a later run can tell a regression from noise and so that
+// the numbers quoted in the documentation have a source. The host is an Apple M1 Max
+// on macOS 15.7.1 with rustc 1.95.0, and each entry is the median of 30 samples in the
+// release profile. These are a reference point for this suite on this host, and no
+// claim about any target:
+//
+//   matrix/gemv_addressed                 7.32 us   (64 x 256)
+//   matrix/gemv_flat                      1.82 us   (64 x 256)
+//   matrix/gemv_requantized               7.36 us   (64 x 256)
+//   matrix/wire_encode                   16.26 us   (64 x 256)
+//   matrix/matmul_64x64x64               38.18 us
+//   matrix/matmul_requantized_64x64x64   37.73 us
+//   matrix/requantize_256               194.8  ns
+//
+// The addressed product is about four times the flat one. The rescale adds nothing
+// measurable to the product, since it is one multiply and one shift against 256 of
+// them, which is why `gemv_requantized` and `gemv_addressed` sit on top of each other.
+// The contraction is dense, so its cost is the cube of its side rather than a row.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tagma_matrix::{
