@@ -16,3 +16,13 @@ tagma-core = { path = "../core", default-features = false }
 # other members' tests do, rather than through a re-export this crate would
 # otherwise have to keep alive.
 tagma-core = { path = "../core", default-features = false }
+
+# `kani` is a placeholder on crates.io: `cargo kani` supplies the real library from
+# its own toolchain, and the dependency is here so the manifest resolves. Nothing in
+# a normal build reaches it.
+kani = "0.0.1"
+
+# `kani` is also a configuration a normal build never sets, so it is declared for the
+# lint that would otherwise report every `#[cfg(kani)]` in the crate.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

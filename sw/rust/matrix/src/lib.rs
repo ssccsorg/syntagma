@@ -21,6 +21,10 @@ mod gemv;
 mod matmul;
 mod matrix;
 mod order;
+
+#[cfg(kani)]
+mod proofs;
+
 mod requant;
 mod view;
 mod wire;

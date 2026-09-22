@@ -8,6 +8,7 @@ set -euo pipefail
 #   ./run.sh --check         # fmt → clippy → build → test (strict)
 #   ./run.sh --fix           # auto-fix → build → test
 #   ./run.sh --bench         # build + test + core benchmarks
+#   ./run.sh --proof         # Kani proofs over the rescale's domain
 #   ./run.sh --doc           # build documentation
 #   ./run.sh --help
 #
@@ -125,6 +126,19 @@ build_docs() {
     (cd sw/rust && cargo doc --no-deps)
 }
 
+# A proof that does not run is not a proof, so a missing verifier is an error here
+# rather than a skip, unlike the ports whose absence the other checks tolerate.
+proof() {
+    echo "--- Kani: the rescale over its whole domain ---"
+    if ! cargo kani --version >/dev/null 2>&1; then
+        echo "  Kani is not installed. Run:" >&2
+        echo "    cargo install --locked kani-verifier --version 0.68.0" >&2
+        echo "    cargo kani setup" >&2
+        exit 1
+    fi
+    (cd sw/rust && cargo kani -p tagma-matrix)
+}
+
 # ── Dispatch ──────────────────────────────────────────────────────────
 
 case "${1:-}" in
@@ -141,11 +155,14 @@ case "${1:-}" in
         (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge|hw|matrix" 2>&1 | tail -30)
         check_java_bench
         ;;
+    --proof|proof)
+        proof
+        ;;
     --doc|doc)
         build_docs
         ;;
     --help|-h)
-        echo "Usage: ./run.sh [--check|--fix|--bench|--doc|--help]"
+        echo "Usage: ./run.sh [--check|--fix|--bench|--proof|--doc|--help]"
         exit 0
         ;;
     *)

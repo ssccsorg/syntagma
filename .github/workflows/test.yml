@@ -205,6 +205,45 @@ jobs:
         if: steps.doc_filter.outputs.src == 'true'
         run: bash run.sh --doc
 
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: proof_filter
+        with:
+          filters: |
+            src:
+              - 'sw/rust/**'
+              - 'run.sh'
+              - '.github/workflows/*.yml'
+              - '!**/*.md'
+              - '!**/*.qmd'
+      # Kani is the one tool here that neither apt nor rustup's default supplies. Its
+      # setup fetches a release bundle and the nightly toolchain it is built against,
+      # about 1.7 GB together, so both are cached on the verifier's version. The
+      # version appears twice, here and in the script, because the key has to move when
+      # the tool does.
+      - name: Cache the verifier
+        if: steps.proof_filter.outputs.src == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.kani
+            ~/.rustup/toolchains/nightly-*
+          key: kani-${{ runner.os }}-0.68.0
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.proof_filter.outputs.src == 'true'
+      - name: Install the verifier
+        if: steps.proof_filter.outputs.src == 'true'
+        run: cargo install --locked kani-verifier --version 0.68.0
+      - name: Set the verifier up
+        if: steps.proof_filter.outputs.src == 'true'
+        run: cargo kani setup
+      - name: Prove the rescale over its domain
+        if: steps.proof_filter.outputs.src == 'true'
+        run: bash run.sh --proof
+
   hw:
     runs-on: ubuntu-latest
     steps:
