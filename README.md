@@ -29,7 +29,7 @@ synTagma (system)
 
 | Implementation | Location | Modules | Verification |
 |----------------|----------|---------|--------------|
-| Rust (reference) | `sw/rust` | core, base11172, geo, map, matrix, sec, benches, verify/linkcheck | 427 unit/integration tests, 27 doc-tests, 2 Kani harnesses over the rescale's domain, `./run.sh --check`, `./run.sh --proof` |
+| Rust (reference) | `sw/rust` | core, base11172, geo, map, matrix, sec, benches, verify/linkcheck | 427 unit/integration tests, 27 doc-tests, 4 Kani harnesses over the rescale's domain and the wire reader, `./run.sh --check`, `./run.sh --proof` |
 | C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 16 suites, `sw/cpp/run.sh` |
 | Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 348 JUnit tests, `sw/java/run.sh` |
 
@@ -135,7 +135,7 @@ The rescale is the one step whose result is not a sum, so its contract is stated
 
 `sw/rust/benches/bench_matrix.rs` measures the product at the size of a layer and against a flat loop that addresses elements by offset, so the price of an element's address being its coordinate is a number rather than an assumption.
 
-The rescale's contract is proven rather than sampled. `sw/rust/matrix/src/proofs.rs` holds two harnesses, run by `./run.sh --proof`, and the one that carries the weight states the rescale in wider arithmetic than the implementation uses and requires the two to agree at every accumulator, every multiplier, and every allowed shift. The other is the width argument `MAX_SHIFT` exists for: the product of two thirty-two bit values and its rounding constant fit the intermediate at every allowed shift. A grid of values can show an implementation is right where it was checked; what makes sixty-four bits a decision rather than a hope is that the domain was checked instead.
+The two surfaces where something from outside meets the crate are proven rather than sampled, by four harnesses in `sw/rust/matrix/src/proofs.rs` run by `./run.sh --proof`. For the rescale, one states it in wider arithmetic than the implementation uses and requires the two to agree at every accumulator, every multiplier, and every allowed shift, and the other is the width argument `MAX_SHIFT` exists for: the product of two thirty-two bit values and its rounding constant fit the intermediate at every allowed shift. For the wire form, one requires the reader to refuse rather than panic on any byte slice of any length, which matters because a device under a fault can send anything and a panic on the target is a stop rather than a refusal, and the other requires a stream the reader accepts to write back as the bytes it arrived in, which is what makes the format one encoding of a matrix rather than many. A grid of values can show an implementation is right where it was checked; a domain shows it is right where nobody looked.
 
 A dimension outside the coordinate space, and a zero dimension, are refused by an assertion that every constructor and every derived method carries, so the type fails to build rather than truncating an address. The assertion relates two const generic parameters, so it is evaluated at codegen: a build reports it, and `cargo check` on its own does not.
 
