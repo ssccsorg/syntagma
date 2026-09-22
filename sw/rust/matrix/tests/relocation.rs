@@ -7,7 +7,7 @@
 
 mod common;
 
-use tagma_matrix::{gemv, ColMajor, Elements, Matrix};
+use tagma_matrix::{gemv, gemv_requantized, ColMajor, Elements, Matrix};
 
 const R: usize = 9;
 const C: usize = 6;
@@ -45,6 +45,43 @@ fn two_physical_orders_produce_a_byte_identical_product() {
     gemv(&columns, &x, &mut from_columns);
 
     assert_eq!(from_rows, from_columns);
+}
+
+/// The rescale is what a model's next layer consumes, so the invariance has to hold
+/// of the element rather than only of the accumulator it came from.
+#[test]
+fn two_physical_orders_produce_a_byte_identical_requantized_product() {
+    let rows = common::row_major::<R, C>();
+    let columns = common::col_major::<R, C>();
+    let x = common::activation::<C>();
+    let rescale = common::requant();
+
+    let mut from_rows = [0i8; R];
+    let mut from_columns = [0i8; R];
+    gemv_requantized(&rows, &x, &rescale, &mut from_rows);
+    gemv_requantized(&columns, &x, &rescale, &mut from_columns);
+
+    assert_eq!(from_rows, from_columns);
+}
+
+#[test]
+fn the_requantized_product_is_the_rescale_of_the_product() {
+    let rows = common::row_major::<R, C>();
+    let x = common::activation::<C>();
+    let rescale = common::requant();
+
+    let mut accumulators = [0i32; R];
+    gemv(&rows, &x, &mut accumulators);
+
+    let mut expected = [0i8; R];
+    for (accumulator, element) in accumulators.iter().zip(expected.iter_mut()) {
+        *element = rescale.requantize(*accumulator);
+    }
+
+    let mut from_rows = [0i8; R];
+    gemv_requantized(&rows, &x, &rescale, &mut from_rows);
+
+    assert_eq!(from_rows, expected);
 }
 
 #[test]

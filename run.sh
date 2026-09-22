@@ -91,7 +91,7 @@ check_checks() {
     # target with the default alloc feature, which is what the no_std
     # storage path (chton, nex) consumes on device.
     echo "--- riscv32imac-unknown-none-elf check (MCU target) ---"
-    (cd sw/rust && cargo check -p tagma-core -p tagma-geo -p tagma-map --target riscv32imac-unknown-none-elf)
+    (cd sw/rust && cargo check -p tagma-core -p tagma-geo -p tagma-map -p tagma-matrix --target riscv32imac-unknown-none-elf)
     # The no-allocator member is linked rather than only checked. The link fails
     # with "no global memory allocator found but one is required" if anything
     # underneath reaches for the allocator, so the property is a fact about the
@@ -138,7 +138,7 @@ case "${1:-}" in
     --bench|bench)
         build_and_test
         echo "--- running core benchmarks ---"
-        (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge|hw" 2>&1 | tail -20)
+        (cd sw/rust && cargo bench --features mmap -- "inserts|lookup|n_scaling|n2_comparison|spatial|edge|hw|matrix" 2>&1 | tail -30)
         check_java_bench
         ;;
     --doc|doc)

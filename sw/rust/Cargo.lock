@@ -588,6 +588,7 @@ dependencies = [
  "tagma-core",
  "tagma-geo",
  "tagma-map",
+ "tagma-matrix",
  "tagma-sec",
 ]
 

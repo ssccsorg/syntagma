@@ -2,6 +2,7 @@
 
 use crate::elements::Elements;
 use crate::order::Order;
+use crate::requant::Requant;
 
 /// Computes `y[i] = sum over j of a[i, j] * x[j]`.
 ///
@@ -22,5 +23,25 @@ pub fn gemv<const R: usize, const C: usize, O: Order, E: Elements<R, C, O>>(
             accumulator += i32::from(a.element(i, j)) * i32::from(*activation);
         }
         *out = accumulator;
+    }
+}
+
+/// Computes `y[i]` as the rescale of `sum over j of a[i, j] * x[j]`.
+///
+/// The accumulator bound is the one [`gemv`] states and the rescale is the one
+/// [`Requant::requantize`] states, so an element is what those two steps produce in
+/// sequence rather than a second rounding of them.
+pub fn gemv_requantized<const R: usize, const C: usize, O: Order, E: Elements<R, C, O>>(
+    a: &E,
+    x: &[i8; C],
+    requant: &Requant,
+    y: &mut [i8; R],
+) {
+    for (i, out) in y.iter_mut().enumerate() {
+        let mut accumulator: i32 = 0;
+        for (j, activation) in x.iter().enumerate() {
+            accumulator += i32::from(a.element(i, j)) * i32::from(*activation);
+        }
+        *out = requant.requantize(accumulator);
     }
 }

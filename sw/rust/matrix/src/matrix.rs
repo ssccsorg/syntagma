@@ -55,8 +55,7 @@ impl<const R: usize, const C: usize, O: Order> Matrix<R, C, O> {
     #[inline]
     pub fn set(&mut self, i: usize, j: usize, value: i8) {
         assert!(i < R && j < C, "tagma-matrix: position outside the matrix");
-        let offset = O::offset(R, C, i, j);
-        self.data[offset / C][offset % C] = value;
+        self.write(i, j, value);
     }
 
     /// The element at a position already known to be inside the matrix.
@@ -67,6 +66,17 @@ impl<const R: usize, const C: usize, O: Order> Matrix<R, C, O> {
     fn read(&self, i: usize, j: usize) -> i8 {
         let offset = O::offset(R, C, i, j);
         self.data[offset / C][offset % C]
+    }
+
+    /// Sets the element at a position already known to be inside the matrix.
+    ///
+    /// The product over two matrices calls this once per element, having established
+    /// the range from the destination's own dimensions, so the check belongs at the
+    /// public boundary rather than inside the contraction.
+    #[inline]
+    pub(crate) fn write(&mut self, i: usize, j: usize, value: i8) {
+        let offset = O::offset(R, C, i, j);
+        self.data[offset / C][offset % C] = value;
     }
 }
 
