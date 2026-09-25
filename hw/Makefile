@@ -213,7 +213,7 @@ coverage: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-d
 	@echo "coverage: the valid input space is exhaustively covered; invalid states are structurally detectable by design"
 	@echo "coverage: 11,172 / 11,172 segment store slots read back, reserved addresses read zero"
 	@echo "coverage: compose over all 32,768 axis combinations plus the 11,172 golden pairs, netlist re-verified at gate level"
-	@echo "coverage: distance over 2 x 11,172 pairs, both operand orders, plus the golden decomposition, netlist re-verified at gate level"
+	@echo "coverage: distance over 11,172 code points against two references and a varying-operand sweep, plus the golden decomposition, netlist re-verified at gate level"
 
 clean:
 	rm -rf $(OBJ_DIR) synth/yosys/out synth/yosys/reports $(GOLDEN) rtl/trace.vcd
