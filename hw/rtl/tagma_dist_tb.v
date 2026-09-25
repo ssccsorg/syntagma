@@ -11,9 +11,10 @@
 // Exhaustive testbench for tagma_dist.
 //
 //   default:      every valid code point against the first and the last
-//                 syllable, which exercises both operand orders (make sim-dist)
-//   GOLDEN_CHECK: the same over the exported decomposition, so the distance is
-//                 checked against the golden anchors (make sim-dist-golden)
+//                 syllable, both operand orders, plus a sweep where both
+//                 operands vary (make sim-dist)
+//   GOLDEN_CHECK: the same over the exported decomposition, checked against the
+//                 golden anchors (make sim-dist-golden)
 
 `timescale 1ns/1ps
 
@@ -32,6 +33,8 @@ module tagma_dist_tb;
 
 `ifdef GOLDEN_CHECK
     reg [28:0] golden [0:11171];
+`else
+    integer j;            // the second operand's offset in the varying sweep
 `endif
 
     tagma_dist dut (
@@ -85,6 +88,21 @@ module tagma_dist_tb;
             af = {27'd0, golden[k][4:0]};
             check;
         end
+
+        // Both operands vary: b is a stride-7 rotation of a, so both decode
+        // paths move and both operand orders occur. The index is inlined, since
+        // golden's line index is the offset the line holds.
+        for (k = 0; k < 11172; k = k + 1) begin
+            a  = 16'hAC00 + {2'd0, golden[k][28:15]};
+            b  = 16'hAC00 + {2'd0, golden[(k * 7 + 3) % 11172][28:15]};
+            ai = {27'd0, golden[k][14:10]};
+            am = {27'd0, golden[k][9:5]};
+            af = {27'd0, golden[k][4:0]};
+            bi = {27'd0, golden[(k * 7 + 3) % 11172][14:10]};
+            bm = {27'd0, golden[(k * 7 + 3) % 11172][9:5]};
+            bf = {27'd0, golden[(k * 7 + 3) % 11172][4:0]};
+            check;
+        end
 `else
         // Distance to U+AC00 (axes 0,0,0): the difference is the axis itself.
         bi = 0; bm = 0; bf = 0;
@@ -108,6 +126,21 @@ module tagma_dist_tb;
             check;
         end
 
+        // Both operands vary: b is a stride-7 rotation of a, so both decode
+        // paths move and both operand orders occur.
+        for (k = 0; k < 11172; k = k + 1) begin
+            j  = (k * 7 + 3) % 11172;
+            a  = 16'hAC00 + k[15:0];
+            b  = 16'hAC00 + j[15:0];
+            ai = k / 588;
+            am = (k % 588) / 28;
+            af = k % 28;
+            bi = j / 588;
+            bm = (j % 588) / 28;
+            bf = j % 28;
+            check;
+        end
+
         // A coordinate is at distance zero from itself.
         ai = 0; am = 0; af = 0;
         bi = 0; bm = 0; bf = 0;
@@ -117,9 +150,9 @@ module tagma_dist_tb;
 
         if (errors == 0) begin
 `ifdef GOLDEN_CHECK
-            $display("PASS: 2 x 11,172 golden distance anchors verified");
+            $display("PASS: 3 x 11,172 golden distance checks over varying operands and both orders");
 `else
-            $display("PASS: 2 x 11,172 distances verified over both operand orders");
+            $display("PASS: 3 x 11,172 distances over varying operands and both orders");
 `endif
         end else
             $display("FAIL: %0d mismatches", errors);

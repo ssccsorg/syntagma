@@ -106,8 +106,30 @@ module tagma_segment_store_tb;
             errors = errors + 1;
         end
 
+        // Read-during-write: on the edge that rewrites slot 5000, rdata keeps
+        // the previous contents; the new value is readable one cycle later.
+        @(negedge clk);
+        we    = 1'b1;
+        addr  = 14'd5000;
+        wdata = 16'hBEEF;
+        @(posedge clk);
+        #1;
+        if (rdata !== 16'hAC00 + 16'd5000) begin
+            $display("STORE MISMATCH read-during-write got=0x%04h expected=0x%04h (old)",
+                     rdata, 16'hAC00 + 16'd5000);
+            errors = errors + 1;
+        end
+        @(negedge clk);
+        we = 1'b0;
+        @(posedge clk);
+        #1;
+        if (rdata !== 16'hBEEF) begin
+            $display("STORE MISMATCH post-write got=0x%04h expected=0xBEEF", rdata);
+            errors = errors + 1;
+        end
+
         if (errors == 0)
-            $display("PASS: all 11,172 slots verified, reserved addresses read zero");
+            $display("PASS: all 11,172 slots verified, reserved addresses read zero, read-during-write returns the old value");
         else
             $display("FAIL: %0d mismatches", errors);
 
