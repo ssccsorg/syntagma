@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# Formal equivalence: compose RTL vs its synthesized gate netlist.
+#
+# Proves that out/tagma_compose_gates.v is logically identical to the RTL over
+# all 2^15 axis combinations, valid and invalid alike.
+
+# gold: RTL reference
+read_verilog -sv ../../rtl/tagma_compose.v
+proc
+opt
+rename tagma_compose gold_compose
+
+# gate: synthesized netlist from synth_compose_gates.ys
+read_verilog -sv out/tagma_compose_gates.v
+proc
+opt
+rename tagma_compose gate_compose
+
+equiv_make gold_compose gate_compose equiv_compose
+equiv_simple -seq 4 equiv_compose
+equiv_induct -seq 4 equiv_compose
+equiv_status -assert equiv_compose

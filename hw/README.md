@@ -1,6 +1,6 @@
 # Tagma hardware verification
 
-This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA synthesis report, and a standard cell synthesis report.
+This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA synthesis report, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (code point to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates). Decode and distance take a 16-bit code point, while compose returns the coordinate index, the offset from U+AC00, so its code point is U+AC00 + index. That is the split the Rust `Coord` uses.
 
 ## Status
 
@@ -8,10 +8,16 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 |------|-------|
 | `rtl/tagma_decoder.v` 3-axis combinational decoder | Implemented |
 | `rtl/tagma_decoder_tb.v` exhaustive testbench (11,172 code points) | Implemented, passing |
+| `rtl/tagma_segment_store.v` 11,172 x 16-bit segment store (behavioral model) | Implemented, passing |
+| `rtl/tagma_segment_store_tb.v` exhaustive testbench (11,172 slots, reserved addresses, read-during-write) | Implemented, passing |
+| `rtl/tagma_compose.v` axis-to-index compose (decoder inverse) | Implemented, passing |
+| `rtl/tagma_compose_tb.v` exhaustive testbench (32^3 combinations, golden) | Implemented, passing |
+| `rtl/tagma_dist.v` field-wise distance of two coordinates (two decoders) | Implemented, passing |
+| `rtl/tagma_dist_tb.v` exhaustive testbench (11,172 code points, varied operands, golden) | Implemented, passing |
 | Golden-anchor cross-check against `tagma_core` (Rust reference) | Implemented, passing |
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
-| Gate-level netlist simulation against golden anchors | Implemented, passing |
-| Formal equivalence: RTL vs gate netlist | Proven |
+| Gate-level netlist simulation against golden anchors (decoder, compose, distance) | Implemented, passing |
+| Formal equivalence: RTL vs gate netlist (decoder, compose, distance) | Proven |
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
@@ -48,7 +54,7 @@ Delivered: golden exporter, golden testbench mode, Python consistency gate, all 
 
 ### Post-synthesis verification
 
-The synthesized netlist is verified on top of the RTL checks: the gate-level netlist is simulated against the golden anchors (`make gatesim`) and formal equivalence between the RTL and the netlist is proven over all 2^16 inputs (`make equiv`, `synth/yosys/equiv.ys`). `make sim-trace` emits a VCD activity trace for the later power estimation step.
+The synthesized netlist is verified on top of the RTL checks, for each of the three units: the gate-level netlist is simulated against the golden anchors (`make gatesim`, `make gatesim-compose`, `make gatesim-dist`) and formal equivalence between the RTL and the netlist is proven (`make equiv`, `synth/yosys/equiv.ys`, `equiv_compose.ys`, `equiv_dist.ys`), over all 2^16 decoder inputs, all 2^15 axis combinations, and all 2^32 distance input pairs. On the 2-input gate library the decoder is 588 cells, the compose unit 258, and the distance unit 1329. The distance figure carries two decoders, because a pair needs both operands decoded; the comparators and subtractors around them are the remaining about 153 cells, and that duplication is inherent to computing a pair. `make sim-trace` emits a VCD activity trace for the later power estimation step.
 
 ### Phase 3: FPGA board demo
 
@@ -61,7 +67,10 @@ registered demo top (area, timing, and power in the Phase 4 section
 below), and the pure decoder reports 388 Sky130 cells, 2826 um^2, against
 the ~300 gate claim of the whitepaper. Remaining: generate the chton
 segment store SRAM with OpenRAM (`openram/chton_sram.py`, SkyWater 130nm,
-11,172 x 16-bit single port), pending the OpenRAM PDK install.
+11,172 x 16-bit single port), pending the OpenRAM PDK install. The behavioral
+model (`rtl/tagma_segment_store.v`) is verified exhaustively in the gate, so
+the address map and read/write behavior are checked without the PDK, and the
+macro generation is the only PDK-gated step left.
 
 ## Software reference baseline
 
@@ -100,6 +109,8 @@ image. Documentation-only changes (`hw/README.md`, `hw/openram/**`, the
 generated reports) do not trigger CI.
 
 PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
+
+Synthesis and lint are tool-version dependent too. The image installs Verilator and Yosys from the Ubuntu 24.04 archive (Verilator 5.020 at the time of writing), while a developer's Homebrew Verilator may be newer (5.048 at the time of writing). Lint behaviour differs between the two: 5.020 flags BLKSEQ on a delay-based testbench clock that 5.048 accepts, so a green local `make -C hw check` is not a substitute for the `hw` CI job, which is the authoritative gate. The committed reports carry the same version caveat.
 
 ## Phase 4: standard cell flow
 
