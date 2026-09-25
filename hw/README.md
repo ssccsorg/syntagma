@@ -9,11 +9,11 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `rtl/tagma_decoder.v` 3-axis combinational decoder | Implemented |
 | `rtl/tagma_decoder_tb.v` exhaustive testbench (11,172 code points) | Implemented, passing |
 | `rtl/tagma_segment_store.v` 11,172 x 16-bit segment store (behavioral model) | Implemented, passing |
-| `rtl/tagma_segment_store_tb.v` exhaustive testbench (11,172 slots, reserved addresses) | Implemented, passing |
+| `rtl/tagma_segment_store_tb.v` exhaustive testbench (11,172 slots, reserved addresses, read-during-write) | Implemented, passing |
 | `rtl/tagma_compose.v` axis-to-index compose (decoder inverse) | Implemented, passing |
 | `rtl/tagma_compose_tb.v` exhaustive testbench (32^3 combinations, golden) | Implemented, passing |
 | `rtl/tagma_dist.v` field-wise distance of two coordinates (two decoders) | Implemented, passing |
-| `rtl/tagma_dist_tb.v` exhaustive testbench (2 x 11,172 pairs, golden) | Implemented, passing |
+| `rtl/tagma_dist_tb.v` exhaustive testbench (11,172 code points, varied operands, golden) | Implemented, passing |
 | Golden-anchor cross-check against `tagma_core` (Rust reference) | Implemented, passing |
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
 | Gate-level netlist simulation against golden anchors (decoder, compose, distance) | Implemented, passing |
