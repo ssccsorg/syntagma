@@ -1,6 +1,6 @@
 # Tagma hardware verification
 
-This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA synthesis report, and a standard cell synthesis report.
+This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA synthesis report, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (index to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates).
 
 ## Status
 
@@ -10,10 +10,14 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `rtl/tagma_decoder_tb.v` exhaustive testbench (11,172 code points) | Implemented, passing |
 | `rtl/tagma_segment_store.v` 11,172 x 16-bit segment store (behavioral model) | Implemented, passing |
 | `rtl/tagma_segment_store_tb.v` exhaustive testbench (11,172 slots, reserved addresses) | Implemented, passing |
+| `rtl/tagma_compose.v` axis-to-index compose (decoder inverse) | Implemented, passing |
+| `rtl/tagma_compose_tb.v` exhaustive testbench (32^3 combinations, golden) | Implemented, passing |
+| `rtl/tagma_dist.v` field-wise distance of two coordinates (two decoders) | Implemented, passing |
+| `rtl/tagma_dist_tb.v` exhaustive testbench (2 x 11,172 pairs, golden) | Implemented, passing |
 | Golden-anchor cross-check against `tagma_core` (Rust reference) | Implemented, passing |
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
-| Gate-level netlist simulation against golden anchors | Implemented, passing |
-| Formal equivalence: RTL vs gate netlist | Proven |
+| Gate-level netlist simulation against golden anchors (decoder, compose, distance) | Implemented, passing |
+| Formal equivalence: RTL vs gate netlist (decoder, compose, distance) | Proven |
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
@@ -50,7 +54,7 @@ Delivered: golden exporter, golden testbench mode, Python consistency gate, all 
 
 ### Post-synthesis verification
 
-The synthesized netlist is verified on top of the RTL checks: the gate-level netlist is simulated against the golden anchors (`make gatesim`) and formal equivalence between the RTL and the netlist is proven over all 2^16 inputs (`make equiv`, `synth/yosys/equiv.ys`). `make sim-trace` emits a VCD activity trace for the later power estimation step.
+The synthesized netlist is verified on top of the RTL checks, for each of the three units: the gate-level netlist is simulated against the golden anchors (`make gatesim`, `make gatesim-compose`, `make gatesim-dist`) and formal equivalence between the RTL and the netlist is proven (`make equiv`, `synth/yosys/equiv.ys`, `equiv_compose.ys`, `equiv_dist.ys`), over all 2^16 decoder inputs, all 2^15 axis combinations, and all 2^32 distance input pairs. On the 2-input gate library the decoder is 588 cells, the compose unit 258, and the distance unit 1329; the distance figure carries two decoders, so its marginal cost against a shared decoder is about 153 cells. `make sim-trace` emits a VCD activity trace for the later power estimation step.
 
 ### Phase 3: FPGA board demo
 

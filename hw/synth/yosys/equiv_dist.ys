@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# Formal equivalence: distance RTL vs its synthesized gate netlist.
+#
+# The gold side keeps the two decoder instances; the gate side is flattened.
+# equiv_make compares them over all 2^32 input pairs.
+
+# gold: RTL reference, two decoders and the subtractors, flattened to match
+# the flattened gate netlist
+read_verilog -sv ../../rtl/tagma_decoder.v ../../rtl/tagma_dist.v
+proc
+flatten
+opt
+rename tagma_dist gold_dist
+
+# gate: synthesized netlist from synth_dist_gates.ys
+read_verilog -sv out/tagma_dist_gates.v
+proc
+opt
+rename tagma_dist gate_dist
+
+equiv_make gold_dist gate_dist equiv_dist
+equiv_simple -seq 4 equiv_dist
+equiv_induct -seq 4 equiv_dist
+equiv_status -assert equiv_dist

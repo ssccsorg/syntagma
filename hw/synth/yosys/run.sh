@@ -15,7 +15,9 @@
 # Usage:
 #   ./run.sh            # generic, gate-level, and iCE40 flows
 #   ./run.sh generic    # only the generic flow
-#   ./run.sh gates      # only the gate-level flow
+#   ./run.sh gates      # only the decoder gate-level flow
+#   ./run.sh compose    # only the compose gate-level flow
+#   ./run.sh dist       # only the distance gate-level flow
 #   ./run.sh ice40      # only the iCE40 flow
 
 set -euo pipefail
@@ -33,11 +35,15 @@ run() {
 case "$flow" in
     generic) run synth_generic ;;
     gates)   run synth_gates ;;
+    compose) run synth_compose_gates ;;
+    dist)    run synth_dist_gates ;;
     ice40)   run synth_ice40 ;;
     all)
         run synth_generic
         run synth_gates
         run synth_ice40
+        run synth_compose_gates
+        run synth_dist_gates
         ;;
     *)
         echo "unknown flow: $flow" >&2
