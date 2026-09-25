@@ -197,8 +197,12 @@ synth:
 	cd synth/yosys && bash run.sh
 
 report: synth
-	@echo "=== gate-level estimate ==="
+	@echo "=== gate-level estimate (decoder) ==="
 	@cat synth/yosys/reports/gates_stat.txt
+	@echo "=== gate-level estimate (compose) ==="
+	@cat synth/yosys/reports/compose_gates_stat.txt
+	@echo "=== gate-level estimate (distance) ==="
+	@cat synth/yosys/reports/dist_gates_stat.txt
 	@echo "=== iCE40 ==="
 	@cat synth/yosys/reports/ice40_stat.txt
 
