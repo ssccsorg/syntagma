@@ -16,6 +16,12 @@
 // registered, so a slot is available one cycle after its address is presented.
 // The 14-bit address space covers 16,384 slots; 11,172..16,383 are reserved,
 // where writes are ignored and reads return zero.
+//
+// Read-during-write returns the previous value: a write and a read of the same
+// address on one edge leave rdata holding the old contents, because the read
+// samples the array before the write lands. This is the policy the OpenRAM
+// macro has to match (see hw/openram/chton_sram.py); it is pinned by the
+// same-cycle check in make sim-store.
 
 module tagma_segment_store (
     input  wire        clk,

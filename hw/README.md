@@ -1,6 +1,6 @@
 # Tagma hardware verification
 
-This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA synthesis report, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (index to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates).
+This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA synthesis report, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (code point to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates). Decode and distance take a 16-bit code point, while compose returns the coordinate index, the offset from U+AC00, so its code point is U+AC00 + index. That is the split the Rust `Coord` uses.
 
 ## Status
 
@@ -54,7 +54,7 @@ Delivered: golden exporter, golden testbench mode, Python consistency gate, all 
 
 ### Post-synthesis verification
 
-The synthesized netlist is verified on top of the RTL checks, for each of the three units: the gate-level netlist is simulated against the golden anchors (`make gatesim`, `make gatesim-compose`, `make gatesim-dist`) and formal equivalence between the RTL and the netlist is proven (`make equiv`, `synth/yosys/equiv.ys`, `equiv_compose.ys`, `equiv_dist.ys`), over all 2^16 decoder inputs, all 2^15 axis combinations, and all 2^32 distance input pairs. On the 2-input gate library the decoder is 588 cells, the compose unit 258, and the distance unit 1329; the distance figure carries two decoders, so its marginal cost against a shared decoder is about 153 cells. `make sim-trace` emits a VCD activity trace for the later power estimation step.
+The synthesized netlist is verified on top of the RTL checks, for each of the three units: the gate-level netlist is simulated against the golden anchors (`make gatesim`, `make gatesim-compose`, `make gatesim-dist`) and formal equivalence between the RTL and the netlist is proven (`make equiv`, `synth/yosys/equiv.ys`, `equiv_compose.ys`, `equiv_dist.ys`), over all 2^16 decoder inputs, all 2^15 axis combinations, and all 2^32 distance input pairs. On the 2-input gate library the decoder is 588 cells, the compose unit 258, and the distance unit 1329. The distance figure carries two decoders, because a pair needs both operands decoded; the comparators and subtractors around them are the remaining about 153 cells, and that duplication is inherent to computing a pair. `make sim-trace` emits a VCD activity trace for the later power estimation step.
 
 ### Phase 3: FPGA board demo
 
@@ -109,6 +109,8 @@ image. Documentation-only changes (`hw/README.md`, `hw/openram/**`, the
 generated reports) do not trigger CI.
 
 PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
+
+Synthesis and lint are tool-version dependent too. The image installs Verilator and Yosys from the Ubuntu 24.04 archive (Verilator 5.020 at the time of writing), while a developer's Homebrew Verilator may be newer (5.048 at the time of writing). Lint behaviour differs between the two: 5.020 flags BLKSEQ on a delay-based testbench clock that 5.048 accepts, so a green local `make -C hw check` is not a substitute for the `hw` CI job, which is the authoritative gate. The committed reports carry the same version caveat.
 
 ## Phase 4: standard cell flow
 

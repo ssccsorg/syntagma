@@ -10,9 +10,12 @@
 //
 // Tagma distance: field-wise absolute difference between two coordinates.
 //
-// Each code point is decoded by the same tagma_decoder the standalone decoder
-// uses, so both share one decode definition. The three 5-bit distances are
-// returned separately; for a valid pair they match Coord::hamming_distance.
+// Both operands are 16-bit code points, the domain the decoder takes. Each is
+// decoded by the same tagma_decoder the standalone decoder uses, so both share
+// one decode definition. The three 5-bit distances are returned separately;
+// for a valid pair they match Coord::hamming_distance. As with the decoder, an
+// out-of-range operand has no defined decode and no validity flag is raised:
+// the caller supplies valid code points.
 
 module tagma_dist (
     input  wire [15:0] a,

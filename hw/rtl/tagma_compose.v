@@ -12,13 +12,21 @@
 //
 //   index = 588*i + 28*m + f,  i in [0,18], m in [0,20], f in [0,27]
 //
+// The output is the coordinate index, the offset from U+AC00, not a code
+// point: the code point is U+AC00 + index, which is what the decoder takes.
+// This mirrors the Rust `Coord`, which stores the index and whose `from_axes`
+// returns it. An axis combination outside the bounds reports valid = 0 and
+// index = 0.
+//
 // Factored as 28*(21*i + m) + f, so the multipliers are 21*i and 28*p, the
-// same shape the decoder's constant division has. An axis combination outside
-// the bounds reports valid = 0 and index = 0.
+// same shape the decoder's constant division has.
 //
 // Each product declares its full width and is sliced, the style the decoder's
-// multiply networks use. The high bits of the products are zero over the valid
-// domain, so UNUSEDSIGNAL is suppressed around them, as in the decoder.
+// multiply networks use. The sliced-away high bits are never read, so
+// UNUSEDSIGNAL is suppressed around them, as in the decoder. Over the valid
+// domain the slice is lossless, since the products fit their widths; outside
+// it a product can exceed its slice, which is harmless because valid forces
+// index to zero.
 
 module tagma_compose (
     input  wire [4:0]  i,
