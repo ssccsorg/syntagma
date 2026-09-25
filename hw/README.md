@@ -8,6 +8,8 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 |------|-------|
 | `rtl/tagma_decoder.v` 3-axis combinational decoder | Implemented |
 | `rtl/tagma_decoder_tb.v` exhaustive testbench (11,172 code points) | Implemented, passing |
+| `rtl/tagma_segment_store.v` 11,172 x 16-bit segment store (behavioral model) | Implemented, passing |
+| `rtl/tagma_segment_store_tb.v` exhaustive testbench (11,172 slots, reserved addresses) | Implemented, passing |
 | Golden-anchor cross-check against `tagma_core` (Rust reference) | Implemented, passing |
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
 | Gate-level netlist simulation against golden anchors | Implemented, passing |
@@ -61,7 +63,10 @@ registered demo top (area, timing, and power in the Phase 4 section
 below), and the pure decoder reports 388 Sky130 cells, 2826 um^2, against
 the ~300 gate claim of the whitepaper. Remaining: generate the chton
 segment store SRAM with OpenRAM (`openram/chton_sram.py`, SkyWater 130nm,
-11,172 x 16-bit single port), pending the OpenRAM PDK install.
+11,172 x 16-bit single port), pending the OpenRAM PDK install. The behavioral
+model (`rtl/tagma_segment_store.v`) is verified exhaustively in the gate, so
+the address map and read/write behavior are checked without the PDK, and the
+macro generation is the only PDK-gated step left.
 
 ## Software reference baseline
 

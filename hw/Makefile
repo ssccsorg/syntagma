@@ -17,12 +17,13 @@
 #   make sim            # exhaustive Verilator simulation (formula mode)
 #   make sim-golden     # Verilator simulation against golden anchors
 #   make sim-trace      # golden simulation with VCD activity trace
+#   make sim-store      # segment store read/write over all 11,172 slots
 #   make golden-export  # regenerate golden anchors from tagma_core
 #   make golden-check   # Python consistency gate on the golden file
 #   make gatesim        # gate-level netlist simulation against golden anchors
 #   make equiv          # formal equivalence: RTL vs gate netlist
 #   make synth          # Yosys generic, gate-level, and iCE40 reports
-#   make check          # sim + sim-golden + golden-check + gatesim + equiv + synth
+#   make check          # sim + sim-golden + sim-store + golden-check + gatesim + equiv + synth
 #   make clean
 
 SIM   ?= verilator
@@ -30,6 +31,9 @@ YOSYS ?= yosys
 
 RTL = rtl/tagma_decoder.v
 TB  = rtl/tagma_decoder_tb.v
+
+STORE_RTL = rtl/tagma_segment_store.v
+STORE_TB  = rtl/tagma_segment_store_tb.v
 
 OBJ_DIR = obj_dir
 GOLDEN  = rtl/golden_anchors.hex
@@ -40,6 +44,7 @@ GOLDEN  = rtl/golden_anchors.hex
 # is dumped if the build fails. The simulation run itself always prints its
 # PASS/FAIL line.
 VERILATE = $(SIM) --binary --timing -Wall --top-module tagma_decoder_tb
+VERILATE_STORE = $(SIM) --binary --timing -Wall --top-module tagma_segment_store_tb
 
 # Verilator redirects its build log into the object dir, which is a
 # generated (gitignored) directory: ensure it exists before any sim target
@@ -47,7 +52,7 @@ VERILATE = $(SIM) --binary --timing -Wall --top-module tagma_decoder_tb
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-trace golden-export golden-check gatesim equiv synth coverage report check clean
+.PHONY: all sim sim-golden sim-trace sim-store golden-export golden-check gatesim equiv synth coverage report check clean
 
 all: check
 
@@ -81,6 +86,16 @@ sim-trace: $(RTL) $(TB) | $(OBJ_DIR)
 	@rm -f $(OBJ_DIR)/build_tb_trace.err
 	@cd rtl && ../$(OBJ_DIR)/tb_trace
 
+sim-store: $(STORE_RTL) $(STORE_TB) | $(OBJ_DIR)
+	@echo "--- verilator: tb_store (segment store) ---"
+	@$(VERILATE_STORE) $(STORE_TB) $(STORE_RTL) -o tb_store \
+		> $(OBJ_DIR)/build_tb_store.log 2> $(OBJ_DIR)/build_tb_store.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_store.log $(OBJ_DIR)/build_tb_store.err; exit 1; }
+	@if test -s $(OBJ_DIR)/build_tb_store.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_store.err; fi
+	@tail -3 $(OBJ_DIR)/build_tb_store.log
+	@rm -f $(OBJ_DIR)/build_tb_store.err
+	@./$(OBJ_DIR)/tb_store
+
 golden-export:
 	@echo "--- golden export: tagma_core -> golden_anchors.hex ---"
 	@cd ../sw/rust && cargo run --quiet --release -p tagma-core --example golden_export -- ../../hw/rtl/golden_anchors.hex
@@ -110,11 +125,12 @@ report: synth
 	@echo "=== iCE40 ==="
 	@cat synth/yosys/reports/ice40_stat.txt
 
-check: sim sim-golden golden-check gatesim equiv synth
+check: sim sim-golden sim-store golden-check gatesim equiv synth
 
-coverage: sim sim-golden golden-check gatesim equiv
+coverage: sim sim-golden sim-store golden-check gatesim equiv
 	@echo "coverage: 11,172 / 11,172 valid code points in 3 channels (formula, golden, netlist) + 2^16 inputs in formal equivalence"
 	@echo "coverage: the valid input space is exhaustively covered; invalid states are structurally detectable by design"
+	@echo "coverage: 11,172 / 11,172 segment store slots read back, reserved addresses read zero"
 
 clean:
 	rm -rf $(OBJ_DIR) synth/yosys/out synth/yosys/reports $(GOLDEN) rtl/trace.vcd
