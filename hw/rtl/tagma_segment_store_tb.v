@@ -35,7 +35,9 @@ module tagma_segment_store_tb;
         .rdata(rdata)
     );
 
-    always #1 clk = ~clk;
+    // Non-blocking so Verilator does not flag a blocking assignment in a
+    // delay-controlled process (BLKSEQ, fatal under -Wall).
+    always #1 clk <= ~clk;
 
     task check_slot;
         input [13:0] a;
