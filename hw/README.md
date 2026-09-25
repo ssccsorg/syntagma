@@ -124,6 +124,21 @@ Measured for the registered demo top at the 12 MHz board-equivalent clock
 The flow runs on x86 and on Apple Silicon under Rosetta. Results are
 uploaded as the `sky130-reports` artifact.
 
+## License
+
+The hardware design in this directory is licensed under the CERN-OHL-P v2, the
+permissive variant of the CERN Open Hardware Licence version 2. The full text is
+in `LICENSE`. Covered source is the HDL under `rtl/`, the synthesis and
+place-and-route scripts under `synth/`, `openroad/`, and `openram/`, the board
+constraints, and the verification tooling under `tools/`.
+
+The software reference implementation under `sw/` stays under the Apache License
+2.0, the repository default.
+
+Files here carried no per-file notice before this section existed, so the root
+Apache License 2.0 applied to them. That grant to earlier recipients is not
+revoked; this tree is under CERN-OHL-P v2 from here on.
+
 ## References
 
 - Tagma whitepaper: https://doi.org/10.5281/zenodo.21302508

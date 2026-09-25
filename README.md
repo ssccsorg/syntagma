@@ -535,4 +535,5 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 
 ## License
 
-Apache 2.0 -- see [LICENSE](LICENSE).
+- Software (`sw/`): Apache License 2.0, see [LICENSE](LICENSE).
+- Hardware (`hw/`): CERN-OHL-P v2, see [hw/LICENSE](hw/LICENSE).
