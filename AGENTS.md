@@ -85,3 +85,4 @@ digraph DOTGraph {
 - Do not use text characters to draw diagrams (e.g., trees or boxes using ╔═) in code comments.
 - For bulk find-and-replace (renames, type substitutions), use `sed` across the relevant subtree; avoid LLM token-expensive per-file `edit_file` calls.
 - Locate tests in `/tests` folder: Do not create inline test.
+- Symlinks: for a tracked path that is a symlink (`git ls-files -s` mode 120000), edit and stage the target file, never the link.

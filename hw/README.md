@@ -128,7 +128,7 @@ uploaded as the `sky130-reports` artifact.
 
 The hardware design in this directory is licensed under the CERN-OHL-P v2, the
 permissive variant of the CERN Open Hardware Licence version 2. The full text is
-in `LICENSE`. Covered source is the HDL under `rtl/`, the synthesis and
+in [LICENSE](LICENSE). Covered source is the HDL under `rtl/`, the synthesis and
 place-and-route scripts under `synth/`, `openroad/`, and `openram/`, the board
 constraints, and the verification tooling under `tools/`.
 
