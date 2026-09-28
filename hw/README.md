@@ -122,6 +122,8 @@ PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured
 
 Synthesis and lint are tool-version dependent too. The image installs Verilator and Yosys from the Ubuntu 24.04 archive (Verilator 5.020 at the time of writing), while a developer's Homebrew Verilator may be newer (5.048 at the time of writing). Lint behaviour differs between the two: 5.020 flags BLKSEQ on a delay-based testbench clock that 5.048 accepts, so a green local `make -C hw check` is not a substitute for the `hw` CI job, which is the authoritative gate. The committed reports carry the same version caveat.
 
+Warnings are fatal to the Verilator build, and the warning set itself moves between releases. `PROCASSINIT` exists in 5.048 and not in 5.020, where naming it fails the build with an unknown-warning error, which is how the bitstream channel first broke the `hw` job. `ASC_LINT` in `hw/Makefile` therefore names only warnings older than either release and leaves the rest non-fatal.
+
 ## Phase 4: standard cell flow
 
 The Sky130 standard cell flow runs end to end (`hw/openroad/run.sh` with the

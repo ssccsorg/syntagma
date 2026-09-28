@@ -69,14 +69,16 @@ VERILATE_COMPOSE = $(SIM) --binary --timing -Wall --top-module tagma_compose_tb
 VERILATE_DIST = $(SIM) --binary --timing -Wall --top-module tagma_dist_tb
 VERILATE_DEMO = $(SIM) --binary --timing -Wall --top-module tagma_demo_top_tb
 
-# icebox_vlog recovers gate logic from the bitstream and declares none of the
-# intermediate names the RTL carried, so its output trips the same lint the
-# synthesised netlists do (UNUSEDSIGNAL, UNDRIVEN, TIMESCALEMOD, DECLFILENAME)
-# plus PROCASSINIT on the register initialisers it emits and the width warnings
-# from its wider intermediate expressions. Verilator exits on warnings, so the
-# suppressions are required rather than cosmetic.
-ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-UNDRIVEN -Wno-TIMESCALEMOD -Wno-DECLFILENAME \
-	-Wno-PROCASSINIT -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC
+# The recovered netlist keeps no names for the logic it flattens into, so it
+# trips UNUSEDSIGNAL, and it carries no timescale, so it trips TIMESCALEMOD.
+# Both names exist in every Verilator the project has run, so naming them is
+# safe. The rest is left non-fatal on purpose: newer releases add warnings an
+# older one does not know (PROCASSINIT on the recovered register initialisers,
+# for one), and passing an unknown name to an older release is itself an error,
+# which is how the first version of this target broke the hw job. The
+# functional check is the comparison against the RTL, and the RTL keeps its
+# full lint in sim-demo.
+ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 
 # Verilator redirects its build log into the object dir, which is a
 # generated (gitignored) directory: ensure it exists before any sim target
