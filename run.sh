@@ -61,9 +61,16 @@ check_java_bench() {
 }
 
 check_hw() {
-    echo "--- hw: RTL simulation + synthesis ---"
-    if ! command -v verilator >/dev/null 2>&1 || ! command -v yosys >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
-        echo "  skipped (verilator, yosys, and/or python3 not installed)"
+    echo "--- hw: RTL simulation + synthesis + PnR ---"
+    # The gate covers the demo place and route and the recovered-bitstream
+    # channel, so the PnR toolchain is part of the precondition now.
+    if ! command -v verilator >/dev/null 2>&1 || ! command -v yosys >/dev/null 2>&1 \
+        || ! command -v python3 >/dev/null 2>&1 \
+        || ! command -v nextpnr-ice40 >/dev/null 2>&1 \
+        || ! command -v icepack >/dev/null 2>&1 \
+        || ! command -v icetime >/dev/null 2>&1 \
+        || ! command -v icebox_vlog >/dev/null 2>&1; then
+        echo "  skipped (verilator, yosys, python3, nextpnr-ice40, icepack, icetime, and/or icebox_vlog not installed)"
         return 0
     fi
     make -C hw check

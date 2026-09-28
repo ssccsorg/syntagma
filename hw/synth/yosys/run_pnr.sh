@@ -11,9 +11,11 @@
 #
 #
 # Place and route the Tagma decoder demo for the Upduino 3.1
-# (iCE40UP5K-SG48) and produce the bitstream and timing report.
+# (iCE40UP5K-SG48), produce the bitstream and timing report, and recover the
+# placed-and-routed logic as Verilog for make sim-pnr.
 #
-# Flow: Yosys (synth_demo.ys) -> nextpnr-ice40 -> icepack -> icetime.
+# Flow: Yosys (synth_demo.ys) -> nextpnr-ice40 -> icetime -> icepack
+#       -> icebox_vlog.
 #
 # Environment note: icetime needs the iCE40 chipdb files discoverable.
 # On macOS Homebrew, the icestorm chipdb lives under
@@ -46,5 +48,10 @@ icetime -d up5k -t out/tagma_demo_top.asc 2>&1 | tee reports/icetime.txt
 echo "--- icepack: bitstream ---"
 icepack out/tagma_demo_top.asc out/tagma_demo_top.bin
 
+echo "--- icebox_vlog: recover the placed-and-routed logic for simulation ---"
+icebox_vlog -c -p upduino31_demo.pcf -n tagma_demo_top_postpnr \
+    out/tagma_demo_top.asc > out/tagma_demo_top_postpnr.v
+
 echo "bitstream: out/tagma_demo_top.bin"
 echo "timing:    reports/icetime.txt"
+echo "recovered: out/tagma_demo_top_postpnr.v"

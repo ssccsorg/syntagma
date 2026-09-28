@@ -18,6 +18,8 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
 | Gate-level netlist simulation against golden anchors (decoder, compose, distance) | Implemented, passing |
 | Formal equivalence: RTL vs gate netlist (decoder, compose, distance) | Proven |
+| `rtl/tagma_demo_top_tb.v` demo top, axes on the 11,172 valid syllables and the validity LED on all 65,536 code points | Implemented, passing |
+| Bitstream channel: the placed-and-routed design recovered with `icebox_vlog` and compared against the RTL over all 65,536 code points (`make sim-pnr`) | Implemented, passing |
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
@@ -56,9 +58,15 @@ Delivered: golden exporter, golden testbench mode, Python consistency gate, all 
 
 The synthesized netlist is verified on top of the RTL checks, for each of the three units: the gate-level netlist is simulated against the golden anchors (`make gatesim`, `make gatesim-compose`, `make gatesim-dist`) and formal equivalence between the RTL and the netlist is proven (`make equiv`, `synth/yosys/equiv.ys`, `equiv_compose.ys`, `equiv_dist.ys`), over all 2^16 decoder inputs, all 2^15 axis combinations, and all 2^32 distance input pairs. On the 2-input gate library the decoder is 588 cells, the compose unit 258, and the distance unit 1329. The distance figure carries two decoders, because a pair needs both operands decoded; the comparators and subtractors around them are the remaining about 153 cells, and that duplication is inherent to computing a pair. `make sim-trace` emits a VCD activity trace for the later power estimation step.
 
+### Bitstream verification
+
+Formal equivalence proves the RTL against the technology-mapped netlist, which is the stage before packing. `nextpnr-ice40` then packs the logic into LUTs, places them, and routes them, and no gate covers that. `synth/yosys/run_pnr.sh` recovers the placed-and-routed logic with `icebox_vlog -c -p upduino31_demo.pcf`, which reads the `.asc` back into Verilog and names the ports from the constraints file, and `make sim-pnr` instantiates the RTL and the recovered netlist together and compares every output over all 65,536 code points. The recovered file is generated, never committed.
+
+The channel is logic-level. It carries no delays, so timing stays with `icetime`, and no electrical behavior, so power stays with the OpenROAD flow. It proves the bitstream implements the RTL, and the RTL is proven separately, by the decoder testbench over 11,172 points and by formal equivalence over all 2^16 inputs. It does not prove the device runs.
+
 ### Phase 3: FPGA board demo
 
-The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`synth/yosys/upduino31_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. Remaining: physical board bring-up and demo video.
+The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`synth/yosys/upduino31_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. Remaining: physical board bring-up and demo video.
 
 ### Phase 4: chton SRAM and standard cell report
 
@@ -109,6 +117,8 @@ image. Documentation-only changes (`hw/README.md`, `hw/openram/**`, the
 generated reports) do not trigger CI.
 
 PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
+
+`make check` runs the PnR flow, because it includes the bitstream channel, so it needs `nextpnr-ice40`, `icepack`, `icetime`, and `icebox_vlog` on top of Verilator and Yosys. `run.sh` skips the hardware gate and names the missing tool when any of them is absent.
 
 Synthesis and lint are tool-version dependent too. The image installs Verilator and Yosys from the Ubuntu 24.04 archive (Verilator 5.020 at the time of writing), while a developer's Homebrew Verilator may be newer (5.048 at the time of writing). Lint behaviour differs between the two: 5.020 flags BLKSEQ on a delay-based testbench clock that 5.048 accepts, so a green local `make -C hw check` is not a substitute for the `hw` CI job, which is the authoritative gate. The committed reports carry the same version caveat.
 

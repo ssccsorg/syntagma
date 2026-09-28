@@ -22,6 +22,9 @@
 #   make sim-compose-golden  # compose against the golden anchors
 #   make sim-dist       # distance over 2 x 11,172 pairs (formula mode)
 #   make sim-dist-golden     # distance against the golden anchors
+#   make sim-demo       # demo top over all 65,536 code points (formula mode)
+#   make pnr            # place and route the demo, recover the bitstream logic
+#   make sim-pnr        # demo top against the placed-and-routed bitstream
 #   make golden-export  # regenerate golden anchors from tagma_core
 #   make golden-check   # Python consistency gate on the golden file
 #   make gatesim        # gate-level netlist simulation against golden anchors
@@ -29,7 +32,7 @@
 #   make gatesim-dist     # distance gate netlist against the golden anchors
 #   make equiv          # formal equivalence: RTL vs gate netlist for every unit
 #   make synth          # Yosys generic, gate-level, and iCE40 reports
-#   make check          # sim + sim-golden + sim-store + golden-check + gatesim + equiv + synth
+#   make check          # every sim channel + golden-check + gatesim + equiv + synth + PnR
 #   make clean
 
 SIM   ?= verilator
@@ -47,6 +50,11 @@ COMPOSE_TB  = rtl/tagma_compose_tb.v
 DIST_RTL = rtl/tagma_dist.v
 DIST_TB  = rtl/tagma_dist_tb.v
 
+DEMO_RTL = rtl/tagma_demo_top.v
+DEMO_TB  = rtl/tagma_demo_top_tb.v
+# Recovered from the placed-and-routed .asc by run_pnr.sh (icebox_vlog).
+ASC      = synth/yosys/out/tagma_demo_top_postpnr.v
+
 OBJ_DIR = obj_dir
 GOLDEN  = rtl/golden_anchors.hex
 
@@ -59,6 +67,16 @@ VERILATE = $(SIM) --binary --timing -Wall --top-module tagma_decoder_tb
 VERILATE_STORE = $(SIM) --binary --timing -Wall --top-module tagma_segment_store_tb
 VERILATE_COMPOSE = $(SIM) --binary --timing -Wall --top-module tagma_compose_tb
 VERILATE_DIST = $(SIM) --binary --timing -Wall --top-module tagma_dist_tb
+VERILATE_DEMO = $(SIM) --binary --timing -Wall --top-module tagma_demo_top_tb
+
+# icebox_vlog recovers gate logic from the bitstream and declares none of the
+# intermediate names the RTL carried, so its output trips the same lint the
+# synthesised netlists do (UNUSEDSIGNAL, UNDRIVEN, TIMESCALEMOD, DECLFILENAME)
+# plus PROCASSINIT on the register initialisers it emits and the width warnings
+# from its wider intermediate expressions. Verilator exits on warnings, so the
+# suppressions are required rather than cosmetic.
+ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-UNDRIVEN -Wno-TIMESCALEMOD -Wno-DECLFILENAME \
+	-Wno-PROCASSINIT -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC
 
 # Verilator redirects its build log into the object dir, which is a
 # generated (gitignored) directory: ensure it exists before any sim target
@@ -66,7 +84,7 @@ VERILATE_DIST = $(SIM) --binary --timing -Wall --top-module tagma_dist_tb
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
+.PHONY: all sim sim-golden sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
 
 all: check
 
@@ -150,6 +168,30 @@ sim-dist-golden: golden-export $(DIST_RTL) $(RTL) $(DIST_TB) | $(OBJ_DIR)
 	@rm -f $(OBJ_DIR)/build_tb_dist_golden.err
 	@cd rtl && ../$(OBJ_DIR)/tb_dist_golden
 
+pnr:
+	@echo "--- place and route: iCE40 UP5K demo, bitstream and recovered logic ---"
+	@bash synth/yosys/run_pnr.sh
+
+sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+	@echo "--- verilator: tb_demo (formula mode) ---"
+	@$(VERILATE_DEMO) $(DEMO_TB) $(DEMO_RTL) $(RTL) -o tb_demo \
+		> $(OBJ_DIR)/build_tb_demo.log 2> $(OBJ_DIR)/build_tb_demo.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_demo.log $(OBJ_DIR)/build_tb_demo.err; exit 1; }
+	@if test -s $(OBJ_DIR)/build_tb_demo.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_demo.err; fi
+	@tail -3 $(OBJ_DIR)/build_tb_demo.log
+	@rm -f $(OBJ_DIR)/build_tb_demo.err
+	@./$(OBJ_DIR)/tb_demo
+
+sim-pnr: pnr $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+	@echo "--- verilator: tb_demo (placed-and-routed bitstream) ---"
+	@$(VERILATE_DEMO) -DASC_CHECK $(ASC_LINT) $(ASC) $(DEMO_TB) $(DEMO_RTL) $(RTL) -o tb_demo_asc \
+		> $(OBJ_DIR)/build_tb_demo_asc.log 2> $(OBJ_DIR)/build_tb_demo_asc.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_demo_asc.log $(OBJ_DIR)/build_tb_demo_asc.err; exit 1; }
+	@if test -s $(OBJ_DIR)/build_tb_demo_asc.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_demo_asc.err; fi
+	@tail -3 $(OBJ_DIR)/build_tb_demo_asc.log
+	@rm -f $(OBJ_DIR)/build_tb_demo_asc.err
+	@./$(OBJ_DIR)/tb_demo_asc
+
 golden-export:
 	@echo "--- golden export: tagma_core -> golden_anchors.hex ---"
 	@cd ../sw/rust && cargo run --quiet --release -p tagma-core --example golden_export -- ../../hw/rtl/golden_anchors.hex
@@ -206,14 +248,15 @@ report: synth
 	@echo "=== iCE40 ==="
 	@cat synth/yosys/reports/ice40_stat.txt
 
-check: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden golden-check gatesim gatesim-compose gatesim-dist equiv synth
+check: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
-coverage: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden golden-check gatesim gatesim-compose gatesim-dist equiv
+coverage: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv
 	@echo "coverage: 11,172 / 11,172 valid code points in 3 channels (formula, golden, netlist) + 2^16 inputs in formal equivalence"
 	@echo "coverage: the valid input space is exhaustively covered; invalid states are structurally detectable by design"
 	@echo "coverage: 11,172 / 11,172 segment store slots read back, reserved addresses read zero"
 	@echo "coverage: compose over all 32,768 axis combinations plus the 11,172 golden pairs, netlist re-verified at gate level"
 	@echo "coverage: distance over 11,172 code points against two references and a varying-operand sweep, plus the golden decomposition, netlist re-verified at gate level"
+	@echo "coverage: the demo top and the placed-and-routed bitstream agree over all 65,536 code points"
 
 clean:
 	rm -rf $(OBJ_DIR) synth/yosys/out synth/yosys/reports $(GOLDEN) rtl/trace.vcd
