@@ -89,7 +89,7 @@ docker run --rm --platform linux/amd64 \
         test -d "$RES" || { echo "no results directory at $RES"; exit 1; }
         echo "flow results carrying a netlist, an sdc, or a spef:"
         find "$RES" -name "*.v" -o -name "*.sdc" -o -name "*.spef" | sort | tail -12
-        LIB=$(find /OpenROAD-flow-scripts/flow/platforms/sky130hd/lib -name "sky130_fd_sc_hd__tt_025C_1v80.lib" -print -quit)
+        LIB=$(find /OpenROAD-flow-scripts/flow -name "sky130_fd_sc_hd__tt_025C_1v80.lib" -print -quit)
         NL=$(find "$RES" -name "6_final.v" -print -quit)
         test -n "$NL" || NL=$(find "$RES" -name "1_2_yosys.v" -print -quit)
         SDC=$(find "$RES" -name "6_final.sdc" -print -quit)

@@ -143,13 +143,13 @@ Measured for the registered demo top at the 12 MHz board-equivalent clock
 | design area | 4631 um^2, 35% utilization |
 | critical path delay | 11.19 ns |
 | worst setup slack | +72.33 ns |
-| total power | 0.897 mW |
+| total power | 0.897 mW at the tool default input activity |
 | pure decoder | 388 cells, 2826 um^2 (`yosys stat -liberty`) |
 
 The flow runs on x86 and on Apple Silicon under Rosetta. Results are
 uploaded as the `sky130-reports` artifact.
 
-The flow's own power number sits at the tool's default input activity, where the data path is effectively static and the clock carries the switching. `openroad/power_activity.tcl` re-reports it with the sweep's input activity annotated, so OpenSTA propagates it inward and the data path is counted, and it writes both reports to `results/power_activity.txt`. The basis is the stimulus rather than a saved trace: bit `b` of a counter stepped once per board clock changes `65536 / 2^b` times per sweep of 65,536 clocks, so its rate is `f / 2^b` and its duty is 0.5. The file states the basis in its own output, and the devlog `docs/devlogs/hw/2026-09-28-power-activity.md` records what was verified and what would falsify it.
+The flow's own power number sits at the tool's default input activity, where the data path is effectively static and the clock carries the switching. `openroad/power_activity.tcl` re-reports it with the sweep's input activity annotated, so OpenSTA propagates it inward and the data path is counted, and it writes both reports to `results/power_activity.txt`. The basis is the stimulus rather than a saved trace: bit `b` of a counter stepped once per board clock changes `65536 / 2^b` times per sweep of 65,536 clocks, so its rate is `f / 2^b` and its duty is 0.5. The file states the basis in its own output, and the devlog `docs/devlogs/hw/2026-09-28-power-activity.md` records what was verified and what would falsify it. The activity unit comes from the tool's help text, and no VCD of the routed netlist exists yet, so the absolute level is unverified; the two reports in the file share one basis and carry the comparison.
 
 ## License
 

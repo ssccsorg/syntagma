@@ -69,28 +69,60 @@ set period 83.33e-9
 set f_clk  [expr {1.0 / $period}]
 puts [format "clock: %.6g Hz, period %.2f ns" $f_clk [expr {$period * 1e9}]]
 
-puts "\n=== default input activity (the tool default the flow has been reporting at) ==="
+puts "\n=== at the tool default input activity (0.1, duty 0.5) ==="
 set_power_activity -input -activity 0.1 -duty 0.5
 report_power
 
-puts "\n=== sweep input activity, one code point per clock ==="
+puts "\n=== at the sweep's input activity, one code point per clock ==="
+
+# Only the property route is documented, so the accessors are tried in order
+# and inside catch: an accessor this build does not have must report rather
+# than abort the run.
+proc port_name {port} {
+    foreach cmd {get_name get_full_name} {
+        if {[llength [info commands $cmd]] == 0} {
+            continue
+        }
+        if {![catch {$cmd $port} name] && $name ne ""} {
+            return $name
+        }
+    }
+    if {![catch {get_property $port name} name] && $name ne ""} {
+        return $name
+    }
+    return ""
+}
+
+set total 0
+set unreadable 0
+set seen 0
 set applied 0
 foreach_in_collection port [get_ports] {
-    set name [get_name $port]
+    incr total
+    set name [port_name $port]
+    if {$name eq ""} {
+        incr unreadable
+        continue
+    }
     if {![regexp {^\\?code\[([0-9]+)\]$} $name -> bit]} {
         continue
     }
-    set activity [expr {$f_clk / pow(2, $bit)}]
+    incr seen
+    set activity [expr {$f_clk / double(1 << $bit)}]
     if {[catch {set_power_activity -input_ports $port -activity $activity -duty 0.5} msg]} {
-        puts [format "  code[%d]: failed: %s" $bit $msg]
+        puts [format "  code\[%d\]: failed: %s" $bit $msg]
         continue
     }
-    puts [format "  code[%d]: activity %.6g duty 0.5" $bit $activity]
+    puts [format "  code\[%d\]: activity %.6g duty 0.5" $bit $activity]
     incr applied
 }
-if {$applied == 0} {
-    puts "error: no code port was annotated, so the second report repeats the default"
+if {$seen == 0} {
+    puts [format "error: none of the %d ports is a code bit (%d names could not be read), so nothing was annotated" $total $unreadable]
     exit 1
 }
-puts "  annotated $applied code bits"
+if {$applied != $seen} {
+    puts [format "error: annotated %d of %d code bits, so the second report would rest on a partial annotation" $applied $seen]
+    exit 1
+}
+puts [format "  annotated %d of %d code bits, %d of %d ports were not code bits" $applied $seen [expr {$total - $seen}] $total]
 report_power

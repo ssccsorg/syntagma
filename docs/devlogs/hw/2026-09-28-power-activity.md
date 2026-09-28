@@ -30,6 +30,18 @@ The final netlist is `module tagma_demo_top (clk, ...)` with `input [15:0] code`
 
 The step first assumed `results/sky130hd/tagma_demo/6_final.v`, a path that does not exist. The run failed on `ls: cannot access ...` and nothing else was attempted, so that failure is evidence about the path alone. The step now locates its inputs by name under the results tree and prints the tree it searched.
 
+## The comparison's basis
+
+The second report is not required to reproduce 0.897 mW. That number came from the flow's own `report_power`, which reads the ODB the flow held at the report step, while this script reads `6_final.v` and `6_final.spef` with OpenSTA. The corner, the parasitics, and the netlist are the ones the flow produced, but the two arithmetic paths are not the same, so a first report that differs is expected rather than a failure. What the comparison needs is that the two reports inside `power_activity.txt` share a basis, which they do, since only the input activity changes between them.
+
+## What the review changed
+
+The Liberty and the netlist are located the way the decoder step already locates them, `find /OpenROAD-flow-scripts/flow -name <file> -print -quit`, so the two steps agree on the form and neither assumes a path under a variant directory.
+
+The first version of the second report used `format "  code[%d]: activity %.6g duty 0.5" $bit $activity`. TCL performs command substitution inside a double-quoted string, so `[%d]` expands before `format` runs and the interpreter looks for a command named `%d`, which does not exist. The error is `invalid command name "%d"`, and it sits on the success path, so the first annotated port would end the run after the first report. A local `tclsh` probe confirmed the two forms, `unescaped: ERROR: invalid command name "%d"` against `escaped: code[3]`; the script now writes `\[` and `\]`, which reach `format` literally.
+
+The same probe checked `double(1 << $bit)` against `pow(2, $bit)` and they agree, so the shift form is used. It also showed that `get_name` is absent from a bare `tclsh`, so the name is read through the first accessor that answers, under `catch`, and the step reports the ports it could not name rather than annotating a subset.
+
 ## Plan for this step
 
 1. `hw/openroad/power_activity.tcl`: read the final netlist, the liberty, the final SDC, and the SPEF; propagate the clock; report power twice, once at the tool default input activity and once at the sweep's.
@@ -47,4 +59,6 @@ The step first assumed `results/sky130hd/tagma_demo/6_final.v`, a path that does
 
 - The exact role of `activity` in the switching formula. The help text says transitions per second; a factor of two against the textbook `alpha * C * V^2 * f` is possible, and the two-report comparison is what will show it.
 - Whether `read_spef` needs a corner argument in this build, and whether the SPEF is emitted as `6_final.spef` by the `6_report` step.
-- Whether `get_ports` matches `code[0]` without escaping in this build.
+- Which of `get_name`, `get_full_name`, or `get_property ... name` the OpenROAD build provides, and whether the returned name escapes the brackets. The script tries them in order under `catch`, accepts either form in the regexp, and reports how many ports it could not name.
+- Whether `-input_ports` accepts the collection object `foreach_in_collection` yields rather than a list of names.
+- Whether the applied activity scales as `1 / 2^b` across the bits. The script prints one line per bit, so the log carries the answer.
