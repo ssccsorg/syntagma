@@ -75,24 +75,33 @@ echo "--- power with the demo workload's input activity ---"
 # it, and it reports both, so results/power_activity.txt carries the comparison
 # and its own basis. See hw/openroad/power_activity.tcl and
 # docs/devlogs/hw/2026-09-28-power-activity.md.
+#
+# The flow writes its results under a variant directory
+# (results/<platform>/<design>/base/...), so the files are located by name
+# rather than by an assumed path.
 docker run --rm --platform linux/amd64 \
     -v "${VOL}:/OpenROAD-flow-scripts/flow" \
     -v "$(pwd):/power:ro" \
     "${IMG}" bash -c '
         set -eo pipefail
         source /OpenROAD-flow-scripts/env.sh
-        R=/OpenROAD-flow-scripts/flow/results/sky130hd/tagma_demo
-        LIB=$(find /OpenROAD-flow-scripts/flow/platforms/sky130hd/lib -name "sky130_fd_sc_hd__tt_025C_1v80.lib" | head -1)
-        NL=$(ls $R/6_final.v 2>/dev/null || ls $R/1_2_yosys.v)
-        SDC=$(ls $R/6_final.sdc 2>/dev/null || ls $R/1_2_yosys.sdc)
-        SPEF=$(ls $R/*.spef 2>/dev/null | head -1 || true)
-        { test -n "$LIB" && test -n "$NL" && test -n "$SDC"; } || { echo "missing liberty, netlist, or sdc after the flow"; ls $R; exit 1; }
+        RES=/OpenROAD-flow-scripts/flow/results
+        test -d "$RES" || { echo "no results directory at $RES"; exit 1; }
+        echo "flow results carrying a netlist, an sdc, or a spef:"
+        find "$RES" -name "*.v" -o -name "*.sdc" -o -name "*.spef" | sort | tail -12
+        LIB=$(find /OpenROAD-flow-scripts/flow/platforms/sky130hd/lib -name "sky130_fd_sc_hd__tt_025C_1v80.lib" -print -quit)
+        NL=$(find "$RES" -name "6_final.v" -print -quit)
+        test -n "$NL" || NL=$(find "$RES" -name "1_2_yosys.v" -print -quit)
+        SDC=$(find "$RES" -name "6_final.sdc" -print -quit)
+        test -n "$SDC" || SDC=$(find "$RES" -name "1_2_yosys.sdc" -print -quit)
+        SPEF=$(find "$RES" -name "6_final.spef" -print -quit)
+        { test -n "$LIB" && test -n "$NL" && test -n "$SDC"; } || { echo "missing liberty, netlist, or sdc after the flow"; exit 1; }
         echo "liberty: $LIB"
         echo "netlist: $NL"
         echo "sdc:     $SDC"
         echo "spef:    ${SPEF:-none}"
         export POWER_LIBERTY="$LIB" POWER_NETLIST="$NL" POWER_SDC="$SDC" POWER_SPEF="${SPEF:-}"
         openroad -exit /power/power_activity.tcl
-    ' 2>&1 | tee results/power_activity.txt | tail -30
+    ' 2>&1 | tee results/power_activity.txt | tail -40
 
 echo "reports in results/"

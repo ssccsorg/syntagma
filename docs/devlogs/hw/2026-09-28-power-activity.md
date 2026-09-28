@@ -22,6 +22,14 @@ Read from the OpenSTA source tree (`power/Power.tcl`, `power/test/power_report.t
 - Consequence: the Sky130 netlist that ORFS reports power on cannot be simulated from the flow alone, so no VCD of it can be produced. Option B therefore needs the open_pdks cell models and a simulator on top of the flow. Option A needs neither.
 - Measured on the host: the RTL VCD carries clean names (`code`, `i`, `m`, `f`, `offset`, `q4`, `r2`), while the abc-mapped netlist keeps the port names and renames everything internal. Activity annotated by name would reach the ports alone, which is the second reason option A starts from the inputs.
 
+## Where the flow writes
+
+Read from the `sky130-reports` artifact of a passing `hw` run. The results sit under a variant directory, `results/sky130hd/tagma_demo/base/`, which carries `1_2_yosys.v` (post-synthesis), `6_final.v`, `6_final.sdc`, `6_final.spef`, `6_final.def`, `6_final.gds`, and the per-step ODBs.
+
+The final netlist is `module tagma_demo_top (clk, ...)` with `input [15:0] code`, so after `link_design` the code bits appear as `code[0]` through `code[15]`, which is what the script annotates.
+
+The step first assumed `results/sky130hd/tagma_demo/6_final.v`, a path that does not exist. The run failed on `ls: cannot access ...` and nothing else was attempted, so that failure is evidence about the path alone. The step now locates its inputs by name under the results tree and prints the tree it searched.
+
 ## Plan for this step
 
 1. `hw/openroad/power_activity.tcl`: read the final netlist, the liberty, the final SDC, and the SPEF; propagate the clock; report power twice, once at the tool default input activity and once at the sweep's.
