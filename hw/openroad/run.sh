@@ -68,4 +68,31 @@ docker run --rm --platform linux/amd64 \
                   stat -liberty $LIB"
     ' 2>&1 | tee results/sky130_decoder_stat.txt | tail -25
 
+echo "--- power with the demo workload's input activity ---"
+# The flow reports power at the tool's default input activity, where the data
+# path is effectively static and only the clock switches. This step annotates
+# the primary inputs with the activity of the sweep and lets OpenSTA propagate
+# it, and it reports both, so results/power_activity.txt carries the comparison
+# and its own basis. See hw/openroad/power_activity.tcl and
+# docs/devlogs/hw/2026-09-28-power-activity.md.
+docker run --rm --platform linux/amd64 \
+    -v "${VOL}:/OpenROAD-flow-scripts/flow" \
+    -v "$(pwd):/power:ro" \
+    "${IMG}" bash -c '
+        set -eo pipefail
+        source /OpenROAD-flow-scripts/env.sh
+        R=/OpenROAD-flow-scripts/flow/results/sky130hd/tagma_demo
+        LIB=$(find /OpenROAD-flow-scripts/flow/platforms/sky130hd/lib -name "sky130_fd_sc_hd__tt_025C_1v80.lib" | head -1)
+        NL=$(ls $R/6_final.v 2>/dev/null || ls $R/1_2_yosys.v)
+        SDC=$(ls $R/6_final.sdc 2>/dev/null || ls $R/1_2_yosys.sdc)
+        SPEF=$(ls $R/*.spef 2>/dev/null | head -1 || true)
+        { test -n "$LIB" && test -n "$NL" && test -n "$SDC"; } || { echo "missing liberty, netlist, or sdc after the flow"; ls $R; exit 1; }
+        echo "liberty: $LIB"
+        echo "netlist: $NL"
+        echo "sdc:     $SDC"
+        echo "spef:    ${SPEF:-none}"
+        export POWER_LIBERTY="$LIB" POWER_NETLIST="$NL" POWER_SDC="$SDC" POWER_SPEF="${SPEF:-}"
+        openroad -exit /power/power_activity.tcl
+    ' 2>&1 | tee results/power_activity.txt | tail -30
+
 echo "reports in results/"
