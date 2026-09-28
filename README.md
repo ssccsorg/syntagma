@@ -16,7 +16,7 @@ synTagma (system)
   └─ Tagma core primitive (Coord, CoordPath, CoordSet, CoordSetN, CoordCube, CoordSpace)
 ```
 
-- Tagma -- the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding, verified exhaustively in hardware against the Rust reference (`hw/README.md`). The atomic identity primitive.
+- Tagma -- the core primitive: a 16-bit structural coordinate with closed-form composition, zero collisions, and single-cycle combinational decoding, verified exhaustively in hardware against the Rust reference, with the placed-and-routed bitstream compared against the RTL (`hw/README.md`). The atomic identity primitive.
 - tagma-geo -- spatial operations built on CoordCube: proximity (L∞ Chebyshev radius), bounding box enumeration, Hamming distance, Euclidean distance (approximate), Manhattan distance. Depends only on tagma-core.
 - tagma-map -- native CoordSpace map: accepts `&str` keys at HashMap-competitive speed, stores entries in Tagma coordinate space, exposes standard `insert`/`get`/`remove` API plus `CoordKey`-based access. Integrates `tagma-geo` via `CoordCubeMap` for zero-cost spatial queries on map data. Zero extra cost for spatial indexing.
 - tagma-sec -- security primitives for coordination traffic: authority (CoordPath Exact/Prefix scope authorization), integrity (epoch-bound seals), audit (chained evidence log with inclusion proofs), channel (non-repudiation receipts). Depends on tagma-core. Defined in `docs/spec/tagma-sec.md`.
@@ -32,7 +32,7 @@ synTagma (system)
 | Rust (reference) | `sw/rust` | core, base11172, geo, map, matrix, sec, benches, verify/linkcheck | 427 unit/integration tests, 27 doc-tests, 4 Kani harnesses over the rescale's domain and the wire reader, `./run.sh --check`, `./run.sh --proof` |
 | C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 16 suites, `sw/cpp/run.sh` |
 | Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 348 JUnit tests, `sw/java/run.sh` |
-| Verilog (hardware) | `hw` | decoder, compose, distance, segment store model | exhaustive simulation, golden anchors, gate-level simulation, and formal equivalence per unit; `make -C hw check`; `hw` CI job |
+| Verilog (hardware) | `hw` | decoder, compose, distance, segment store model, demo top | exhaustive simulation, golden anchors, gate-level simulation, and formal equivalence per unit; the placed-and-routed bitstream compared against the RTL over all 65,536 code points; `make -C hw check`; `hw` CI job |
 
 The ports carry the in-memory contracts and their semantics only. They own no persistence and no on-disk format: materialization, layouts and file formats belong to chton, the Rust storage fabric. The Java dense space therefore allocates lazily off-heap instead of mapping a file, and the reason is recorded in `sw/java/README.md`.
 
@@ -528,7 +528,7 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 - [Specification (tagma-sec)](docs/spec/tagma-sec.md) -- Security layer: authority, integrity, audit, channel, hybrid confidentiality
 - [C++ port](sw/cpp) -- C++17 mirror of the same modules, the primary reference for the Java port
 - [Java port](sw/java/README.md) -- Java 21 mirror of core, base11172, geo, map, sec and the benchmark suite, with the porting differences and the byte-space domain contract
-- [Hardware verification](hw/README.md) -- RTL decoder, exhaustive verification (11,172 vectors, formal equivalence), FPGA PnR, Sky130 standard cell report
+- [Hardware verification](hw/README.md) -- RTL for the three primitive units, exhaustive verification (11,172 decoder vectors, golden anchors, gate-level netlists, formal equivalence), the placed-and-routed bitstream compared against the RTL, FPGA PnR, and the Sky130 standard cell report
 - [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
 - [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
 - [Rustdoc (tagma-map)](https://docs.ssccs.org/projects/syntagma/tagma/map/) -- CoordMap, CoordMap2, CoordMapN, DynCoordMap, CoordCubeMap, CoordKey

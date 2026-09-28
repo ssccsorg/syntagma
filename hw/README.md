@@ -1,6 +1,6 @@
 # Tagma hardware verification
 
-This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA synthesis report, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (code point to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates). Decode and distance take a 16-bit code point, while compose returns the coordinate index, the offset from U+AC00, so its code point is U+AC00 + index. That is the split the Rust `Coord` uses.
+This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA place-and-route whose bitstream is checked against the RTL, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (code point to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates). Decode and distance take a 16-bit code point, while compose returns the coordinate index, the offset from U+AC00, so its code point is U+AC00 + index. That is the split the Rust `Coord` uses.
 
 ## Status
 
@@ -23,17 +23,18 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
-| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Report in `docs/devlogs/hw/` |
-| Yosys gate-level estimate (2-input gate library) | Report in `docs/devlogs/hw/` |
-| Yosys iCE40 synthesis report (LUT count) | Report in `docs/devlogs/hw/` |
+| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json`, write-up in `docs/devlogs/hw/` |
+| Yosys gate-level estimate (2-input gate library) | `synth/yosys/reports/gates_stat.txt`, plus `compose_gates_stat.txt` and `dist_gates_stat.txt` |
+| Yosys iCE40 synthesis report (LUT count) | `synth/yosys/reports/ice40_stat.txt` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
 | FPGA board demo (physical) | Next, board required |
 | OpenROAD standard cell report (Sky130) | Implemented, measured locally + CI (hw job) |
 
 ## Layout
 
-- `rtl/` Verilog sources and testbench
-- `synth/yosys/` Yosys synthesis scripts, PnR flow, and generated reports
+- `rtl/` Verilog sources and testbenches
+- `synth/yosys/` Yosys synthesis scripts, the PnR flow, and the committed reports
+- `openroad/` OpenROAD standard cell flow (Sky130)
 - `openram/` OpenRAM configuration for the chton segment store
 - `tools/` golden anchor consistency gate
 
@@ -46,7 +47,7 @@ This phase runs on branch `48-hw-verification` (issue #48).
 1. `tagma_decoder.v`: pure combinational decoder, offset decomposition `offset = code - 0xAC00`, `i = offset / 588`, `m = (offset % 588) / 28`, `f = offset % 28`.
 2. `tagma_decoder_tb.v`: exhaustive check of all 11,172 valid syllables plus the upper boundary, driven by Verilator.
 3. Synthesis scripts that mirror the canonical Yosys invocation in `ev/src/synth/backends/yosys.rs` (`read_verilog -sv; hierarchy; proc; synth; stat -json`) so the metrics schema stays compatible with `SynthesisMetrics` (num_cells to gate_count, area). A second script maps to a 2-input gate library for the gate count behind the claim. A third script targets iCE40 for the LUT count.
-4. CI hook: `hw/Makefile` with `sim`, `synth`, `check` targets, wired into `run.sh` and skipped when the tools are absent.
+4. CI hook: `hw/Makefile`, wired into `run.sh` and skipped when the tools are absent. It now carries every channel: `sim`, `sim-golden`, `sim-store`, `sim-compose`, `sim-dist`, `sim-demo`, `sim-pnr`, `gatesim`, `equiv`, and `synth`, with `check` running all of them.
 
 ### Phase 2: Golden-anchor cross-validation against the reference engine
 
