@@ -20,8 +20,7 @@
 #
 # The build runs the full project verification as build-time smoke tests:
 #   bash run.sh --check              (fmt, clippy, build, test, C++ core, hw gate)
-#   bash hw/synth/yosys/run_pnr.sh   (PnR, bitstream, icetime report)
-#   make -C hw coverage              (3 channels x 11,172 + formal equivalence)
+#   make -C hw coverage              (every sim channel, PnR, and formal equivalence)
 
 FROM ubuntu:24.04
 
@@ -40,10 +39,10 @@ RUN apt-get update && apt-get install -y \
     nextpnr-ice40 \
     && rm -rf /var/lib/apt/lists/*
 
-# icestorm (icepack, icetime, chipdb) is not packaged in Ubuntu 24.04;
-# build from source. Only the subdirectories the flow needs are built
-# (icebox chipdb, icepack, icetime); iceprog is skipped because it needs
-# libftdi1-dev. Default prefix /usr/local puts the chipdb under
+# icestorm (icepack, icetime, icebox_vlog, chipdb) is not packaged in Ubuntu
+# 24.04; build from source. Only the subdirectories the flow needs are built
+# (icebox for the chipdb and icebox_vlog, icepack, icetime); iceprog is skipped
+# because it needs libftdi1-dev. Default prefix /usr/local puts the chipdb under
 # share/icebox, which icetime resolves without extra setup on Linux.
 RUN git clone https://github.com/YosysHQ/icestorm.git /tmp/icestorm \
     && cd /tmp/icestorm \
@@ -59,20 +58,20 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # tagma-core/geo/map for riscv32imac-unknown-none-elf.
 RUN rustup target add riscv32imac-unknown-none-elf
 
-# Verify the toolchain. nextpnr-ice40, icepack, and icetime in this
-# image do not support --version, so their presence is checked with
+# Verify the toolchain. nextpnr-ice40, icepack, icetime, and icebox_vlog
+# in this image do not support --version, so their presence is checked with
 # command -v; only verilator and yosys print a version.
 RUN verilator --version && yosys --version \
-    && command -v nextpnr-ice40 && command -v icepack && command -v icetime
+    && command -v nextpnr-ice40 && command -v icepack && command -v icetime \
+    && command -v icebox_vlog
 
 WORKDIR /workspace
 
 # Build-time: run the full project verification (fmt, clippy, build, test,
-# C++ core, and the hardware gate via check_hw), the demo PnR flow, and
-# the explicit coverage summary.
+# C++ core, and the hardware gate via check_hw, which now covers the demo PnR
+# and the recovered-bitstream channel), then the explicit coverage summary.
 COPY . .
 RUN bash run.sh --check
-RUN bash hw/synth/yosys/run_pnr.sh
 RUN make -C hw coverage
 
 ENTRYPOINT ["bash"]

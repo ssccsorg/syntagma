@@ -1,0 +1,23 @@
+
+10. Printing statistics.
+
+=== tagma_dist ===
+
+        +----------Local Count, excluding submodules.
+        | 
+     1889 wires
+     5240 wire bits
+       41 public wires
+      415 public wire bits
+        5 ports
+       47 port bits
+     1329 cells
+      256   $_AND_
+      445   $_NAND_
+       86   $_NOR_
+       56   $_NOT_
+      106   $_OR_
+      176   $_XNOR_
+      202   $_XOR_
+        2   $scopeinfo
+

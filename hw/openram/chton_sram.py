@@ -35,3 +35,9 @@ check_lvsdrc = True
 # two word counts, fall back to num_words = 16384 (2 ** 14) and treat the
 # extra 5,212 entries as reserved. The 14-bit address space covers the
 # full valid range either way.
+#
+# Contract to match when the macro is generated: the behavioral model in
+# hw/rtl/tagma_segment_store.v returns the previous contents on a read that
+# collides with a write of the same address (read-during-write), reads zero for
+# the reserved addresses, and ignores writes there. The model is pinned by
+# make sim-store, so the generated macro has to agree or the model changes.
