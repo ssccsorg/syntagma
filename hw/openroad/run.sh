@@ -68,40 +68,24 @@ docker run --rm --platform linux/amd64 \
                   stat -liberty $LIB"
     ' 2>&1 | tee results/sky130_decoder_stat.txt | tail -25
 
-echo "--- power with the demo workload's input activity ---"
-# The flow reports power at the tool's default input activity, where the data
-# path is effectively static and only the clock switches. This step annotates
-# the primary inputs with the activity of the sweep and lets OpenSTA propagate
-# it, and it reports both, so results/power_activity.txt carries the comparison
-# and its own basis. See hw/openroad/power_activity.tcl and
+echo "--- power at the demo workload's input activity ---"
+# The design config names power_activity.tcl as POST_FINAL_REPORT_TCL, so the
+# flow sources it at the end of its report step, in the session where the
+# design, the liberty, the sdc, the derate, the setRC, and the SPEF are already
+# in place. The hook's default-activity report therefore repeats the flow's own
+# number and its annotated report differs only by the input activity. The hook
+# writes $RESULTS_DIR/power_activity.rpt into the flow volume, and this step
+# reads it out, so a missing or failed hook fails the gate. See
+# designs/sky130hd/tagma_demo/power_activity.tcl and
 # docs/devlogs/hw/2026-09-28-power-activity.md.
-#
-# The flow writes its results under a variant directory
-# (results/<platform>/<design>/base/...), so the files are located by name
-# rather than by an assumed path.
 docker run --rm --platform linux/amd64 \
     -v "${VOL}:/OpenROAD-flow-scripts/flow" \
-    -v "$(pwd):/power:ro" \
     "${IMG}" bash -c '
         set -eo pipefail
-        source /OpenROAD-flow-scripts/env.sh
-        RES=/OpenROAD-flow-scripts/flow/results
-        test -d "$RES" || { echo "no results directory at $RES"; exit 1; }
-        echo "flow results carrying a netlist, an sdc, or a spef:"
-        find "$RES" -name "*.v" -o -name "*.sdc" -o -name "*.spef" | sort | tail -12
-        LIB=$(find /OpenROAD-flow-scripts/flow -name "sky130_fd_sc_hd__tt_025C_1v80.lib" -print -quit)
-        NL=$(find "$RES" -name "6_final.v" -print -quit)
-        test -n "$NL" || NL=$(find "$RES" -name "1_2_yosys.v" -print -quit)
-        SDC=$(find "$RES" -name "6_final.sdc" -print -quit)
-        test -n "$SDC" || SDC=$(find "$RES" -name "1_2_yosys.sdc" -print -quit)
-        SPEF=$(find "$RES" -name "6_final.spef" -print -quit)
-        { test -n "$LIB" && test -n "$NL" && test -n "$SDC"; } || { echo "missing liberty, netlist, or sdc after the flow"; exit 1; }
-        echo "liberty: $LIB"
-        echo "netlist: $NL"
-        echo "sdc:     $SDC"
-        echo "spef:    ${SPEF:-none}"
-        export POWER_LIBERTY="$LIB" POWER_NETLIST="$NL" POWER_SDC="$SDC" POWER_SPEF="${SPEF:-}"
-        openroad -exit /power/power_activity.tcl
+        RPT=$(find /OpenROAD-flow-scripts/flow -name "power_activity.rpt" -print -quit)
+        test -n "$RPT" || { echo "no power_activity.rpt in the flow volume, so the report step did not source the hook"; exit 1; }
+        echo "report: $RPT"
+        cat "$RPT"
     ' 2>&1 | tee results/power_activity.txt | tail -40
 
 echo "reports in results/"

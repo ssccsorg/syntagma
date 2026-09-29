@@ -42,3 +42,10 @@ export CORE_MARGIN = 2
 # proven by the yosys equiv gate in hw/, so the in-flow LEC check is
 # redundant here and is disabled.
 export LEC_CHECK = 0
+
+# The flow sources this at the end of its report step, where the design, the
+# liberty, the sdc, the derate, the setRC, and the SPEF are already in place, so
+# the power report can vary the input activity without reloading anything
+# (issue #70). It stays beside this config so run.sh's mount of the design tree
+# carries it into the image.
+export POST_FINAL_REPORT_TCL = $(DESIGN_HOME)/sky130hd/tagma_demo/power_activity.tcl
