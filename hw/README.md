@@ -29,7 +29,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
 | FPGA board demo (physical) | Next, board required |
 | OpenROAD standard cell report (Sky130) | Implemented, measured locally + CI (hw job) |
-| Power at the demo workload's input activity, as the report step's `POST_FINAL_REPORT_TCL` hook (`openroad/designs/sky130hd/tagma_demo/power_activity.tcl`) | Draft, runs in the `hw` job, report in `openroad/results/power_activity.txt` |
+| Power at the demo workload's input activity, as the report step's `POST_FINAL_REPORT_TCL` hook (`openroad/designs/sky130hd/tagma_demo/power_activity.tcl`) | Implemented, run locally in the ORFS image; report in `openroad/results/power_activity.txt` |
 
 ## Layout
 
@@ -143,13 +143,14 @@ Measured for the registered demo top at the 12 MHz board-equivalent clock
 | design area | 4631 um^2, 35% utilization |
 | critical path delay | 11.19 ns |
 | worst setup slack | +72.33 ns |
-| total power | 0.897 mW at the tool default input activity |
+| total power, tool default input activity | 0.881 mW |
+| total power, the demo's input activity | 0.075 mW |
 | pure decoder | 388 cells, 2826 um^2 (`yosys stat -liberty`) |
 
 The flow runs on x86 and on Apple Silicon under Rosetta. Results are
 uploaded as the `sky130-reports` artifact.
 
-The flow's own power number sits at the tool's default input activity, where the data path is effectively static and the clock carries the switching. The design config names `openroad/designs/sky130hd/tagma_demo/power_activity.tcl` as `POST_FINAL_REPORT_TCL`, so the flow sources it at the end of its report step, in the session where the design, the liberty, the sdc, the derate, the setRC, and the SPEF are already in place. The hook reports at the tool default and then annotates the primary inputs with the sweep's activity, letting OpenSTA propagate it inward, and writes both reports to `results/power_activity.rpt`, so the first repeats the flow's own number and the second differs from it by the input activity alone. The basis is the stimulus rather than a saved trace: bit `b` of a counter stepped once per board clock changes `65536 / 2^b` times per sweep of 65,536 clocks, so its rate is `f / 2^b` and its duty is 0.5. The file states the basis in its own output, and the devlog `docs/devlogs/hw/2026-09-28-power-activity.md` records what was verified and what would falsify it. The activity unit comes from the tool's help text and the model is vectorless, so the number is not a measured power; a VCD of the routed netlist would be, and none exists yet.
+The flow's own power number sits at the tool's default input activity, which is 0.1 transitions per clock cycle on every input, so the data path is effectively static and the clock carries the switching. The design config names `openroad/designs/sky130hd/tagma_demo/power_activity.tcl` as `POST_FINAL_REPORT_TCL`, so the flow sources it at the end of its report step, in the session where the design, the liberty, the sdc, the derate, the setRC, and the SPEF are already in place. The hook reports at that default and then annotates the code bits with the sweep's activity, which makes the first report the control: it reproduces the flow's own number to the digit. Both reports land in `results/power_activity.rpt`. The basis is the stimulus rather than a saved trace: the demo sweeps all 65,536 code points, one per clock, so bit `b` of the counter changes once every `2^b` clocks, an activity of `1 / 2^b` transitions per clock cycle, the unit `set_power_activity -activity` takes. The devlog `docs/devlogs/hw/2026-09-28-power-activity.md` records the measurements, the three defects that running it exposed, and what would falsify the result. The model is vectorless, so the number is not a measured power; a VCD of the routed netlist would be, and none exists yet. The figures are tool-version dependent, like the PnR numbers above.
 
 ## License
 
