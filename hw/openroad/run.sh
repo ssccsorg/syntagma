@@ -68,4 +68,24 @@ docker run --rm --platform linux/amd64 \
                   stat -liberty $LIB"
     ' 2>&1 | tee results/sky130_decoder_stat.txt | tail -25
 
+echo "--- power at the demo workload's input activity ---"
+# The design config names power_activity.tcl as POST_FINAL_REPORT_TCL, so the
+# flow sources it at the end of its report step, in the session where the
+# design, the liberty, the sdc, the derate, the setRC, and the SPEF are already
+# in place. The hook's default-activity report therefore repeats the flow's own
+# number and its annotated report differs only by the input activity. The hook
+# writes $RESULTS_DIR/power_activity.rpt into the flow volume, and this step
+# reads it out, so a missing or failed hook fails the gate. See
+# designs/sky130hd/tagma_demo/power_activity.tcl and
+# docs/devlogs/hw/2026-09-28-power-activity.md.
+docker run --rm --platform linux/amd64 \
+    -v "${VOL}:/OpenROAD-flow-scripts/flow" \
+    "${IMG}" bash -c '
+        set -eo pipefail
+        RPT=$(find /OpenROAD-flow-scripts/flow -name "power_activity.rpt" -print -quit)
+        test -n "$RPT" || { echo "no power_activity.rpt in the flow volume, so the report step did not source the hook"; exit 1; }
+        echo "report: $RPT"
+        cat "$RPT"
+    ' 2>&1 | tee results/power_activity.txt | tail -40
+
 echo "reports in results/"
