@@ -29,7 +29,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
 | FPGA board demo (physical) | Next, board required |
 | OpenROAD standard cell report (Sky130) | Implemented, measured locally + CI (hw job) |
-| Power at the demo workload's input activity, as the report step's `POST_FINAL_REPORT_TCL` hook (`openroad/designs/sky130hd/tagma_demo/power_activity.tcl`) | Implemented, run locally in the ORFS image; report in `openroad/results/power_activity.txt` |
+| Power at the demo workload's input activity, as the report step's `POST_FINAL_REPORT_TCL` hook (`openroad/designs/sky130hd/tagma_demo/power_activity.tcl`) | Implemented, runs in the `hw` job, report in `openroad/results/power_activity.txt` |
 
 ## Layout
 
