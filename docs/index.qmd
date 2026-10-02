@@ -151,7 +151,7 @@ Tagma progresses along two parallel paths:
 
 Beyond these paths, the coordinate space opens directions including:
 
-- **Tagma as SSCCS foundation:** Segment → Coord, Scheme → 19×21×28 lattice, Field → axis comparators, Observation → decoder evaluation. The coordinate space provides a hardware substrate for SSCCS primitives.
+- **Tagma as SSCCS Initiative:** Segment → Coord, Scheme → 19×21×28 lattice, Field → axis comparators, Observation → decoder evaluation. The coordinate space provides a hardware substrate for SSCCS primitives.
 - **Tagma as neXus FIH accelerator:** Fact indexing via coordinate, Intent as movement vector, Hint as adjacency weight. The coordinate space replaces hash-based state indexing in the FIH model.
 - **Tagma as universal serializer:** Base11172 encoding maps arbitrary bytes to self-validating compositional character strings, serving as Tagma's native serialization format for storage and communication.
 
