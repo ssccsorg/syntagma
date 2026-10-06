@@ -7,5 +7,6 @@ hw/openroad/results
 hw/rtl/golden_anchors.hex
 hw/rtl/trace.vcd
 hw/synth/yosys/reports/pnr.log
+**/.sdbtmp_*/
 **/_sdbtmp_*/
 **/.rumdl_cache
