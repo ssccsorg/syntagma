@@ -20,7 +20,7 @@
 # ============================================================
 # Quarto (docs)
 # ============================================================
-**/*_cached*
+**/_sdbtmp_*/
 **/*quarto_ipynb*
 /docs/**/*_files
 /docs/**/*_output
@@ -90,8 +90,7 @@ sw/java/bench/result/
 # ============================================================
 # docs/build.py
 # ============================================================
-_docsbuild/
+# The folders sdbs writes for itself carry the _sdbtmp_ marker ignored above.
 _publish/
 _agent/
 _pages/
-_jupyter_cache/
