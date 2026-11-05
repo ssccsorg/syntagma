@@ -100,6 +100,10 @@ check_checks() {
     # storage path (chton, nex) consumes on device.
     echo "--- riscv32imac-unknown-none-elf check (MCU target) ---"
     (cd sw/rust && cargo check -p tagma-core -p tagma-geo -p tagma-map -p tagma-matrix --target riscv32imac-unknown-none-elf)
+    # The alloc-free core is a separate promise: the same target with the feature off,
+    # which is what a part without a heap builds. The identity is a fixed coordinate
+    # path, so it has to compile here and not only with the default feature on.
+    (cd sw/rust && cargo check -p tagma-core --no-default-features --target riscv32imac-unknown-none-elf)
     # The no-allocator member is linked rather than only checked. The link fails
     # with "no global memory allocator found but one is required" if anything
     # underneath reaches for the allocator, so the property is a fact about the

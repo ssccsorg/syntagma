@@ -8,5 +8,8 @@ description = "Link check: the no-allocator member of the family, linked for a t
 [dependencies]
 # Named here rather than inherited, because this crate is excluded from the
 # workspace so that no other member can turn tagma-core's alloc on and make the
-# link pass or fail for the wrong reason.
+# link pass or fail for the wrong reason. `tagma-core` is named with its feature
+# off for the same reason: the identity is a fixed-size coordinate path and the
+# link below holds it to that.
 tagma-matrix = { path = "../../matrix" }
+tagma-core = { path = "../../core", default-features = false }
