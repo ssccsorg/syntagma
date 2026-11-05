@@ -9,6 +9,9 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 
+#[cfg(feature = "serde")]
+use alloc::format;
+
 use crate::coord::Coord;
 use crate::coord_path::CoordPath;
 
@@ -120,8 +123,12 @@ impl<'de, const N: usize> serde::Deserialize<'de> for CoordId<N> {
             where
                 E: serde::de::Error,
             {
+                let count = text.chars().count();
+                if count != N {
+                    return Err(E::custom(format!("expected {N} chars, got {count}")));
+                }
                 CoordId::from_string(text).ok_or_else(|| {
-                    E::custom("not a canonical coordinate: wrong length or an invalid character")
+                    E::custom(format!("a character in {text:?} is not a valid coordinate"))
                 })
             }
         }
