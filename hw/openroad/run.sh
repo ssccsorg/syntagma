@@ -57,6 +57,21 @@ docker run --rm --platform linux/amd64 \
     -v "${VOL}:/OpenROAD-flow-scripts/flow" \
     -v "$(pwd)/../rtl:/OpenROAD-flow-scripts/flow/designs/src/tagma_demo" \
     "${IMG}" bash -c '
+        # The make inside the flow puts yosys on PATH through its environment; a
+        # bare invocation in this shell does not, and the image stopped exporting
+        # it there. The installed tool trees are searched rather than assumed.
+        for d in /OpenROAD-flow-scripts/tools/install/*/bin; do
+            if [ -d "$d" ]; then PATH="$d:$PATH"; fi
+        done
+        export PATH
+        if ! command -v yosys >/dev/null 2>&1; then
+            found=$(find /OpenROAD-flow-scripts /usr -type f -name yosys -perm -u+x 2>/dev/null | head -1)
+            if [ -n "$found" ]; then PATH="$(dirname "$found"):$PATH"; export PATH; fi
+        fi
+        if ! command -v yosys >/dev/null 2>&1; then
+            echo "yosys is not in the image under any installed tool tree"
+            exit 1
+        fi
         LIB=$(find /OpenROAD-flow-scripts/flow -name "sky130_fd_sc_hd__tt_025C_1v80.lib" | head -1)
         test -n "$LIB" || { echo "liberty not found after flow"; exit 1; }
         # synth before abc: the standalone yosys abc pass extracts nothing
