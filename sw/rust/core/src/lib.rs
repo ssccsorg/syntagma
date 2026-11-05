@@ -5,6 +5,7 @@ extern crate alloc;
 
 pub mod coord;
 pub mod coord_cube;
+pub mod coord_id;
 pub mod coord_path;
 pub mod coord_set;
 pub mod coord_space;
@@ -32,6 +33,7 @@ pub mod coord_space_m;
 
 pub use coord::Coord;
 pub use coord_cube::CoordCube;
+pub use coord_id::CoordId;
 pub use coord_path::CoordPath;
 pub use coord_set::CoordSet;
 

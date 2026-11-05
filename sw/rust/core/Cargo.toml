@@ -14,12 +14,17 @@ default = ["alloc"]
 # CoordSpace and related types require this feature.
 alloc = []
 
+# Canonical text as a serde string. The serializer builds the text, so it
+# carries alloc with it; the deserializer reads the string without one.
+serde = ["dep:serde", "alloc"]
+
 # Enables CoordSpaceM (mmap-backed dense array for N>=3).
 # Implies alloc. libc provides mmap on Unix.
 mmap = ["alloc", "libc"]
 
 [dependencies]
 libc = { version = "0.2", optional = true }
+serde = { version = "1", optional = true, default-features = false }
 
 # Integration tests require alloc (use CoordSpaceN, DynCoordSpace, etc.).
 # `cargo test --no-default-features` automatically skips this binary.

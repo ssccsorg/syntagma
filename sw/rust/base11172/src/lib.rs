@@ -52,6 +52,38 @@ pub fn encode_bytes(bytes: &[u8]) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Numeric digits
+// ---------------------------------------------------------------------------
+
+/// Encodes a big-endian byte string as `N` base-11172 digits, most significant
+/// first.
+///
+/// This is the numeric reading of the byte string, not the paired byte
+/// encoding above: `N` digits carry `11,172^N` values, so a value that does
+/// not fit is `None` rather than a truncated id.
+pub fn digits_be<const N: usize>(bytes: &[u8]) -> Option<[Coord; N]> {
+    let mut buf = bytes.to_vec();
+    let mut coords = [Coord::new(0)?; N];
+    let mut significant = buf.len();
+    for coord in coords.iter_mut().rev() {
+        let mut rem: u32 = 0;
+        for byte in buf.iter_mut().take(significant) {
+            let cur = (rem << 8) | *byte as u32;
+            *byte = (cur / N_CHARS) as u8;
+            rem = cur % N_CHARS;
+        }
+        *coord = Coord::new(rem as u16)?;
+        while significant > 0 && buf[significant - 1] == 0 {
+            significant -= 1;
+        }
+    }
+    if buf[..significant].iter().any(|byte| *byte != 0) {
+        return None;
+    }
+    Some(coords)
+}
+
+// ---------------------------------------------------------------------------
 // Decoding
 // ---------------------------------------------------------------------------
 
@@ -127,5 +159,24 @@ mod tests {
         let [c0, c1] = encode_u16(0);
         assert_eq!(c0, '가'); // U+AC00 — first character
         assert_eq!(c1, '가');
+    }
+
+    #[test]
+    fn the_numeric_digits_are_the_big_endian_value() {
+        let mut bytes = [0u8; 32];
+        bytes[31] = 255;
+        let digits = digits_be::<20>(&bytes).expect("the value fits");
+        assert_eq!(digits[19], Coord::new(255).unwrap());
+        assert!(digits[..19].iter().all(|coord| coord.index() == 0));
+    }
+
+    #[test]
+    fn a_full_digest_fits_in_twenty_digits() {
+        assert!(digits_be::<20>(&[0xFF; 32]).is_some());
+    }
+
+    #[test]
+    fn a_value_that_does_not_fit_is_refused() {
+        assert!(digits_be::<1>(&[0xFF, 0xFF]).is_none());
     }
 }
