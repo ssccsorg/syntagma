@@ -10,6 +10,8 @@
 //! - **Deterministic**: encoding is a pure function of the input.
 //! - **`no_std` compatible**: requires only `alloc`.
 
+#![no_std]
+
 extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
