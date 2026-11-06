@@ -342,7 +342,7 @@ sorts as the value sorts, and a prefix of it is a prefix of the axes, which is w
 coordinate space without a separate index. A layer holds the value and renders the text at a boundary: the text is
 what a key, a file name, and a wire field carry, and the value is what a map, a set, and a comparison hold.
 
-N-coordinate sequences (CoordPath) extend the address space to $11172^N$ identifiers via direct-index tree traversal. A 6-coordinate identifier covers UUID-scale space; 19 coordinates match SHA-256's $2^{256}$ identifier space. CoordCube reinterprets these N coordinates as a D-dimensional grid with R coordinates per dimension (N = D * R), providing distance metrics and region queries without changing the underlying storage key.
+N-coordinate sequences (CoordPath) extend the address space to $11172^N$ identifiers via direct-index tree traversal. A 10-coordinate identifier exceeds UUID's 128-bit space; 20 coordinates carry a 256-bit digest injectively, and 19 do not, because 19 × log2(11172) ≈ 255.5 bits. CoordCube reinterprets these N coordinates as a D-dimensional grid with R coordinates per dimension (N = D * R), providing distance metrics and region queries without changing the underlying storage key.
 
 The three-axis composition formula admits unbounded recursive embedding: each axis of a synTagma coordinate can itself be a full CoordPath, enabling physical topology mapping across distributed nodes without modifying the core arithmetic.
 
@@ -352,7 +352,7 @@ The three-axis composition formula admits unbounded recursive embedding: each ax
 |--------|---------|---------------|---------------|----------------|
 | Latency | 227 ns/op | 0.38 ns/op | 5.57 ns/op | 54.9 ns/op |
 | Speedup | baseline | 597x | 41x | 4.1x |
-| Address space | 2^256 | 1.1e4 | 1.9e24 | 2^256 |
+| Address space | 2^256 | 1.1e4 | 1.9e24 | 2^255.5 |
 
 CoordSpace2 (N=2 dense heap, 119 MB, `alloc_zeroed`) covers the full 124M 2-character space in a single pre-zeroed allocation -- single load at 0.39 ns, no lazy branching.
 
