@@ -1,16 +1,16 @@
-// The native pair, counted rather than timed.
+// The canonical text, counted rather than timed.
 //
-// `CoordId` prints one character an axis and reads that text back. Both are on
-// the record path: an id is printed to be stored and read back to be addressed,
-// so neither may touch the heap. The reader is the one that could: an earlier
-// version collected the characters into a Vec before validating them.
+// An identity is printed to be stored and read back to be addressed, so neither
+// half may touch the heap. The reader is the one that could: an earlier version
+// collected the characters into a Vec before validating them, and the text was
+// one character an axis then.
 //
 // The counter is process-wide, so this file holds one test.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use tagma_core::CoordId;
+use tagma_core::{Coord, CoordId, CoordPath};
 
 struct Counting;
 
@@ -54,28 +54,35 @@ impl core::fmt::Write for StackText {
     }
 }
 
+fn id_with_spread_axes() -> CoordId<20> {
+    let mut coords = [Coord::new(0).expect("zero is a coordinate"); 20];
+    for (axis, slot) in coords.iter_mut().enumerate() {
+        *slot = Coord::new((axis as u16 * 613) % 11_172).expect("a coordinate");
+    }
+    CoordId(CoordPath::new(coords))
+}
+
 #[test]
 fn the_canonical_text_is_read_and_written_without_the_heap() {
-    let text: String = (0..20u16)
-        .map(|index| char::from_u32(0xAC00 + u32::from(index)).expect("a coordinate"))
-        .collect();
+    let id = id_with_spread_axes();
+    let text = id.to_string();
+    assert_eq!(text.len(), 60, "three digits an axis at depth twenty");
 
     let before = ALLOCATIONS.load(Ordering::Relaxed);
-    let id = std::hint::black_box(CoordId::<20>::from_string(&text));
+    let read = std::hint::black_box(CoordId::<20>::from_string(&text));
     let after = ALLOCATIONS.load(Ordering::Relaxed);
     assert_eq!(
         after, before,
         "from_string allocated; an id is read per key"
     );
-
-    let id = id.expect("a canonical id");
+    assert_eq!(read, Some(id), "the text did not round trip");
 
     let mut out = StackText {
         bytes: [0; 60],
         len: 0,
     };
     let before = ALLOCATIONS.load(Ordering::Relaxed);
-    core::fmt::write(&mut out, format_args!("{id}")).expect("20 characters fit 60 bytes");
+    core::fmt::write(&mut out, format_args!("{id}")).expect("sixty bytes hold sixty digits");
     let after = ALLOCATIONS.load(Ordering::Relaxed);
     assert_eq!(
         after, before,
