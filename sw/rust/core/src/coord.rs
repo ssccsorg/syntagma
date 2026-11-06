@@ -167,6 +167,11 @@ impl Coord {
     /// ```
     #[inline]
     pub const fn from_char(ch: char) -> Option<Self> {
+        // The block sits inside the basic plane, and a `char` above it would have
+        // its code point truncated into the block rather than refused.
+        if (ch as u32) > u16::MAX as u32 {
+            return None;
+        }
         Self::from_code_point(ch as u16)
     }
 }
