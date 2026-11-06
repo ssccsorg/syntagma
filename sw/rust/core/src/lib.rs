@@ -33,7 +33,7 @@ pub mod coord_space_m;
 
 pub use coord::Coord;
 pub use coord_cube::CoordCube;
-pub use coord_id::CoordId;
+pub use coord_id::{CoordId, ALPHABET, DIGITS_PER_AXIS};
 pub use coord_path::CoordPath;
 pub use coord_set::CoordSet;
 
