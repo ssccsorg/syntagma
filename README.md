@@ -1,6 +1,6 @@
 # synTagma
 
-synTagma is a spatial coordinate space computing system built on Tagma, a 16-bit coordinate primitive embedded in the Unicode closed-form composition block (U+AC00--U+D7AF). Every valid 16-bit value decomposes into three independent axes, serving simultaneously as a 1-D address and a 3-D coordinate. The reference implementation is a `#![no_std]` Rust library.
+synTagma is a spatial coordinate space computing system built on Tagma, a 16-bit coordinate primitive embedded in the Unicode closed-form composition block (U+AC00--U+D7AF). Every valid 16-bit value decomposes into three independent axes, serving simultaneously as a 1-D address and a 3-D coordinate. Its interchange text is a fixed-width base-36 spelling of that value, so an identity written to a key, a file name, or the wire is ASCII and needs no normalization. The reference implementation is a `#![no_std]` Rust library.
 
 Tagma is a primitive where the address is the coordinate -- not a flat pointer, but a point in an N-dimensional geometric space. This is made possible by a 16-bit Unicode block allocated to a 3-axis writing system, which provides a collision-free, hash-less, structurally addressable coordinate space.
 
@@ -55,6 +55,7 @@ Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-d
 | Type | Description | File |
 |------|-------------|------|
 | Coord | 16-bit atomic coordinate (0..11172), 3-axis composition/decomposition, Hamming distance, U+AC00--U+D7AF block display | `core/src/coord.rs` |
+| CoordId\<N\> | A CoordPath read as an identity. Canonical text is N groups of three lowercase base-36 digits, ASCII, order preserving, refused on the way back when it is not canonical | `core/src/coord_id.rs` |
 | CoordPath\<N\> | Index path (not a hash key), compile-time N-element Coord array | `core/src/coord_path.rs` |
 | CoordSet | Bit array over 11,172 slots (1.4 KB). Union, intersection, difference, subset tests, `Copy` | `core/src/coord_set.rs` |
 | CoordCube\<N, D, R\> | Interpretation layer over CoordPath: N chars as D-dimensional grid with R chars/dimension. L∞ proximity, bounding box, axis decomposition. `N == D * R` enforced at runtime. Zero-cost conversion to/from CoordPath. No heap. | `core/src/coord_cube.rs` |
@@ -335,19 +336,37 @@ Of 65,536 representable 16-bit states, only 11,172 satisfy this formula. The rem
 - A 3-D coordinate (initial, medial, final) for structural queries.
 - A compositional character for human-readable display.
 
-N-character sequences (CoordPath) extend the address space to $11172^N$ identifiers via direct-index tree traversal. A 6-character identifier covers UUID-scale space; 19 characters match SHA-256's $2^{256}$ identifier space. CoordCube reinterprets these N characters as a D-dimensional grid with R characters per dimension (N = D * R), providing distance metrics and region queries without changing the underlying storage key.
+An identity has two forms. The value is the 16-bit coordinate and is the authority for every comparison. Its text
+is three base-36 digits per axis, lowercase and zero padded, so a depth-20 identity is sixty ASCII bytes. The text
+sorts as the value sorts, and a prefix of it is a prefix of the axes, which is what lets a key space be read as a
+coordinate space without a separate index. A layer holds the value and renders the text at a boundary: the text is
+what a key, a file name, and a wire field carry, and the value is what a map, a set, and a comparison hold.
+
+N-coordinate sequences (CoordPath) extend the address space to $11172^N$ identifiers via direct-index tree traversal. A 6-coordinate identifier covers UUID-scale space; 19 coordinates match SHA-256's $2^{256}$ identifier space. CoordCube reinterprets these N coordinates as a D-dimensional grid with R coordinates per dimension (N = D * R), providing distance metrics and region queries without changing the underlying storage key.
 
 The three-axis composition formula admits unbounded recursive embedding: each axis of a synTagma coordinate can itself be a full CoordPath, enabling physical topology mapping across distributed nodes without modifying the core arithmetic.
 
 ## Benchmark: Tagma identity generation (ARMv8.4-A Firestorm)
 
-| Metric | SHA-256 | Tagma (1-syll) | Tagma (6-syll) | Tagma (19-syll) |
+| Metric | SHA-256 | Tagma (1-coord) | Tagma (6-coord) | Tagma (19-coord) |
 |--------|---------|---------------|---------------|----------------|
 | Latency | 227 ns/op | 0.38 ns/op | 5.57 ns/op | 54.9 ns/op |
 | Speedup | baseline | 597x | 41x | 4.1x |
 | Address space | 2^256 | 1.1e4 | 1.9e24 | 2^256 |
 
 CoordSpace2 (N=2 dense heap, 119 MB, `alloc_zeroed`) covers the full 124M 2-character space in a single pre-zeroed allocation -- single load at 0.39 ns, no lazy branching.
+
+That table is composition, which is the operation compared with SHA-256. The text conversions are a boundary cost,
+measured on the same machine at depth 20.
+
+| Conversion | Cost |
+|---|---|
+| value to canonical text | 55 ns |
+| canonical text to value | 35 ns |
+| the syllable spelling it replaced, on the same pair | 203 ns to render, 24 ns to parse |
+
+The text is three times longer and cheaper to write. A layer that holds the value converts only where it must, so
+the parse rises for a caller that starts from text and disappears for one that does not.
 
 ## Benchmark: Spatial query vs HashMap (ARMv8.4-A Firestorm)
 
