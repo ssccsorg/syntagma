@@ -62,4 +62,13 @@ fn the_digits_are_derived_without_the_heap() {
         "digits_be allocated on the refusal path as well"
     );
     assert!(refused.is_none(), "a two-byte value does not fit one digit");
+
+    // The counter is the instrument, so it is checked with an allocation that is
+    // meant to be counted. Without this a build where the hook stopped being
+    // applied would pass every measurement above.
+    let before = ALLOCATIONS.load(Ordering::Relaxed);
+    let probe = std::hint::black_box(std::vec::Vec::<u8>::with_capacity(1));
+    let after = ALLOCATIONS.load(Ordering::Relaxed);
+    assert!(after > before, "the counting allocator is not measuring");
+    drop(probe);
 }
