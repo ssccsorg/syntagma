@@ -17,7 +17,7 @@ use tagma_matrix::{requantize_into, Requant};
 const ACCUMULATORS: [i32; 16] = [
     i32::MIN,
     i32::MIN + 1,
-    -181_612_032,
+    -183_042_048,
     -1_000_000,
     -300,
     -3,
@@ -29,7 +29,7 @@ const ACCUMULATORS: [i32; 16] = [
     3,
     300,
     1_000_000,
-    181_612_032,
+    183_042_048,
     i32::MAX,
 ];
 
