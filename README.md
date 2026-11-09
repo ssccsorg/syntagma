@@ -30,7 +30,7 @@ synTagma (system)
 | Implementation | Location | Modules | Verification |
 |----------------|----------|---------|--------------|
 | Rust (reference) | `sw/rust` | core, base11172, geo, map, matrix, sec, benches, verify/linkcheck | 427 unit/integration tests, 27 doc-tests, 4 Kani harnesses over the rescale's domain and the wire reader, `./run.sh --check`, `./run.sh --proof` |
-| C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, bench | `ctest` 16 suites, `sw/cpp/run.sh` |
+| C++17 | `sw/cpp` | tagma_core, base11172, tagma_geo, tagma_map, tagma_sec, tagma_matrix, bench | `ctest` 24 suites, `sw/cpp/run.sh` |
 | Java 21 | `sw/java` | tagma-core, base11172, tagma-geo, tagma-sec, tagma-map, bench | 348 JUnit tests, `sw/java/run.sh` |
 | Verilog (hardware) | `hw` | decoder, compose, distance, segment store model, demo top | exhaustive simulation, golden anchors, gate-level simulation, and formal equivalence per unit; the placed-and-routed bitstream compared against the RTL over all 65,536 code points; `make -C hw check`; `hw` CI job |
 

@@ -11,7 +11,8 @@ use crate::requant::Requant;
 /// any order over the same logical elements.
 ///
 /// The accumulator cannot overflow at any addressable width. The largest term is
-/// `128 * 127`, and `128 * 127 * 11_172` is well below `i32::MAX`.
+/// `128 * 128`, the product of two minimum elements, and `128 * 128 * 11_172` is
+/// well below `i32::MAX`.
 pub fn gemv<const R: usize, const C: usize, O: Order, E: Elements<R, C, O>>(
     a: &E,
     x: &[i8; C],

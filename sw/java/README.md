@@ -149,5 +149,5 @@ test locks the wrapped value.
 
 ## Reference
 
-- C++ port: `sw/cpp` (`tagma_core`, `base11172`, `tagma_geo`, `tagma_map`, `tagma_sec`, `bench`)
-- Rust reference: `sw/rust` (`core`, `base11172`, `geo`, `map`, `sec`, `benches`)
+- C++ port: `sw/cpp` (`tagma_core`, `base11172`, `tagma_geo`, `tagma_map`, `tagma_sec`, `tagma_matrix`, `bench`)
+- Rust reference: `sw/rust` (`core`, `base11172`, `geo`, `map`, `matrix`, `sec`, `benches`)
