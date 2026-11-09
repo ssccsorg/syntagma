@@ -549,8 +549,8 @@ The route-update workflow is a cost-transparent composition: 696.1 ns equals the
 - [Java port](sw/java/README.md) -- Java 21 mirror of core, base11172, geo, map, sec and the benchmark suite, with the porting differences and the byte-space domain contract
 - [Hardware verification](hw/README.md) -- RTL for the three primitive units, exhaustive verification (11,172 decoder vectors, golden anchors, gate-level netlists, formal equivalence), the placed-and-routed bitstream compared against the RTL, FPGA PnR, and the Sky130 standard cell report
 - [Rustdoc (tagma-core)](https://docs.ssccs.org/projects/syntagma/tagma/core/) -- Coord, CoordPath, CoordSpace, CoordSpaceN, CoordCube, DynCoordSpace
-- [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma/geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
-- [Rustdoc (tagma-map)](https://docs.ssccs.org/projects/syntagma/tagma/map/) -- CoordMap, CoordMap2, CoordMapN, DynCoordMap, CoordCubeMap, CoordKey
+- [Rustdoc (tagma-geo)](https://docs.ssccs.org/projects/syntagma/tagma-geo/) -- SpatialOps, DistanceMetrics, BoundingBoxIter, HammingFilter
+- [Rustdoc (tagma-map)](https://docs.ssccs.org/projects/syntagma/tagma-map/) -- CoordMap, CoordMap2, CoordMapN, DynCoordMap, CoordCubeMap, CoordKey
 - [Rustdoc (tagma-sec)](https://docs.ssccs.org/projects/syntagma/tagma/sec/) -- SecStack, Authority, Integrity, Audit, Channel
 
 ## License
