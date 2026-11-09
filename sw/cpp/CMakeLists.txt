@@ -22,6 +22,7 @@ add_subdirectory(base11172)
 add_subdirectory(tagma_geo)
 add_subdirectory(tagma_map)
 add_subdirectory(tagma_sec)
+add_subdirectory(tagma_matrix)
 
 # The benchmark suite uses CoordSpaceM (mmap); Unix only, mirroring the
 # Rust mmap feature gate.
