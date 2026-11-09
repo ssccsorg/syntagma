@@ -12,8 +12,9 @@ use crate::requant::Requant;
 /// the same product wherever their bytes sit.
 ///
 /// The accumulator cannot overflow at any addressable width. The largest term is
-/// `128 * 127` and a contraction is at most `Coord::N_VALID` terms long, so the
-/// largest magnitude is `128 * 127 * 11_172`, well below `i32::MAX`.
+/// `128 * 128`, the product of two minimum elements, and a contraction is at most
+/// `Coord::N_VALID` terms long, so the largest magnitude is
+/// `128 * 128 * 11_172`, well below `i32::MAX`.
 pub fn matmul<
     const R: usize,
     const K: usize,
