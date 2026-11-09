@@ -67,3 +67,9 @@ target_include_directories(test_matrix_wire PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(test_matrix_wire PRIVATE tagma_matrix tagma_core)
 target_compile_options(test_matrix_wire PRIVATE -Wall -Wextra)
 add_test(NAME matrix_wire_test COMMAND test_matrix_wire)
+
+add_executable(test_matrix_parity tests/test_parity.cpp)
+target_include_directories(test_matrix_parity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_matrix_parity PRIVATE tagma_matrix tagma_core)
+target_compile_options(test_matrix_parity PRIVATE -Wall -Wextra)
+add_test(NAME matrix_parity_test COMMAND test_matrix_parity)
