@@ -15,9 +15,9 @@
 #   led_err    -> A12, RGB LED, LVCMOS25
 #   led_swept  -> B11, RGB LED, LVCMOS25
 #
-# The RGB balls are the set the vendor README gives, {A11, A12, B11}, with the
-# functions assigned so the three observations are distinguishable by position.
-# Bank 1 also runs at 2.5 V, so all three carry LVCMOS25.
+# A11 is green, A12 is blue and B11 is red, per the schematic, and the signals
+# are named by function so the observations are distinguishable by position
+# rather than by colour. Bank 1 runs at 2.5 V, so all three carry LVCMOS25.
 
 LOCATE COMP "clk" SITE "P6";
 IOBUF PORT "clk" IO_TYPE=LVCMOS33;

@@ -14,23 +14,25 @@
 # wuxx/icesugar-pro (src/blink/blink.lpf).
 #
 #   clk    -> P6,  25 MHz crystal, LVCMOS33
-#   led_r  -> A11, RGB LED, LVCMOS25
-#   led_g  -> A12, RGB LED, LVCMOS25
-#   led_b  -> B11, RGB LED, LVCMOS25
+#   led_b  -> A12, RGB LED blue,   LVCMOS25
+#   led_r  -> B11, RGB LED red,    LVCMOS25
+#   led_g  -> A11, RGB LED green,  LVCMOS25
 #
-# The vendor README gives the RGB balls as the set {A11, A12, B11} without a
-# colour per ball, and the bench observation with only A12 driven reported
-# blue, so the suffixes here are names rather than measured colours.
+# The colours come from schematic/iCESugar-Pro-v1.3.pdf in wuxx/icesugar-pro,
+# where D301 carries the B pins to PT53B (ball A12), D302 the R pins to PT49A
+# (ball B11), and D303 the G pins to PT53A (ball A11). The vendor README gives
+# the balls as the set {A11, A12, B11} in an order that is not R, G, B, which
+# is what an earlier reading of that line assumed.
 
 LOCATE COMP "clk" SITE "P6";
 IOBUF PORT "clk" IO_TYPE=LVCMOS33;
 FREQUENCY PORT "clk" 25 MHZ;
 
-LOCATE COMP "led_r" SITE "A11";
+LOCATE COMP "led_r" SITE "B11";
 IOBUF PORT "led_r" IO_TYPE=LVCMOS25;
 
-LOCATE COMP "led_g" SITE "A12";
+LOCATE COMP "led_g" SITE "A11";
 IOBUF PORT "led_g" IO_TYPE=LVCMOS25;
 
-LOCATE COMP "led_b" SITE "B11";
+LOCATE COMP "led_b" SITE "A12";
 IOBUF PORT "led_b" IO_TYPE=LVCMOS25;

@@ -329,3 +329,19 @@ At 130 MHz `nextpnr-ecp5` reports `126.82 MHz (FAIL at 130.01 MHz)` and produces
 The last row is the reason the checksum exists. A timing report is a model of the silicon; a run at 130 MHz would have been the test of the model, and the tool refused the build before the board could disagree. A rate that closed in the report and failed on the die would show up as `pin_match` reading zero, which the negative control above establishes is a live signal.
 
 The board is left on the 40 MHz image, which is what `DESIGN=verify` builds by default.
+
+## The LED colours, settled from the schematic
+
+The colour per ball has been an open item since the bench reported blue on A12 while the constraint comment assumed green. The vendor repository carries `schematic/iCESugar-Pro-v1.3.pdf`, and its text settles it.
+
+| Ball | Package pin | Diode | Channel |
+|---|---|---|---|
+| A11 | PT53A | D303, `G-` `G+` | green |
+| A12 | PT53B | D301, `B-` `B+` | blue |
+| B11 | PT49A | D302, `R-` `R+` | red |
+
+The misreading came from the vendor README, which gives the balls as the set `{A11, A12, B11}`. That order reads like red, green, blue. It is not.
+
+Reading a schematic PDF as text needs a calibration before it can be trusted, because column order is not preserved. The `doc/LFE5U-25F-5BG256-Pinout.csv` table was checked against facts already established on the bench: F5, H5, J5 and N4 map to PL8D, PL17A, PL17D and PL38A, which is exactly the JTAG2 set that the debugger read and drove, and M10, T10, R11 and T11 map to the JTAG1 TDO, TCK, TDI and TMS pins that programmed the board all along. With the table calibrated, the diode rows in the schematic give the colours above.
+
+`bringup.lpf` now assigns `led_r` to B11, `led_g` to A11 and `led_b` to A12, which is what the port names always meant. The streaming designs keep naming their signals by function, because a colour mapping is board data and the logic should not depend on it. The demo's `led_valid` stays on A12 and its comment is now correct rather than assumed: A12 is the blue channel.

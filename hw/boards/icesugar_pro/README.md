@@ -56,7 +56,15 @@ a convenience, because the two label rows there are easy to swap.
 
 `led_valid` is on ball A12, one of the three RGB LED balls, and is active high, so validity is visible without any of the P2 wiring. The demo flow overrides the RTL's `LED_ACTIVE_LOW` to 0, which is what makes the LED light on a valid code.
 
-The vendor README gives the LED balls as the set {A11, A12, B11} without assigning a colour to each, and the bench observation with only A12 driven reported blue, while the pin comment in `tagma_demo.lpf` assumed green. Treat the suffixes there as names, not measured colours.
+The colours come from `schematic/iCESugar-Pro-v1.3.pdf` in the vendor repository, where three diodes carry the channel pins to three balls.
+
+| Ball | Package pin | Diode | Channel |
+|---|---|---|---|
+| A11 | PT53A | D303, `G-` `G+` | green |
+| A12 | PT53B | D301, `B-` `B+` | blue |
+| B11 | PT49A | D302, `R-` `R+` | red |
+
+The vendor README lists the same three balls as `{A11, A12, B11}`, an order that reads like red, green, blue and is not. The constraints use the schematic mapping, and the bench observation agrees with it: A12 is blue.
 
 ## Streaming indicators
 
