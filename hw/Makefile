@@ -25,6 +25,7 @@
 #   make sim-demo       # demo top over all 65,536 code points (formula mode)
 #   make pnr            # place and route for BOARD, default upduino31
 #   make pnr BOARD=icesugar_pro   # place and route the ECP5 bring-up design
+#   make pnr BOARD=icesugar_pro DESIGN=tagma_demo   # place and route the demo
 #   make sim-pnr        # demo top against the placed-and-routed bitstream
 #   make golden-export  # regenerate golden anchors from tagma_core
 #   make golden-check   # Python consistency gate on the golden file
@@ -42,6 +43,8 @@ YOSYS ?= yosys
 # Hardware target for pnr. The constraint format and the whole toolchain differ
 # per board, so the flow is selected by name inside synth/yosys/run_pnr.sh.
 BOARD ?= upduino31
+# Design built for a board that carries more than one. The Upduino case ignores it.
+DESIGN ?= bringup
 
 RTL = rtl/tagma_decoder.v
 TB  = rtl/tagma_decoder_tb.v
@@ -176,7 +179,7 @@ sim-dist-golden: golden-export $(DIST_RTL) $(RTL) $(DIST_TB) | $(OBJ_DIR)
 	@cd rtl && ../$(OBJ_DIR)/tb_dist_golden
 
 pnr:
-	@bash synth/yosys/run_pnr.sh $(BOARD)
+	@bash synth/yosys/run_pnr.sh $(BOARD) $(DESIGN)
 
 sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_demo (formula mode) ---"

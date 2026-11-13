@@ -13,9 +13,10 @@
 # and timing report. The boards do not share a toolchain, so each case below is
 # a complete flow and neither branch reads the other board's constraints.
 #
-#   board          synthesis      place and route    packing
-#   upduino31      synth_ice40    nextpnr-ice40      icepack
-#   icesugar_pro   synth_ecp5     nextpnr-ecp5       ecppack
+#   board          design        synthesis      place and route    packing
+#   upduino31      tagma_demo    synth_ice40    nextpnr-ice40      icepack
+#   icesugar_pro   bringup       synth_ecp5     nextpnr-ecp5       ecppack
+#   icesugar_pro   tagma_demo    synth_ecp5     nextpnr-ecp5       ecppack
 #
 # nextpnr-ecp5 is not packaged by Homebrew. Put OSS CAD Suite on PATH before
 # running the icesugar_pro case.
@@ -28,12 +29,13 @@
 #         $(brew --prefix)/share/icebox
 #
 # Usage:
-#   ./run_pnr.sh [upduino31|icesugar_pro]
+#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo]
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
 BOARD="${1:-upduino31}"
+DESIGN="${2:-bringup}"
 BOARDS="../../boards"
 
 mkdir -p reports out
@@ -66,25 +68,41 @@ upduino31)
     ;;
 
 icesugar_pro)
+    case "$DESIGN" in
+    bringup)
+        SRC="$BOARDS/icesugar_pro/bringup.v"
+        TOP=bringup
+        LPF="$BOARDS/icesugar_pro/bringup.lpf"
+        ;;
+    tagma_demo)
+        SRC="../../rtl/tagma_decoder.v ../../rtl/tagma_demo_top.v"
+        TOP=tagma_demo_top
+        LPF="$BOARDS/icesugar_pro/tagma_demo.lpf"
+        ;;
+    *)
+        echo "unknown design for $BOARD: $DESIGN (expected bringup or tagma_demo)" >&2
+        exit 1
+        ;;
+    esac
+
     # No ECP5 equivalent of icebox_vlog exists, so this flow ends at the
     # bitstream and the nextpnr timing summary.
-    echo "--- yosys: bring-up synthesis (ECP5) ---"
-    yosys -q -p "read_verilog -sv $BOARDS/icesugar_pro/bringup.v; \
-        synth_ecp5 -top bringup -json out/bringup.json"
+    echo "--- yosys: $DESIGN synthesis (ECP5) ---"
+    yosys -q -p "read_verilog -sv $SRC; synth_ecp5 -top $TOP -json out/$TOP.json"
 
     echo "--- nextpnr-ecp5: place and route ---"
     nextpnr-ecp5 --25k --package CABGA256 --speed 6 \
-        --json out/bringup.json \
-        --lpf "$BOARDS/icesugar_pro/bringup.lpf" \
-        --textcfg out/bringup.config \
-        --freq 25 2>&1 | tee reports/pnr_icesugar_pro.log | tail -20
+        --json "out/$TOP.json" \
+        --lpf "$LPF" \
+        --textcfg "out/$TOP.config" \
+        --freq 25 2>&1 | tee "reports/pnr_${BOARD}_${DESIGN}.log" | tail -20
 
     echo "--- ecppack: bitstream ---"
-    ecppack out/bringup.config out/bringup.bit
+    ecppack "out/$TOP.config" "out/$TOP.bit"
 
-    echo "bitstream: out/bringup.bit"
-    echo "config:    out/bringup.config"
-    echo "timing:    reports/pnr_icesugar_pro.log"
+    echo "bitstream: out/$TOP.bit"
+    echo "config:    out/$TOP.config"
+    echo "timing:    reports/pnr_${BOARD}_${DESIGN}.log"
     ;;
 
 *)
