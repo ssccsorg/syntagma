@@ -23,7 +23,7 @@ The beat edges give the clock directly. The sweep edges give the sweep rate,
 which fixes the clock a second way because a sweep is 11,172 clocks.
 
 Usage:
-    ecp5_pin_verify.py [--icesprog PATH] [--seconds 4] [--clock 40]
+    ecp5_pin_verify.py [--icesprog PATH] [--seconds 6] [--clock 40]
 """
 
 import argparse

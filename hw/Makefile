@@ -218,7 +218,7 @@ pnr:
 # Needs a programmed verify image and the icesprog built from the icesugar
 # repository; neither is a build dependency, so this target is not in check.
 board-verify:
-	@python3 tools/ecp5_pin_verify.py --icesprog $(ICESPROG) $(BOARD_VERIFY_ARGS)
+	@python3 tools/ecp5_pin_verify.py --icesprog $(ICESPROG) $(if $(VERIFY_MHZ),--clock $(VERIFY_MHZ)) $(BOARD_VERIFY_ARGS)
 
 sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_demo (formula mode) ---"
@@ -310,4 +310,4 @@ coverage: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-d
 	@echo "coverage: the demo top and the placed-and-routed bitstream agree over all 65,536 code points"
 
 clean:
-	rm -rf $(OBJ_DIR) synth/yosys/out synth/yosys/reports $(GOLDEN) rtl/trace.vcd
+	rm -rf $(OBJ_DIR) synth/yosys/out synth/yosys/reports $(GOLDEN) rtl/trace.vcd rtl/trace_demo.vcd

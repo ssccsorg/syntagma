@@ -73,6 +73,14 @@ sw/java/**/target/
 sw/java/bench/result/
 
 # ============================================================
+# Hardware build products
+# ============================================================
+# The activity traces are written by `make sim-trace` and `make sim-trace-demo`
+# and read by the ORFS power hook, which regenerates either one when it is
+# missing. They are 13 MB a run, so they are a build product and not a source.
+hw/rtl/*.vcd
+
+# ============================================================
 # C2PA
 # ============================================================
 **/*.c2pa
