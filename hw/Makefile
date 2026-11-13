@@ -23,7 +23,8 @@
 #   make sim-dist       # distance over 2 x 11,172 pairs (formula mode)
 #   make sim-dist-golden     # distance against the golden anchors
 #   make sim-demo       # demo top over all 65,536 code points (formula mode)
-#   make pnr            # place and route the demo, recover the bitstream logic
+#   make pnr            # place and route for BOARD, default upduino31
+#   make pnr BOARD=icesugar_pro   # place and route the ECP5 bring-up design
 #   make sim-pnr        # demo top against the placed-and-routed bitstream
 #   make golden-export  # regenerate golden anchors from tagma_core
 #   make golden-check   # Python consistency gate on the golden file
@@ -37,6 +38,10 @@
 
 SIM   ?= verilator
 YOSYS ?= yosys
+
+# Hardware target for pnr. The constraint format and the whole toolchain differ
+# per board, so the flow is selected by name inside synth/yosys/run_pnr.sh.
+BOARD ?= upduino31
 
 RTL = rtl/tagma_decoder.v
 TB  = rtl/tagma_decoder_tb.v
@@ -171,8 +176,7 @@ sim-dist-golden: golden-export $(DIST_RTL) $(RTL) $(DIST_TB) | $(OBJ_DIR)
 	@cd rtl && ../$(OBJ_DIR)/tb_dist_golden
 
 pnr:
-	@echo "--- place and route: iCE40 UP5K demo, bitstream and recovered logic ---"
-	@bash synth/yosys/run_pnr.sh
+	@bash synth/yosys/run_pnr.sh $(BOARD)
 
 sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_demo (formula mode) ---"
@@ -184,7 +188,10 @@ sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@rm -f $(OBJ_DIR)/build_tb_demo.err
 	@./$(OBJ_DIR)/tb_demo
 
-sim-pnr: pnr $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+# The recovered netlist comes from icebox_vlog, so this channel is the iCE40
+# board and builds it explicitly regardless of BOARD.
+sim-pnr: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+	@$(MAKE) --no-print-directory pnr BOARD=upduino31
 	@echo "--- verilator: tb_demo (placed-and-routed bitstream) ---"
 	@$(VERILATE_DEMO) -DASC_CHECK $(ASC_LINT) $(ASC) $(DEMO_TB) $(DEMO_RTL) $(RTL) -o tb_demo_asc \
 		> $(OBJ_DIR)/build_tb_demo_asc.log 2> $(OBJ_DIR)/build_tb_demo_asc.err \

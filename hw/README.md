@@ -21,6 +21,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `rtl/tagma_demo_top_tb.v` demo top, axes on the 11,172 valid syllables and the validity LED on all 65,536 code points | Implemented, passing |
 | Bitstream channel: the placed-and-routed design recovered with `icebox_vlog` and compared against the RTL over all 65,536 code points (`make sim-pnr`) | Implemented, passing |
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
+| iCESugar-Pro v1.3 (ECP5) bring-up bitstream | Implemented, programs over the module iCELink, 344 MHz Fmax |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
 | Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json`, write-up in `docs/devlogs/hw/` |
@@ -33,11 +34,33 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 
 ## Layout
 
+- `boards/` per-board constraints, one directory per physical board
 - `rtl/` Verilog sources and testbenches
 - `synth/yosys/` Yosys synthesis scripts, the PnR flow, and the committed reports
 - `openroad/` OpenROAD standard cell flow (Sky130)
 - `openram/` OpenRAM configuration for the chton segment store
 - `tools/` golden anchor consistency gate
+
+## Boards
+
+Each physical board owns one directory under `boards/`, and `make pnr BOARD=<board>` selects both its constraints and its toolchain. The two boards share the RTL and nothing else.
+
+| Board | Device | Constraints | Clock | Flow |
+|---|---|---|---|---|
+| `upduino31` | iCE40UP5K-SG48 | `boards/upduino31/tagma_demo.pcf` | 12 MHz | `synth_ice40`, `nextpnr-ice40`, `icepack` |
+| `icesugar_pro` | ECP5 LFE5U-25F-6BG256C | `boards/icesugar_pro/bringup.lpf` | 25 MHz | `synth_ecp5`, `nextpnr-ecp5`, `ecppack` |
+
+`nextpnr-ecp5` is not packaged by Homebrew, so the Pro flow needs OSS CAD Suite on `PATH`; `ecppack` comes from `prjtrellis`.
+
+The Pro carries two debuggers when it sits in its Ext-Board: the module's iCELink and the Ext-Board's own DAPLink. Only the module's iCELink reaches the ECP5. It enumerates as `0x1d50:0x602b` with a volume named `iCELink`; the Ext-Board DAPLink enumerates as `0x0d28:0x0204` with `DAPLINK`, and its JTAG scan returns all ones. Programming writes the bitstream to flash:
+
+```sh
+icesprog -w hw/synth/yosys/out/bringup.bit
+```
+
+`icesprog` is built from `tools/src` in the icesugar repository. The SRAM path through the shipped `blink_sram.svf` fails its final status check on this board, so flash is the programming route.
+
+The tagma demo is not ported to the Pro: its 16 switch inputs and 15 LED outputs need the Ext-Board header map, and the Pro alone exposes only the RGB LED.
 
 ## Development plan
 
@@ -62,13 +85,13 @@ The synthesized netlist is verified on top of the RTL checks, for each of the th
 
 ### Bitstream verification
 
-Formal equivalence proves the RTL against the technology-mapped netlist, which is the stage before packing. `nextpnr-ice40` then packs the logic into LUTs, places them, and routes them, and no gate covers that. `synth/yosys/run_pnr.sh` recovers the placed-and-routed logic with `icebox_vlog -c -p upduino31_demo.pcf`, which reads the `.asc` back into Verilog and names the ports from the constraints file, and `make sim-pnr` instantiates the RTL and the recovered netlist together and compares every output over all 65,536 code points. The recovered file is generated, never committed.
+Formal equivalence proves the RTL against the technology-mapped netlist, which is the stage before packing. `nextpnr-ice40` then packs the logic into LUTs, places them, and routes them, and no gate covers that. `synth/yosys/run_pnr.sh` recovers the placed-and-routed logic with `icebox_vlog -c -p boards/upduino31/tagma_demo.pcf`, which reads the `.asc` back into Verilog and names the ports from the constraints file, and `make sim-pnr` instantiates the RTL and the recovered netlist together and compares every output over all 65,536 code points. The recovered file is generated, never committed.
 
 The channel is logic-level. It carries no delays, so timing stays with `icetime`, and no electrical behavior, so power stays with the OpenROAD flow. It proves the bitstream implements the RTL, and the RTL is proven separately, by the decoder testbench over 11,172 points and by formal equivalence over all 2^16 inputs. It does not prove the device runs.
 
 ### Phase 3: FPGA board demo
 
-The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`synth/yosys/upduino31_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. Remaining: physical board bring-up and demo video.
+The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`boards/upduino31/tagma_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. Remaining: physical board bring-up and demo video.
 
 ### Phase 4: chton SRAM and standard cell report
 

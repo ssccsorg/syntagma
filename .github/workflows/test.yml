@@ -12,7 +12,7 @@ on:
       - "hw/synth/yosys/*.ys"
       - "hw/synth/yosys/run.sh"
       - "hw/synth/yosys/run_pnr.sh"
-      - "hw/synth/yosys/upduino31_demo.pcf"
+      - "hw/boards/**"
       - "hw/openroad/**"
       - "hw/Makefile"
       - "hw/Dockerfile"
@@ -56,7 +56,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/openroad/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
@@ -157,7 +157,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/openroad/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
@@ -189,7 +189,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/openroad/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
@@ -265,7 +265,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
               - 'run.sh'

@@ -19,7 +19,7 @@
 //
 // The onboard LED is negative logic (write 0 to light), so led_valid
 // carries the inverted validity signal. Pin mapping:
-// hw/synth/yosys/upduino31_demo.pcf
+// hw/boards/upduino31/tagma_demo.pcf
 
 module tagma_demo_top (
     input  wire        clk,
