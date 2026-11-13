@@ -8,6 +8,8 @@ This directory owns the constraints for that board only.
 ```sh
 make -C hw pnr BOARD=icesugar_pro              # bring-up design, RGB LED only
 make -C hw pnr BOARD=icesugar_pro DESIGN=tagma_demo   # the demo
+make -C hw pnr BOARD=icesugar_pro DESIGN=stream       # pipelined decoder, timing only
+make -C hw pnr BOARD=icesugar_pro DESIGN=stream_check # pipelined decoder, checked on the board
 ```
 
 `nextpnr-ecp5` is not packaged by Homebrew. Put OSS CAD Suite on `PATH`; `ecppack`
@@ -52,9 +54,23 @@ a convenience, because the two label rows there are easy to swap.
 | row 1 | F2 i[0] | D1 i[1] | C1 i[2] | B1 i[3] | GND | 3V3 | B3 m[2] | GND | B4 m[3] | B5 m[4] | B6 f[0] | B7 f[1] | B8 f[4] | GND | 3V3 |
 | row 2 | E1 i[4] | C2 m[0] | B2 m[1] | A2 f[2] | GND | 3V3 | A3 f[3] | 5V | A4 | A5 | A6 | A7 | A8 | GND | 3V3 |
 
-`led_valid` is the module's RGB LED blue channel on A12, active high, so validity
-is visible without any of the P2 wiring. The demo flow overrides the RTL's
-`LED_ACTIVE_LOW` to 0, which is what makes the LED light on a valid code.
+`led_valid` is on ball A12, one of the three RGB LED balls, and is active high, so validity is visible without any of the P2 wiring. The demo flow overrides the RTL's `LED_ACTIVE_LOW` to 0, which is what makes the LED light on a valid code.
+
+The vendor README gives the LED balls as the set {A11, A12, B11} without assigning a colour to each, and the bench observation with only A12 driven reported blue, while the pin comment in `tagma_demo.lpf` assumed green. Treat the suffixes there as names, not measured colours.
+
+## Streaming indicators
+
+`DESIGN=stream_check` needs no external wiring. Its source is an internal counter, and it compares the pipelined decoder against the combinational one on every clock from a 40 MHz PLL output. A mismatch latches.
+
+| Signal | Ball | Meaning |
+|---|---|---|
+| `led_clk` | A11 | blinks at 2.4 Hz while the fast clock runs |
+| `led_err` | A12 | lights and latches on any mismatch |
+| `led_swept` | B11 | lights once 2^28 clocks have been compared |
+
+The third indication is a rate reading, because the comparison saturates and never clears. 2^28 clocks is 6.71 s at 40 MHz and 10.74 s at 25 MHz, so the interval from configuration to that ball lighting separates the two clocks with a stopwatch. A pass is a blinking A11, a dark A12, and a lit B11.
+
+`DESIGN=stream` runs the pipeline from the board oscillator and reports the register-to-register clock without driving the LEDs, so it is a timing build rather than a bench build.
 
 Bank 1 holds the RGB LED and runs at 2.5V, which is why `B8` and `A12` are
 `LVCMOS25`. Everything else is `LVCMOS33`. The `code` inputs are pulled up, so
