@@ -1,6 +1,6 @@
 # iCESugar-Pro bring-up: a second board, two debuggers, and the demo on ECP5
 
-Status report for issues #75 and #76 on branches `75-board-split-and-ecp5` and `76-tagma-demo-icesugar-pro`. This entry records the board arrival, the diagnosis that was wrong before it was right, the board split, and what the demo does on an ECP5 today.
+Status report for issue #75 on branch `75-icesugar-pro`. The board split and the demo port landed under #75 and #76, and the two were folded into one issue and one branch once the work turned out to be a single subject. This entry records the board arrival, the diagnosis that was wrong before it was right, the board split, and what the demo does on an ECP5 today.
 
 ## Purpose
 
