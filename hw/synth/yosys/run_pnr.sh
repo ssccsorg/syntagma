@@ -40,6 +40,7 @@ cd "$(dirname "$0")"
 BOARD="${1:-upduino31}"
 DESIGN="${2:-bringup}"
 NAME=""
+REPORT="${DESIGN}"
 BOARDS="../../boards"
 
 mkdir -p reports out
@@ -118,6 +119,7 @@ icesugar_pro)
         CHECKSUM=$(python3 ../../tools/tagma_checksum.py ../../rtl/golden_anchors.hex)
         PARAMS="chparam -set EXPECTED 32'h$CHECKSUM $TOP"
         NAME="${TOP}_${MHZ}mhz"
+        REPORT="verify_${MHZ}mhz"
         ;;
     *)
         echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check or verify)" >&2
@@ -144,14 +146,14 @@ icesugar_pro)
         --json "out/$NAME.json" \
         --lpf "$LPF" \
         --textcfg "out/$NAME.config" \
-        --freq 25 2>&1 | tee "reports/pnr_${BOARD}_${DESIGN}.log" | tail -20
+        --freq 25 2>&1 | tee "reports/pnr_${BOARD}_${REPORT}.log" | tail -20
 
     echo "--- ecppack: bitstream ---"
     ecppack "out/$NAME.config" "out/$NAME.bit"
 
     echo "bitstream: out/$NAME.bit"
     echo "config:    out/$NAME.config"
-    echo "timing:    reports/pnr_${BOARD}_${DESIGN}.log"
+    echo "timing:    reports/pnr_${BOARD}_${REPORT}.log"
     ;;
 
 *)

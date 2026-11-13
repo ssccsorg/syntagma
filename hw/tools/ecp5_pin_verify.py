@@ -100,7 +100,7 @@ def period_seconds(edges: list[float]) -> float | None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--icesprog", default="icesprog")
-    parser.add_argument("--seconds", type=float, default=4.0)
+    parser.add_argument("--seconds", type=float, default=6.0)
     parser.add_argument("--clock", type=float, default=40.0, help="expected MHz")
     parser.add_argument("--tolerance", type=float, default=0.05)
     args = parser.parse_args()
