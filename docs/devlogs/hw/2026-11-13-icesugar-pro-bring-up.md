@@ -330,6 +330,44 @@ The last row is the reason the checksum exists. A timing report is a model of th
 
 The board is left on the 40 MHz image, which is what `DESIGN=verify` builds by default.
 
+## A fourth stage for the offset
+
+At three stages the critical path was stage 1: the counter into the offset subtract, into the multiply by 9363, into `j_q`, at 7.82 ns. The subtract was 1.18 ns of that (0.94 ns of routing into a 0.24 ns LUT), so it was cheaper to register than to keep.
+
+| Stage | Work |
+|---|---|
+| 0 | `offset = code - 0xAC00` |
+| 1 | `j = (q4 * 9363) >> 16` |
+| 2 | `i = (j * 781) >> 14` |
+| 3 | `m = j - 21 * i`, `f = offset - 28 * j` |
+
+| Metric | Three stages | Four stages |
+|---|---|---|
+| Pipeline Fmax | 126.82 MHz | 148.77 MHz |
+| MULT18X18D | 2 | 2 |
+| TRELLIS_FF | 58 | 72 |
+| TRELLIS_COMB | 51 | 51 |
+| Latency | 3 clocks | 4 clocks |
+| Verified on the device | 125 MHz | 140 MHz |
+
+The three-stage estimate of about 154 MHz was close. Every further stage would now divide a multiplier, which no register can shorten, so this is the end of the useful splitting.
+
+The fourth stage costs one clock of latency, which a streaming decoder does not care about: the code points still leave at one per clock, and the answer for a given code point arrives one clock later.
+
+## Re-bracketing the device
+
+The verify image now carries the four-stage pipeline, and its own ceiling is lower than the pipeline's because the checksum accumulator sits in a register-to-register path of its own.
+
+| Build | Timing | `pin_match` | Measured clock |
+|---|---|---|---|
+| 40 MHz | PASS | 1 | 40.00 MHz, 40.06 MHz |
+| 140 MHz | PASS | 1 | 139.90 MHz, 139.99 MHz |
+| 150 MHz | rejected, `145.99 MHz (FAIL at 150.01)` | not built | not run |
+
+So the fastest verified point is 140 million code points per second, and the image refuses to build above 145.99 MHz. The pipeline alone reports 148.77 MHz; the difference is the accumulator, not the decoder.
+
+The board is left on the 40 MHz image.
+
 ## The LED colours, settled from the schematic
 
 The colour per ball has been an open item since the bench reported blue on A12 while the constraint comment assumed green. The vendor repository carries `schematic/iCESugar-Pro-v1.3.pdf`, and its text settles it.

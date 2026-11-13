@@ -66,14 +66,15 @@ module tagma_pipe_verify_top #(
         .f(pf)
     );
 
-    // The pipeline reports a code three clocks after it was presented, so the
+    // The pipeline reports a code four clocks after it was presented, so the
     // window logic runs on a copy of the code delayed by that much.
-    reg [15:0] cd1, cd2, cd3;
+    reg [15:0] cd1, cd2, cd3, cd4;
 
     always @(posedge clk) begin
         cd1 <= code;
         cd2 <= cd1;
         cd3 <= cd2;
+        cd4 <= cd3;
     end
 
     // pack = (i << 10) | (m << 5) | f, the same packing the anchors use.
@@ -90,12 +91,12 @@ module tagma_pipe_verify_top #(
     always @(posedge clk) begin
         heart <= heart + 25'd1;
 
-        if (cd3 == 16'hD7A3) begin
+        if (cd4 == 16'hD7A3) begin
             // acc_next includes the last code point, so this is the whole sweep.
             matched <= (acc_next == EXPECTED);
             acc     <= 32'd0;
             sweeps  <= sweeps + 14'd1;
-        end else if (cd3 >= 16'hAC00) begin
+        end else if (cd4 >= 16'hAC00) begin
             acc <= acc_next;
         end
     end

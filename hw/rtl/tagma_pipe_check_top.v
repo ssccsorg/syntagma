@@ -68,10 +68,11 @@ module tagma_pipe_check_top (
         .f(pf)
     );
 
-    // The reference catches up with the pipeline's three-stage latency.
+    // The reference catches up with the pipeline's four-stage latency.
     reg [4:0] d1i, d1m, d1f;
     reg [4:0] d2i, d2m, d2f;
     reg [4:0] d3i, d3m, d3f;
+    reg [4:0] d4i, d4m, d4f;
 
     always @(posedge clk_fast) begin
         d1i <= ri;
@@ -83,12 +84,15 @@ module tagma_pipe_check_top (
         d3i <= d2i;
         d3m <= d2m;
         d3f <= d2f;
+        d4i <= d3i;
+        d4m <= d3m;
+        d4f <= d3f;
     end
 
     reg err = 1'b0;
 
     always @(posedge clk_fast)
-        if ({pi, pm, pf} !== {d3i, d3m, d3f})
+        if ({pi, pm, pf} !== {d4i, d4m, d4f})
             err <= 1'b1;
 
     // Saturating count, so the elapsed time to led_swept is a rate reading.
