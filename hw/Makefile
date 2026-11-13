@@ -27,6 +27,8 @@
 #   make pnr            # place and route for BOARD, default upduino31
 #   make pnr BOARD=icesugar_pro   # place and route the ECP5 bring-up design
 #   make pnr BOARD=icesugar_pro DESIGN=tagma_demo   # place and route the demo
+#   make pnr BOARD=icesugar_pro DESIGN=verify   # on-device checksum image
+#   make board-verify   # read the verdict off the board through the debugger
 #   make sim-pnr        # demo top against the placed-and-routed bitstream
 #   make golden-export  # regenerate golden anchors from tagma_core
 #   make golden-check   # Python consistency gate on the golden file
@@ -46,6 +48,11 @@ YOSYS ?= yosys
 BOARD ?= upduino31
 # Design built for a board that carries more than one. The Upduino case ignores it.
 DESIGN ?= bringup
+
+# The board verification reads pins through the iCELink, so it takes the
+# icesprog built from the icesugar repository rather than a vendored copy.
+ICESPROG ?= icesprog
+BOARD_VERIFY_ARGS ?=
 
 RTL = rtl/tagma_decoder.v
 TB  = rtl/tagma_decoder_tb.v
@@ -99,7 +106,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-pipe sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
 
 all: check
 
@@ -195,6 +202,11 @@ sim-dist-golden: golden-export $(DIST_RTL) $(RTL) $(DIST_TB) | $(OBJ_DIR)
 
 pnr:
 	@bash synth/yosys/run_pnr.sh $(BOARD) $(DESIGN)
+
+# Needs a programmed verify image and the icesprog built from the icesugar
+# repository; neither is a build dependency, so this target is not in check.
+board-verify:
+	@python3 tools/ecp5_pin_verify.py --icesprog $(ICESPROG) $(BOARD_VERIFY_ARGS)
 
 sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_demo (formula mode) ---"

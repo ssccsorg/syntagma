@@ -98,3 +98,24 @@ After that, wire the 16 switches on P3 and the 15 axis LEDs on P2 as tabulated
 above, and any code in the range can be dialled in. Bit 14 on P2 is also the bit
 that decides the single-wire result, so a misread row between the two headers
 of P3 shows up as an LED that stays dark for every switch setting.
+
+## Verification channel
+
+The iCELink carries four pins to four ECP5 balls, which the vendor calls JTAG2, and `icesprog` reaches them as GPIO. That is enough to read a verdict off the board over the programming cable, with no external wiring.
+
+| ECP5 ball | iCELink pin | Host reads | Host drives |
+|---|---|---|---|
+| F5 | PA14 | yes | yes |
+| H5 | PA13 | yes | no, the firmware keeps it |
+| N4 | PA0 | yes | yes |
+| J5 | PA1 | yes | yes |
+
+`DESIGN=verify` builds `tagma_pipe_verify_top`, which accumulates a checksum over one sweep of the valid range and compares it with a constant derived from `hw/rtl/golden_anchors.hex`. The clock and the sweep counters leave the die as two divided clocks.
+
+```sh
+make -C hw pnr BOARD=icesugar_pro DESIGN=verify
+icesprog -w hw/synth/yosys/out/tagma_pipe_verify_top.bit
+make -C hw board-verify ICESPROG=/path/to/icesprog
+```
+
+The first line needs OSS CAD Suite on `PATH` and the second needs `PROGRAMN` pulsed on `PB7` to reload. The third reports `pin_match` and the frequency of both dividers, and exits non-zero on a mismatch.

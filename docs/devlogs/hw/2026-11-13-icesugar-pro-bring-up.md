@@ -241,3 +241,68 @@ Bit 14 is the only single ground that produces a valid code, which is why the ch
 ## The demo re-measured after the polarity fix
 
 The recorded demo figures were 50 `TRELLIS_COMB` and a 22.85 ns worst path. A fresh run of the same flow reports 49 and 22.28 ns, and it reproduces. The cause is the polarity change: `LED_ACTIVE_LOW = 0` turns `led_valid = ~valid` into `led_valid = valid` and the inverter disappears. The earlier figures predate that commit, so this is a correction rather than a regression, and the current build is what the documents now state.
+
+## A verification channel that needs no hands
+
+Everything so far that needed a person was gated on someone looking at an LED. The iCELink turns out to be enough on its own: four of its pins are wired to four ECP5 balls, which is what the vendor calls JTAG2, and `icesprog` can drive and read them as plain GPIO.
+
+| ECP5 ball | iCELink pin | Host can read | Host can drive |
+|---|---|---|---|
+| F5 | PA14 | yes | yes |
+| H5 | PA13 | yes | no, the firmware keeps it |
+| N4 | PA0 | yes | yes |
+| J5 | PA1 | yes | yes |
+
+Reads and writes for F5 and N4 were checked with a four-line design that drove constants and echoed a host-driven pin; PA13 reads but does not take a write. One input pin is enough here, because the expected value can be a build constant rather than something the host sends.
+
+## The checksum image
+
+`tagma_pipe_verify_top` sweeps the valid range, accumulates `(i << 10) | (m << 5) | f` over one full sweep, and compares the total against `EXPECTED`. The flow derives that constant from `hw/rtl/golden_anchors.hex`, which `tagma_core` writes, so the die is checked against the reference implementation and not against another copy of its own source. `hw/tools/tagma_checksum.py` prints it:
+
+```
+065BEA26
+# 11172 anchors from ../../rtl/golden_anchors.hex
+```
+
+The same sum computed from the decomposition formula gives the same value, so the packing in the tool and the packing in the RTL agree before either reaches the device. The default parameter is zero, and no sweep of the valid range has a zero checksum, so a build that forgets to pass the constant reads as a failure.
+
+Three outputs leave the die, at a 40 MHz PLL output with 126.82 MHz reported for the register-to-register path.
+
+| Signal | Ball | Meaning |
+|---|---|---|
+| `pin_match` | F5 | the sweep checksum equalled the expected constant |
+| `pin_beat` | H5 | `heart[24]`, one rising edge every 2^25 clocks |
+| `pin_sweep` | N4 | `sweeps[10]`, one rising edge every 2048 sweeps |
+
+`hw/tools/ecp5_pin_verify.py` reads the three pins, fits the edge times of both divided clocks, and prints a verdict. `make board-verify` runs it. One `icesprog` invocation is one USB round trip, about 16 ms, which is the resolution of every number below.
+
+Two runs of the final image:
+
+| Reading | Run 1 | Run 2 |
+|---|---|---|
+| `pin_match` | 1 | 1 |
+| beat period | 0.8386 s | 0.8375 s |
+| clock from beat | 40.01 MHz | 40.06 MHz |
+| sweep period | 0.5721 s | 0.5723 s |
+| clock from sweep | 39.99 MHz | 39.98 MHz |
+
+The two dividers are independent, one counting clocks and one counting sweeps of 11,172 clocks, and they agree to 0.1 percent. The clock the PLL was configured for is 40.00 MHz, so the measured rate confirms the multiplier rather than assuming it.
+
+## The check can fail
+
+An indicator that only ever shows one value proves nothing. The same flow was built with `EXPECTED = 32'h00000001`, programmed, and read:
+
+```
+wrong constant -> return 0
+right constant -> return 1
+```
+
+So `pin_match` responds to the constant, and the pass above is a comparison that ran, not a pin that is stuck high.
+
+## What the flash holds
+
+After the last write, 65,536 bytes read back from offset zero match the bitstream file, and the final 58,081 bytes of the image read back from offset 524,288 match as well. Bytes beyond the end of the image are not part of the configuration and are left from earlier writes.
+
+## What this does and does not prove
+
+It proves that the decoder on this die, at 40 MHz, produces the same 11,172 triples as `tagma_core`, and that the PLL output is 40 MHz as configured. It does not prove a frequency measurement above 40 MHz, because nothing here runs faster, and it does not exercise the external switch and LED path, which still needs wire.

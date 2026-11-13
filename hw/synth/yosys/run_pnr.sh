@@ -18,6 +18,7 @@
 #   icesugar_pro   bringup       synth_ecp5     nextpnr-ecp5       ecppack
 #   icesugar_pro   tagma_demo    synth_ecp5     nextpnr-ecp5       ecppack
 #   icesugar_pro   stream        synth_ecp5     nextpnr-ecp5       ecppack
+#   icesugar_pro   verify        synth_ecp5     nextpnr-ecp5       ecppack
 #   icesugar_pro   stream_check  synth_ecp5     nextpnr-ecp5       ecppack
 #
 # nextpnr-ecp5 is not packaged by Homebrew. Put OSS CAD Suite on PATH before
@@ -31,7 +32,7 @@
 #         $(brew --prefix)/share/icebox
 #
 # Usage:
-#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo|stream|stream_check]
+#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo|stream|stream_check|verify]
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -100,8 +101,17 @@ icesugar_pro)
         # board clock, and reports the three observations on the RGB balls.
         PARAMS=""
         ;;
+    verify)
+        SRC="../../rtl/tagma_decoder.v ../../rtl/tagma_decoder_pipe.v ../../rtl/tagma_pipe_pll.v ../../rtl/tagma_pipe_verify_top.v"
+        TOP=tagma_pipe_verify_top
+        LPF="$BOARDS/icesugar_pro/verify.lpf"
+        # The expected checksum is derived from the anchors tagma_core writes,
+        # so the die is checked against the reference rather than against itself.
+        CHECKSUM=$(python3 ../../tools/tagma_checksum.py ../../rtl/golden_anchors.hex)
+        PARAMS="chparam -set EXPECTED 32'h$CHECKSUM $TOP"
+        ;;
     *)
-        echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream or stream_check)" >&2
+        echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check or verify)" >&2
         exit 1
         ;;
     esac
