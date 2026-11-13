@@ -409,3 +409,47 @@ The first reading of these two numbers was that the verify image builds 2 MHz sl
 Both paths start at `off_d0`, pass through the multiply by 9363, and end at `j_d1`. The logic is identical at 4.45 ns and the difference is 0.13 ns of routing, which is where the placement happened to land. The accumulator is not on the critical path in either design.
 
 That closes the splitting question. What remains is 3.93 ns inside `MULT18X18D` plus the routing on both sides of it, and no register can divide that. Moving it would need one of two things, and neither is free. The DSP block has internal pipeline registers, which would mean instantiating an ECP5 primitive in RTL that also has to synthesise for the iCE40. Or the multiply becomes a shift-and-add tree, trading the multiplier for logic and a different critical path. Neither is worth doing for a decoder that already verifies at 140 MHz on this board.
+
+## What the measured record supports as a claim
+
+This section separates what the numbers establish from what they merely suggest. The measurements are in the sections above; the judgements are labelled as judgements.
+
+### Facts available to a pitch
+
+| Fact | Value | Where it comes from |
+|---|---|---|
+| Complete space | 11,172 points, 22 KB | the primitive's definition |
+| Decoder size, ECP5 | 49 TRELLIS_COMB, 16 TRELLIS_FF | the demo build |
+| Decoder size, iCE40 | 255 ICESTORM_LC of 5,280 | the Upduino build |
+| Streaming throughput, ECP5 | 148.77 MHz reported, 140 MHz verified on the device | the rate table |
+| Latency | 4 clocks, data independent | the pipeline |
+| Memory required to decode | none | no table, no cache |
+| Software lookup | 0.38 ns per access, whole space in L1 | the memory document |
+| Software tree fallback | 0.87 to 53 ns per access | the memory document |
+| Verification | 11,172 of 11,172 in three channels, formal equivalence over 2^16 inputs, on-device checksum against the Rust reference at five rates, with a negative control | this devlog |
+
+### What is genuinely defensible
+
+The verification story is the strongest asset, and it is unusual in kind rather than degree. Most digital IP is offered with coverage percentages and a test suite that samples the input space. This decoder is offered with a claim about the whole space: 11,172 of 11,172 points, three independent channels, and now the same space reproduced on the die against the reference implementation. A buyer who has read a UVM report can tell the difference.
+
+The second asset is size. A decoder that costs 49 combinational cells and 16 registers on a 25k-LUT device is not a block that needs a business case. It is a block that can be dropped into an existing design and forgotten. That is an easy yes for an integration engineer, and it is measured rather than estimated.
+
+The third is determinism. Four clocks, no memory, no data-dependent path. A system that has to bound its worst case can bound this block exactly, and the bound does not move with input distribution.
+
+### What the numbers do not support
+
+Any claim that the hardware is faster. At 140 MHz the device produces 7.14 ns per code point. The software reference does 0.38 ns per access with the whole space in L1. On the dense, single-lookup case the software wins by more than an order of magnitude, and that is measured, not argued.
+
+The honest window is narrower. The software falls back to a tree at 0.87 to 53 ns when the working set is not dense. The hardware sits at 7.14 ns with no dependence on density. So hardware wins where a stream is decoded from an unstructured source, and loses where the caller already has an array. That is a real window, and it is much smaller than "faster".
+
+### By audience
+
+For a user writing software, the appeal is not the encoding, since an integer index in 0..11171 would be simpler. It is the algebra on top: compose, decompose, and a per-axis distance that a plain index does not have. Any pitch that leads with the encoding loses the argument; the argument has to start at what the three axes let you do.
+
+For a developer integrating hardware, the appeal is the size, the fixed latency, and the fact that two boards are already supported with separate constraint sets behind one RTL source. What is missing is everything a block needs to be an IP product: a stream interface with backpressure, a register map, and a documented clock-domain story. What exists is RTL with an exhaustive testbench.
+
+For a customer, the appeal is the verification posture and the single source of truth that spans Rust and Verilog. What is missing is the number that the whole differentiation rests on. The energy argument is the one that justifies hardware at all, and it is currently an estimate with no measurement behind it. Running the existing OpenROAD flow over the existing VCD trace would convert the strongest claim from hypothesis to result, and it is the cheapest unused evidence in the project.
+
+### Judgement
+
+The engineering is in better shape than the story. There is a rare, defensible verification claim and a small, cheap block, and there is no evidence for the one property that would make a buyer choose it. If a single next action were chosen for commercial reasons rather than engineering ones, it would be the power measurement, not another pipeline stage.
