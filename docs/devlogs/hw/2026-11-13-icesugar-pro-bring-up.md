@@ -383,3 +383,11 @@ The misreading came from the vendor README, which gives the balls as the set `{A
 Reading a schematic PDF as text needs a calibration before it can be trusted, because column order is not preserved. The `doc/LFE5U-25F-5BG256-Pinout.csv` table was checked against facts already established on the bench: F5, H5, J5 and N4 map to PL8D, PL17A, PL17D and PL38A, which is exactly the JTAG2 set that the debugger read and drove, and M10, T10, R11 and T11 map to the JTAG1 TDO, TCK, TDI and TMS pins that programmed the board all along. With the table calibrated, the diode rows in the schematic give the colours above.
 
 `bringup.lpf` now assigns `led_r` to B11, `led_g` to A11 and `led_b` to A12, which is what the port names always meant. The streaming designs keep naming their signals by function, because a colour mapping is board data and the logic should not depend on it. The demo's `led_valid` stays on A12 and its comment is now correct rather than assumed: A12 is the blue channel.
+
+## Why two streaming tops are kept
+
+`tagma_pipe_check_top` reports on the RGB balls and `tagma_pipe_verify_top` reports to the host through the debugger. The second supersedes the first as evidence, since it compares against `tagma_core` rather than against a second copy of the same source.
+
+Both stay. The LED top needs no host tool, no `icesprog`, and no cable protocol, so it is the one that still answers when the toolchain is not installed and the one a person can glance at. The cost is a latency constant in two files, which is the duplication that already broke once: when the pipeline became four stages, the delay line in each top had to grow with it. That is cheap to get right and loud to get wrong, because a misaligned delay line makes every comparison fail rather than making one pass.
+
+The verify top keeps its verdict on a pin and leaves the LEDs alone, so the two designs do not share a resource and neither can mask the other.
