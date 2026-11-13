@@ -16,6 +16,7 @@
 # Usage:
 #   make sim            # exhaustive Verilator simulation (formula mode)
 #   make sim-golden     # Verilator simulation against golden anchors
+#   make sim-pipe       # pipelined decoder, one code point per clock
 #   make sim-trace      # golden simulation with VCD activity trace
 #   make sim-store      # segment store read/write over all 11,172 slots
 #   make sim-compose    # compose over all 32^3 axis combinations (formula mode)
@@ -77,6 +78,10 @@ VERILATE_COMPOSE = $(SIM) --binary --timing -Wall --top-module tagma_compose_tb
 VERILATE_DIST = $(SIM) --binary --timing -Wall --top-module tagma_dist_tb
 VERILATE_DEMO = $(SIM) --binary --timing -Wall --top-module tagma_demo_top_tb
 
+PIPE_RTL = rtl/tagma_decoder_pipe.v
+PIPE_TB  = rtl/tagma_decoder_pipe_tb.v
+VERILATE_PIPE = $(SIM) --binary --timing -Wall --top-module tagma_decoder_pipe_tb
+
 # The recovered netlist keeps no names for the logic it flattens into, so it
 # trips UNUSEDSIGNAL, and it carries no timescale, so it trips TIMESCALEMOD.
 # Both names exist in every Verilator the project has run, so naming them is
@@ -94,7 +99,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
 
 all: check
 
@@ -117,6 +122,16 @@ sim-golden: golden-export $(RTL) $(TB) | $(OBJ_DIR)
 	@tail -3 $(OBJ_DIR)/build_tb_golden.log
 	@rm -f $(OBJ_DIR)/build_tb_golden.err
 	@cd rtl && ../$(OBJ_DIR)/tb_golden
+
+sim-pipe: $(PIPE_RTL) $(PIPE_TB) $(RTL) | $(OBJ_DIR)
+	@echo "--- verilator: tb_pipe (streaming) ---"
+	@$(VERILATE_PIPE) $(PIPE_TB) $(PIPE_RTL) $(RTL) -o tb_pipe \
+		> $(OBJ_DIR)/build_tb_pipe.log 2> $(OBJ_DIR)/build_tb_pipe.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_pipe.log $(OBJ_DIR)/build_tb_pipe.err; exit 1; }
+	@if test -s $(OBJ_DIR)/build_tb_pipe.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_pipe.err; fi
+	@tail -3 $(OBJ_DIR)/build_tb_pipe.log
+	@rm -f $(OBJ_DIR)/build_tb_pipe.err
+	@./$(OBJ_DIR)/tb_pipe
 
 sim-trace: $(RTL) $(TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_trace (VCD activity trace) ---"
@@ -260,7 +275,7 @@ report: synth
 	@echo "=== iCE40 ==="
 	@cat synth/yosys/reports/ice40_stat.txt
 
-check: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
+check: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
 coverage: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv
 	@echo "coverage: 11,172 / 11,172 valid code points in 3 channels (formula, golden, netlist) + 2^16 inputs in formal equivalence"

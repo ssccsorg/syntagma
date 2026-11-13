@@ -17,6 +17,7 @@
 #   upduino31      tagma_demo    synth_ice40    nextpnr-ice40      icepack
 #   icesugar_pro   bringup       synth_ecp5     nextpnr-ecp5       ecppack
 #   icesugar_pro   tagma_demo    synth_ecp5     nextpnr-ecp5       ecppack
+#   icesugar_pro   stream        synth_ecp5     nextpnr-ecp5       ecppack
 #
 # nextpnr-ecp5 is not packaged by Homebrew. Put OSS CAD Suite on PATH before
 # running the icesugar_pro case.
@@ -29,7 +30,7 @@
 #         $(brew --prefix)/share/icebox
 #
 # Usage:
-#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo]
+#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo|stream]
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -82,8 +83,16 @@ icesugar_pro)
         # The RGB LED lights on a high level, unlike the Upduino's.
         PARAMS="chparam -set LED_ACTIVE_LOW 0 tagma_demo_top"
         ;;
+    stream)
+        SRC="../../rtl/tagma_decoder_pipe.v ../../rtl/tagma_pipe_top.v"
+        TOP=tagma_pipe_top
+        LPF="$BOARDS/icesugar_pro/stream.lpf"
+        # The code source is a counter, so the reported path is a register to
+        # register path through the decoder rather than a cross-domain one.
+        PARAMS=""
+        ;;
     *)
-        echo "unknown design for $BOARD: $DESIGN (expected bringup or tagma_demo)" >&2
+        echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo or stream)" >&2
         exit 1
         ;;
     esac
