@@ -76,6 +76,25 @@ Bank 1 holds the RGB LED and runs at 2.5V, which is why `B8` and `A12` are
 `LVCMOS25`. Everything else is `LVCMOS33`. The `code` inputs are pulled up, so
 an unwired P3 reads `0xFFFF`, which is invalid and leaves the LED dark.
 
-A one-wire check of the whole decode path: tie `code[14]` (ball `T2`, P3 row 1
-column 7) to a GND pin. That gives `0xBFFF`, which is inside U+AC00..U+D7A3, so
-the LED lights. Removing the wire returns to `0xFFFF` and the LED goes dark.
+## Demo verification order
+
+Bit 14 is the only single ground that yields a valid code. Pull-ups make an
+unwired header read `0xFFFF`; clearing bit 14 gives `0xBFFF`, while clearing any
+other single bit leaves a value outside U+AC00..U+D7A3. Bit 15 gives `0x7FFF`,
+bit 13 gives `0xDFFF`, and every lower bit gives a value still above `0xD7A3`.
+
+| Wires to GND | `code` | Decode | LED |
+|---|---|---|---|
+| none | `0xFFFF` | invalid | dark |
+| `code[14]`, ball P2, P3 row 2 column 9 | `0xBFFF` | i=8, m=14, f=23 | lit |
+| `code[14]` and `code[12]`, ball R3, P3 row 2 column 4 | `0xAFFF` | i=1, m=15, f=15 | lit |
+
+The first two rows need no axis LEDs, so they check the input path and the
+validity output before any output wiring exists. The third straps a second bit
+and moves all three axes, which is the first check that distinguishes decode
+values rather than only validity.
+
+After that, wire the 16 switches on P3 and the 15 axis LEDs on P2 as tabulated
+above, and any code in the range can be dialled in. Bit 14 on P2 is also the bit
+that decides the single-wire result, so a misread row between the two headers
+of P3 shows up as an LED that stays dark for every switch setting.

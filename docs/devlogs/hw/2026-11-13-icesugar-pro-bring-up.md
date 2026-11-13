@@ -221,3 +221,23 @@ The self-checking build picks up the three-stage pipeline and the deeper compara
 The binding path is now the combinational reference, which the split did not touch: 18.9 ns, or 52.82 MHz. The pipeline alone reaches 127.94 MHz, so the check stays at 40 MHz and the margin on the reference is about 32 percent. Running the check at the pipeline's own rate would need a second clock domain and a crossing between the reference and the pipeline, which is a different design from a comparison at one clock.
 
 Programmed and reloaded through `PROGRAMN` on `PB7` at 12:46:33. The indicators and the reading are the same as before: A11 blinks, A12 stays dark, B11 lights after 6.71 s.
+
+## The one-wire check named the wrong bit
+
+The wiring note said to tie `code[14]` at ball `T2`, P3 row 1 column 7. The table in the same file lists `T2` as `code[5]`, and `code[14]` as ball `P2` at P3 row 2 column 9. Ball and position agree with each other, so the slip is in the bit index: the two labels were read off different rows.
+
+The difference is not cosmetic. With pull-ups an unwired header reads `0xFFFF`, and clearing bit 5 gives `0xFFDF`, which is above `0xD7A3`, so the LED stays dark and the check appears to fail on working hardware.
+
+| Cleared bit | `code` | Valid |
+|---|---|---|
+| none | `0xFFFF` | no |
+| 15 | `0x7FFF` | no |
+| 14 | `0xBFFF` | yes |
+| 13 | `0xDFFF` | no |
+| 12 or below | above `0xF7FF` | no |
+
+Bit 14 is the only single ground that produces a valid code, which is why the check has to name it exactly. The board README now carries the corrected ball, a second strapping bit that moves all three axes, and the order in which to close the wiring: validity first with no output wiring at all, then the axis values.
+
+## The demo re-measured after the polarity fix
+
+The recorded demo figures were 50 `TRELLIS_COMB` and a 22.85 ns worst path. A fresh run of the same flow reports 49 and 22.28 ns, and it reproduces. The cause is the polarity change: `LED_ACTIVE_LOW = 0` turns `led_valid = ~valid` into `led_valid = valid` and the inverter disappears. The earlier figures predate that commit, so this is a correction rather than a regression, and the current build is what the documents now state.

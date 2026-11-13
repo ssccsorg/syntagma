@@ -22,7 +22,9 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | Bitstream channel: the placed-and-routed design recovered with `icebox_vlog` and compared against the RTL over all 65,536 code points (`make sim-pnr`) | Implemented, passing |
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
 | iCESugar-Pro v1.3 (ECP5) bring-up bitstream | Implemented, programs over the module iCELink, 344 MHz Fmax |
-| iCESugar-Pro v1.3 (ECP5) tagma demo bitstream | Implemented, 33 IO, 22.85 ns worst path at 25 MHz, needs external wiring |
+| iCESugar-Pro v1.3 (ECP5) tagma demo bitstream | Implemented, 33 IO, 22.28 ns worst path at 25 MHz, needs external wiring |
+| Streaming decoder, three stages, one code point per clock | Implemented, `make sim-pipe` passes over four sweeps, 127.94 MHz register to register on the ECP5 |
+| Self-checking streaming bitstream (pipeline against the reference, 40 MHz) | Implemented, 58.20 MHz register to register, 32 percent margin on the reference |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
 | Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json`, write-up in `docs/devlogs/hw/` |
