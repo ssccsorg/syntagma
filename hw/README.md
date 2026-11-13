@@ -1,5 +1,7 @@
 # Tagma hardware verification
 
+The code is a monotone packing of the coordinate axes, so a range query over them is an addition rather than a tree search: the bounds of a prefix range come out of the code, and the iteration is a stride. That is the property the hardware is for, and it follows from the formula rather than from any measurement here.
+
 This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA place-and-route whose bitstream is checked against the RTL, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (code point to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates). Decode and distance take a 16-bit code point, while compose returns the coordinate index, the offset from U+AC00, so its code point is U+AC00 + index. That is the split the Rust `Coord` uses.
 
 ## Status
