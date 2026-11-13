@@ -356,7 +356,7 @@ The fourth stage costs one clock of latency, which a streaming decoder does not 
 
 ## Re-bracketing the device
 
-The verify image now carries the four-stage pipeline, and its own ceiling is lower than the pipeline's because the checksum accumulator sits in a register-to-register path of its own.
+The verify image now carries the four-stage pipeline.
 
 | Build | Timing | `pin_match` | Measured clock |
 |---|---|---|---|
@@ -364,7 +364,7 @@ The verify image now carries the four-stage pipeline, and its own ceiling is low
 | 140 MHz | PASS | 1 | 139.90 MHz, 139.99 MHz |
 | 150 MHz | rejected, `145.99 MHz (FAIL at 150.01)` | not built | not run |
 
-So the fastest verified point is 140 million code points per second, and the image refuses to build above 145.99 MHz. The pipeline alone reports 148.77 MHz; the difference is the accumulator, not the decoder.
+So the fastest verified point is 140 million code points per second, and the image refuses to build above 145.99 MHz. The pipeline alone reports 148.77 MHz.
 
 The board is left on the 40 MHz image.
 
@@ -391,3 +391,16 @@ Reading a schematic PDF as text needs a calibration before it can be trusted, be
 Both stay. The LED top needs no host tool, no `icesprog`, and no cable protocol, so it is the one that still answers when the toolchain is not installed and the one a person can glance at. The cost is a latency constant in two files, which is the duplication that already broke once: when the pipeline became four stages, the delay line in each top had to grow with it. That is cheap to get right and loud to get wrong, because a misaligned delay line makes every comparison fail rather than making one pass.
 
 The verify top keeps its verdict on a pin and leaves the LEDs alone, so the two designs do not share a resource and neither can mask the other.
+
+## The floor is the multiplier, and it was measured twice
+
+The first reading of these two numbers was that the verify image builds 2 MHz slower because its checksum accumulator is a register-to-register path of its own. The timing reports say otherwise, and the claim was written before they were read.
+
+| Design | Critical path | Logic | Routing |
+|---|---|---|---|
+| `tagma_pipe_top` | 6.72 ns | 4.45 ns | 2.27 ns |
+| `tagma_pipe_verify_top` | 6.85 ns | 4.45 ns | 2.40 ns |
+
+Both paths start at `off_d0`, pass through the multiply by 9363, and end at `j_d1`. The logic is identical at 4.45 ns and the difference is 0.13 ns of routing, which is where the placement happened to land. The accumulator is not on the critical path in either design.
+
+That closes the splitting question. What remains is 3.93 ns inside `MULT18X18D` plus the routing on both sides of it, and no register can divide that. Moving it would need one of two things, and neither is free. The DSP block has internal pipeline registers, which would mean instantiating an ECP5 primitive in RTL that also has to synthesise for the iCE40. Or the multiply becomes a shift-and-add tree, trading the multiplier for logic and a different critical path. Neither is worth doing for a decoder that already verifies at 140 MHz on this board.
