@@ -130,14 +130,14 @@ The critical path is inside stage 2, not stage 1: `j_q` into the multiply by 781
 
 A bitstream that drives header pins with no wiring behind it proves only that it programmed. `tagma_pipe_check_top.v` instead runs the pipeline and the combinational reference from the same counter, delays the reference by the pipeline depth, and compares the two triples at every clock. Any mismatch latches an error indication, so a dark error channel after minutes of running is evidence that the two agree at one code point per clock on the device.
 
-Some care went into the rate. `pipe_pll` doubles the 25 MHz oscillator, but the reference decoder sets the ceiling: at a 50 MHz constraint its path measured 19.48 ns, which is 51.34 MHz and 2.6 percent of margin. The PLL is therefore set to 40 MHz, where the same path has 28 percent. The check still runs the pipeline above the board clock, which is the point.
+Some care went into the rate. `pipe_pll` doubles the 25 MHz oscillator, but the reference decoder sets the ceiling: at a 50 MHz constraint its path measured 19.48 ns, which is 51.34 MHz and 2.6 percent of margin. The PLL is therefore set to 40 MHz, where the same path has about 27 percent. The check still runs the pipeline above the board clock, which is the point.
 
 | Metric | Value |
 |---|---|
 | Clock | 40 MHz from a 25 MHz input, VCO 600 MHz |
-| Fmax, register to register | 55.86 MHz, PASS at 40 MHz |
-| Fmax, reference path | 50.00 MHz, PASS at 40 MHz |
-| TRELLIS_COMB | 165 |
+| Fmax, register to register | 53.70 MHz, PASS at 40 MHz |
+| Fmax, reference path | 50.63 MHz, PASS at 40 MHz |
+| TRELLIS_COMB | 185 |
 | TRELLIS_FF | 120 |
 | MULT18X18D | 7 |
 | EHXPLLL | 1 |
