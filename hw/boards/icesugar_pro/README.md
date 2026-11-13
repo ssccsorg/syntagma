@@ -132,7 +132,9 @@ The first line needs OSS CAD Suite on `PATH` and the second needs `PROGRAMN` pul
 
 ```sh
 make -C hw pnr BOARD=icesugar_pro DESIGN=verify VERIFY_MHZ=100
-make -C hw board-verify ICESPROG=/path/to/icesprog BOARD_VERIFY_ARGS="--clock 100"
+make -C hw board-verify ICESPROG=/path/to/icesprog VERIFY_MHZ=100
 ```
 
-Timing closes at 125 MHz and `nextpnr-ecp5` rejects 130 MHz, so any rate above 125 will not produce a bitstream.
+`board-verify` takes the rate from the same variable, so the measured clock is compared against the image that was built. `BOARD_VERIFY_ARGS` still carries anything else.
+
+Timing closes at 140 MHz and `nextpnr-ecp5` rejects 150 MHz at 145.99 MHz, so the image builds up to 140. The devlog records an earlier three-stage bracket, which stopped at 125; the fourth stage is what moved it.
