@@ -154,6 +154,22 @@ The three observations are named by function and constrained by ball, because th
 
 The first build compared against `28'hFFFFFF`, six hex digits against a 28-bit register. The comparison type-checked and the design built, but the count saturated at 2^24 clocks and the readout fired after 0.42 s. A literal and a register that disagree in width still compare, so the elapsed-time claim has to be checked against the constant rather than against the width of the variable.
 
+## The ECP5 drops a mixed register initializer
+
+The check top started `code` at `16'hAC00` so the first comparison cycles would already be in the valid range. The synthesized netlist does not carry that value. Every `TRELLIS_FF` in the `code` register has no `INIT` parameter, `LATTICE_GSR` reports only `Handling GSR in tagma_pipe_check_top`, and nothing is warned.
+
+A four-line control confirms the behaviour is general rather than a property of this design:
+
+```verilog
+module inittest (input wire clk, output reg [3:0] q = 4'b1010);
+    always @(posedge clk) q <= q + 4'd1;
+endmodule
+```
+
+`synth_ecp5` reports `Set init value: \q = 4'1010`, then emits four `TRELLIS_FF` cells with no `INIT`. The ECP5 global set and reset can only drive all-zero, so an all-zero initializer is satisfied implicitly and a mixed one is not implemented at all. The silence is the problem: a source-level initializer that the device ignores reads as a guarantee.
+
+`code` now starts at `16'd0`, which is what the silicon does. The first pass sweeps from zero upwards and every later pass stays inside the valid range, so the comparison count is unchanged in meaning and the sweep claim is unaffected. This matters beyond this file: any module that initializes a register to a pattern other than all-zeroes gets zeroes on this device and no diagnostic.
+
 ## Bench state
 
-Programmed and reloaded through `PROGRAMN` on `PB7`. The observation that closes this section is whether A11 blinks, A12 stays dark, and B11 lights after about seven seconds. The recorded result is the bench report, not the build.
+Programmed and reloaded through `PROGRAMN` on `PB7`. The observation that closes the streaming section is whether A11 blinks, A12 stays dark, and B11 lights after about seven seconds. The recorded result is the bench report, not the build.

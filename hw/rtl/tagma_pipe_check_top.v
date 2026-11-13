@@ -38,8 +38,13 @@ module tagma_pipe_check_top (
         .locked()
     );
 
-    // One code point per clock over the valid range.
-    reg [15:0] code = 16'hAC00;
+    // One code point per clock, wrapping at the end of the valid range. The
+    // initial value is zero because the ECP5 global set and reset implements
+    // only all-zero initialisation: a mixed literal here is dropped without a
+    // warning, so the source states what the device actually does. The first
+    // pass therefore sweeps 0x0000 upwards and every pass after it stays in
+    // the valid range.
+    reg [15:0] code = 16'd0;
 
     always @(posedge clk_fast)
         code <= (code >= 16'hD7A3) ? 16'hAC00 : code + 16'd1;
