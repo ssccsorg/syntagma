@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# iCESugar-Pro v1.3 constraints for the self-checking streaming top.
+#
+#   clk        -> P6,  25 MHz crystal, LVCMOS33
+#   led_clk    -> A11, RGB LED, LVCMOS25
+#   led_err    -> A12, RGB LED, LVCMOS25
+#   led_swept  -> B11, RGB LED, LVCMOS25
+#
+# The RGB balls are the set the vendor README gives, {A11, A12, B11}, with the
+# functions assigned so the three observations are distinguishable by position.
+# Bank 1 also runs at 2.5 V, so all three carry LVCMOS25.
+
+LOCATE COMP "clk" SITE "P6";
+IOBUF PORT "clk" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk" 25 MHZ;
+
+LOCATE COMP "led_clk" SITE "A11";
+IOBUF PORT "led_clk" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_err" SITE "A12";
+IOBUF PORT "led_err" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_swept" SITE "B11";
+IOBUF PORT "led_swept" IO_TYPE=LVCMOS25;

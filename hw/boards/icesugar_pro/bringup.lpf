@@ -10,13 +10,17 @@
 #
 # iCESugar-Pro v1.3 (ECP5 LFE5U-25F-6BG256C) bring-up constraints.
 #
-# Pin names are ECP5 balls. The clock and the RGB LED sites follow the official
-# blink demo in wuxx/icesugar-pro (src/blink/blink.lpf).
+# Pin names are ECP5 balls. The clock follows the official blink demo in
+# wuxx/icesugar-pro (src/blink/blink.lpf).
 #
 #   clk    -> P6,  25 MHz crystal, LVCMOS33
 #   led_r  -> A11, RGB LED, LVCMOS25
 #   led_g  -> A12, RGB LED, LVCMOS25
 #   led_b  -> B11, RGB LED, LVCMOS25
+#
+# The vendor README gives the RGB balls as the set {A11, A12, B11} without a
+# colour per ball, and the bench observation with only A12 driven reported
+# blue, so the suffixes here are names rather than measured colours.
 
 LOCATE COMP "clk" SITE "P6";
 IOBUF PORT "clk" IO_TYPE=LVCMOS33;

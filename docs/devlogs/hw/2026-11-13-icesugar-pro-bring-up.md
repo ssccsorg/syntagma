@@ -94,3 +94,66 @@ Pending: the post-fix observation (the LED should be dark on the invalid `0xFFFF
 The hardware document's next-steps table needs three corrections, because it still says the demo target is the Upduino 3.1 and that the physical demonstration waits for a board. The measured-results table gains the ECP5 column with the comparability note above.
 
 After the wiring closes the physical track, the streaming step is the next RTL subject: a pipelined decoder at one code point per clock, which is the case the memory document identifies as the acceleration opportunity. The segment store also has a new option, since the Pro carries 32 MB of SDRAM and can exercise the address map on a device while the OpenRAM macro waits for a PDK.
+
+## The streaming track
+
+Throughput is the case where hardware has an argument, and the combinational decoder does not have one: it costs a full multiply chain per code point. `tagma_decoder_pipe.v` keeps the same arithmetic and the same constants, split at the multiplier boundary so each stage carries one multiplier.
+
+| Stage | Work |
+|---|---|
+| 1 | `offset` to `q4`, `r2`, and `j = (q4 * 9363) >> 16` |
+| 2 | `i = (j * 781) >> 14`, `m = j - i * 21`, `f = 4 * (q4 - j * 7) + r2` |
+
+Latency is two edges and throughput is one code point per clock. `tagma_decoder_pipe_tb.v` drives the valid range continuously for four full sweeps and compares every emitted triple against the combinational decoder, which the matrix, golden-anchor, and recovered-netlist channels already pin at 11,172 of 11,172 points. An exact match at every cycle after the fill therefore carries that evidence to the pipeline, and the absence of idle cycles is the throughput claim.
+
+```
+PASS: 44689 outputs checked over 44691 clocks, 4 full sweeps of the valid space, one code point per clock
+```
+
+## What place and route reports for the pipeline alone
+
+`tagma_pipe_top.v` sources `code` from a counter, so every path runs register to register through the decoder. That is what the earlier section could not get: the demo takes `code` from pins, so all its paths were cross-domain and no clock was reported.
+
+| Metric | Value |
+|---|---|
+| Fmax at a 25 MHz constraint | 77.69 MHz |
+| TRELLIS_COMB | 39 |
+| TRELLIS_FF | 43 |
+| MULT18X18D | 4 |
+| CCU2C | 10 |
+| LUT4 | 11 |
+| Bitstream | 582,369 bytes |
+
+The critical path is inside stage 2, not stage 1: `j_q` into the multiply by 781, out as `ii`, into the multiply by 21, out as `mm`, at 12.18 ns. Splitting stage 2 again would be the next gain, and the arithmetic allows it because `m` and `f` need `j` and `i` only.
+
+## Self-check on silicon
+
+A bitstream that drives header pins with no wiring behind it proves only that it programmed. `tagma_pipe_check_top.v` instead runs the pipeline and the combinational reference from the same counter, delays the reference by the pipeline depth, and compares the two triples at every clock. Any mismatch latches an error indication, so a dark error channel after minutes of running is evidence that the two agree at one code point per clock on the device.
+
+Some care went into the rate. `pipe_pll` doubles the 25 MHz oscillator, but the reference decoder sets the ceiling: at a 50 MHz constraint its path measured 19.48 ns, which is 51.34 MHz and 2.6 percent of margin. The PLL is therefore set to 40 MHz, where the same path has 28 percent. The check still runs the pipeline above the board clock, which is the point.
+
+| Metric | Value |
+|---|---|
+| Clock | 40 MHz from a 25 MHz input, VCO 600 MHz |
+| Fmax, register to register | 55.86 MHz, PASS at 40 MHz |
+| Fmax, reference path | 50.00 MHz, PASS at 40 MHz |
+| TRELLIS_COMB | 165 |
+| TRELLIS_FF | 120 |
+| MULT18X18D | 7 |
+| EHXPLLL | 1 |
+
+The three observations are named by function and constrained by ball, because the vendor README gives the RGB balls as a set without a colour per ball.
+
+| Signal | Ball | Meaning |
+|---|---|---|
+| `led_clk` | A11 | blinks at 2.4 Hz while the fast clock runs |
+| `led_err` | A12 | lights and latches on any mismatch |
+| `led_swept` | B11 | lights once 2^28 clocks have been compared |
+
+`led_swept` is a rate reading rather than a completion flag, because the comparison saturates and never clears. `2^28` clocks is 6.71 s at 40 MHz and 10.74 s at 25 MHz, so the interval between configuration and that channel lighting separates the two clocks with a stopwatch and no instrument.
+
+The first build compared against `28'hFFFFFF`, six hex digits against a 28-bit register. The comparison type-checked and the design built, but the count saturated at 2^24 clocks and the readout fired after 0.42 s. A literal and a register that disagree in width still compare, so the elapsed-time claim has to be checked against the constant rather than against the width of the variable.
+
+## Bench state
+
+Programmed and reloaded through `PROGRAMN` on `PB7`. The observation that closes this section is whether A11 blinks, A12 stays dark, and B11 lights after about seven seconds. The recorded result is the bench report, not the build.
