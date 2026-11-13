@@ -361,8 +361,13 @@ The verify image now carries the four-stage pipeline.
 | Build | Timing | `pin_match` | Measured clock |
 |---|---|---|---|
 | 40 MHz | PASS | 1 | 40.00 MHz, 40.06 MHz |
+| 100 MHz | PASS | 1 | 100.16 MHz, 99.90 MHz |
+| 120 MHz | PASS | 1 | 120.10 MHz, 120.02 MHz |
+| 125 MHz | PASS | 1 | 124.97 MHz, 124.91 MHz |
 | 140 MHz | PASS | 1 | 139.90 MHz, 139.99 MHz |
 | 150 MHz | rejected, `145.99 MHz (FAIL at 150.01)` | not built | not run |
+
+Every row comes from the four-stage build. The 100, 120 and 125 MHz rows were re-run rather than carried over from the three-stage table, so one table does not mix two designs.
 
 So the fastest verified point is 140 million code points per second, and the image refuses to build above 145.99 MHz. The pipeline alone reports 148.77 MHz.
 
