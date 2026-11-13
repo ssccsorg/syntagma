@@ -138,3 +138,15 @@ make -C hw board-verify ICESPROG=/path/to/icesprog VERIFY_MHZ=100
 `board-verify` takes the rate from the same variable, so the measured clock is compared against the image that was built. `BOARD_VERIFY_ARGS` still carries anything else.
 
 Timing closes at 140 MHz and `nextpnr-ecp5` rejects 150 MHz at 145.99 MHz, so the image builds up to 140. The devlog records an earlier three-stage bracket, which stopped at 125; the fourth stage is what moved it.
+
+## The volume image
+
+`DESIGN=volume` builds `tagma_volume_verify_top`, which decodes the coordinate values a store wrote rather than sweeping the range. The values come from a ROM at `hw/synth/yosys/out/volume_rom.hex`, one 16-bit value a line, and `COUNT` is read from the same file, so the two cannot disagree.
+
+```sh
+make -C hw pnr BOARD=icesugar_pro DESIGN=volume EXPECTED_CHECKSUM=00002BFC
+```
+
+`EXPECTED_CHECKSUM` is required: the flow refuses to build without it, because a default would read as a pass. A value at or above 11,172 is outside the alphabet, so it is counted and kept out of the sum, and either a changed sum or a nonzero count clears `pin_match`.
+
+The host that writes the ROM and computes the sum lives beside the engine, in `verify/fpga` of the ktema checkout. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.

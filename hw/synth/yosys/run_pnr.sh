@@ -32,7 +32,7 @@
 #         $(brew --prefix)/share/icebox
 #
 # Usage:
-#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo|stream|stream_check|verify]
+#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo|stream|stream_check|verify|volume]
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -120,6 +120,35 @@ icesugar_pro)
         PARAMS="chparam -set EXPECTED 32'h$CHECKSUM $TOP"
         NAME="${TOP}_${MHZ}mhz"
         REPORT="verify_${MHZ}mhz"
+        ;;
+    volume)
+        # The same rate parameter as `verify`, because the point is the same:
+        # the volume's addresses are checked at the rate the die can hold.
+        MHZ="${VERIFY_MHZ:-40}"
+        PLL="out/pipe_pll_${MHZ}.v"
+        ROM="out/volume_rom.hex"
+        if [ ! -s "$ROM" ]; then
+            echo "missing $ROM: the volume's coordinate values are the input" >&2
+            echo "run the host check that writes it, then build again" >&2
+            exit 1
+        fi
+        COUNT=$(wc -l < "$ROM" | tr -d ' ')
+        if [ "$COUNT" -eq 0 ]; then
+            echo "$ROM is empty, so there is nothing to check" >&2
+            exit 1
+        fi
+        echo "--- ecppll: 25 MHz to $MHZ MHz ---"
+        ecppll -i 25 -o "$MHZ" -f "$PLL" --module pipe_pll \
+            --clkin_name clk_in --clkout0_name clk >/dev/null
+        SRC="../../rtl/tagma_decoder_pipe.v $PLL ../../rtl/tagma_volume_verify_top.v"
+        TOP=tagma_volume_verify_top
+        LPF="$BOARDS/icesugar_pro/volume.lpf"
+        # The host computes this over the same values, so the die is checked
+        # against a second implementation rather than against itself.
+        CHECKSUM="${EXPECTED_CHECKSUM:?set EXPECTED_CHECKSUM to the value the host computed}"
+        PARAMS="chparam -set EXPECTED 32'h$CHECKSUM -set COUNT $COUNT $TOP"
+        NAME="${TOP}_${MHZ}mhz"
+        REPORT="volume_${MHZ}mhz"
         ;;
     *)
         echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check or verify)" >&2

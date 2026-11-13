@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# iCESugar-Pro v1.3 constraints for the volume verification top.
+#
+# The same three balls as the checksum image, because that is the set the
+# on-board iCELink reaches as GPIOs. The names differ because the third output
+# answers a different question: whether any value was outside the alphabet,
+# rather than whether the sweep count was reached.
+#
+#   clk_in      -> P6,  25 MHz crystal, LVCMOS33
+#   pin_match   -> F5,  iCELink PA14, LVCMOS33
+#   pin_invalid -> H5,  iCELink PA13, LVCMOS33
+#   pin_beat    -> N4,  iCELink PA0,  LVCMOS33
+
+LOCATE COMP "clk_in" SITE "P6";
+IOBUF PORT "clk_in" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk_in" 25 MHZ;
+
+LOCATE COMP "pin_match" SITE "F5";
+IOBUF PORT "pin_match" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "pin_invalid" SITE "H5";
+IOBUF PORT "pin_invalid" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "pin_beat" SITE "N4";
+IOBUF PORT "pin_beat" IO_TYPE=LVCMOS33;
