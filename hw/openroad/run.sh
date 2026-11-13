@@ -36,11 +36,19 @@ DESIGN_CONFIG=designs/sky130hd/tagma_demo/config.mk
 
 mkdir -p results
 
-# The power hook reads a trace of the demo top, so the trace has to exist and
-# has to be current. It is a build product of the RTL, not a committed file.
+# The power hook reads a trace of the demo top when one is available. It is a
+# build product of the RTL, not a committed file, and the flow still reports the
+# two modelled figures without it, so a missing simulator degrades the report
+# instead of failing the gate.
 if [ ! -f ../rtl/trace_demo.vcd ]; then
-    echo "--- verilator: the demo trace the power hook reads ---"
-    make -C .. sim-trace-demo
+    if command -v verilator >/dev/null 2>&1; then
+        echo "--- verilator: the demo trace the power hook reads ---"
+        if ! make -C .. sim-trace-demo; then
+            echo "warning: the trace build failed, so the power step reports two figures instead of three" >&2
+        fi
+    else
+        echo "warning: verilator is not installed, so the power step reports two figures instead of three" >&2
+    fi
 fi
 
 echo "--- ORFS: Sky130hd standard cell flow for tagma_demo_top ---"

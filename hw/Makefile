@@ -301,7 +301,7 @@ report: synth
 
 check: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
-coverage: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv
+coverage: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv
 	@echo "coverage: 11,172 / 11,172 valid code points in 3 channels (formula, golden, netlist) + 2^16 inputs in formal equivalence"
 	@echo "coverage: the valid input space is exhaustively covered; invalid states are structurally detectable by design"
 	@echo "coverage: 11,172 / 11,172 segment store slots read back, reserved addresses read zero"

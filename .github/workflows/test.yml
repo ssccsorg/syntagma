@@ -286,6 +286,13 @@ jobs:
           tags: tagma-hw:latest
           cache-from: type=gha,scope=tagma-hw
           cache-to: type=gha,mode=max,scope=tagma-hw
+      # The power hook reads a trace of the demo top when one exists. Verilator
+      # comes from the same Ubuntu package the verification image installs, and
+      # run.sh degrades to two power figures rather than failing if it is absent
+      # or cannot build the trace.
+      - name: Install the simulator the power trace needs
+        if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends verilator
       - name: Run Sky130 standard cell flow (ORFS)
         if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
         run: bash hw/openroad/run.sh

@@ -106,12 +106,12 @@ foreach candidate $vcd_candidates {
     }
 }
 if {$vcd eq ""} {
-    power_report_put "error: no trace_demo.vcd found, so run make sim-trace-demo first"
-    exit 1
+    power_report_put "  trace not present, so this run stops at the modelled activity"
+} else {
+    power_report_put "  trace: $vcd"
+    if {[catch {read_vcd $vcd -scope tagma_demo_top_tb/dut} msg]} {
+        power_report_put "error: read_vcd failed: $msg"
+        exit 1
+    }
+    report_power >> $power_rpt
 }
-power_report_put "  trace: $vcd"
-if {[catch {read_vcd $vcd -scope tagma_demo_top_tb/dut} msg]} {
-    power_report_put "error: read_vcd failed: $msg"
-    exit 1
-}
-report_power >> $power_rpt
