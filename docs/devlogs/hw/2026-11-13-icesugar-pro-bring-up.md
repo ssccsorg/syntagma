@@ -306,3 +306,26 @@ After the last write, 65,536 bytes read back from offset zero match the bitstrea
 ## What this does and does not prove
 
 It proves that the decoder on this die, at 40 MHz, produces the same 11,172 triples as `tagma_core`, and that the PLL output is 40 MHz as configured. It does not prove a frequency measurement above 40 MHz, because nothing here runs faster, and it does not exercise the external switch and LED path, which still needs wire.
+
+## Pushing the clock until it stops
+
+The verify image takes its PLL rate as a build parameter, so the same checksum can be run at any rate the PLL produces. That turns the tool's 126.82 MHz estimate into something the die can answer.
+
+```sh
+make -C hw pnr BOARD=icesugar_pro DESIGN=verify VERIFY_MHZ=120
+make -C hw board-verify ICESPROG=<path> BOARD_VERIFY_ARGS="--clock 120"
+```
+
+| Build | Timing | `pin_match` | Measured clock |
+|---|---|---|---|
+| 40 MHz | PASS | 1 | 39.95 MHz, 39.94 MHz |
+| 100 MHz | PASS | 1 | 100.03 MHz, 99.99 MHz |
+| 120 MHz | PASS | 1 | 119.96 MHz, 119.85 MHz |
+| 125 MHz | PASS | 1 | 125.11 MHz, 125.00 MHz |
+| 130 MHz | rejected | not built | not run |
+
+At 130 MHz `nextpnr-ecp5` reports `126.82 MHz (FAIL at 130.01 MHz)` and produces no bitstream, so the flow stops rather than programming a design that would run out of time. Every rate that builds also reproduces the `tagma_core` checksum on the die, which is 119.96 million code points per second at the fastest verified point.
+
+The last row is the reason the checksum exists. A timing report is a model of the silicon; a run at 130 MHz would have been the test of the model, and the tool refused the build before the board could disagree. A rate that closed in the report and failed on the die would show up as `pin_match` reading zero, which the negative control above establishes is a live signal.
+
+The board is left on the 40 MHz image, which is what `DESIGN=verify` builds by default.

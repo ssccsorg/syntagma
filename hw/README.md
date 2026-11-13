@@ -25,7 +25,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | iCESugar-Pro v1.3 (ECP5) tagma demo bitstream | Implemented, 33 IO, 22.28 ns worst path at 25 MHz, needs external wiring |
 | Streaming decoder, three stages, one code point per clock | Implemented, `make sim-pipe` passes over four sweeps, 127.94 MHz register to register on the ECP5 |
 | Self-checking streaming bitstream (pipeline against the reference, 40 MHz) | Implemented, 58.20 MHz register to register, 32 percent margin on the reference |
-| On-device verification image (sweep checksum against the tagma_core anchors) | Implemented, `pin_match` reads 1 at 40 MHz, a wrong constant reads 0 |
+| On-device verification image (sweep checksum against the tagma_core anchors) | Implemented, `pin_match` reads 1 at 40, 100, 120 and 125 MHz, a wrong constant reads 0 |
 | iCELink GPIO channel, ECP5 F5/H5/N4/J5 to PA14/PA13/PA0/PA1 | Implemented, read on all four, drive on three, PA13 is read only |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |

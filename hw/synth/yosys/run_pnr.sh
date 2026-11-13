@@ -39,6 +39,7 @@ cd "$(dirname "$0")"
 
 BOARD="${1:-upduino31}"
 DESIGN="${2:-bringup}"
+NAME=""
 BOARDS="../../boards"
 
 mkdir -p reports out
@@ -102,19 +103,31 @@ icesugar_pro)
         PARAMS=""
         ;;
     verify)
-        SRC="../../rtl/tagma_decoder.v ../../rtl/tagma_decoder_pipe.v ../../rtl/tagma_pipe_pll.v ../../rtl/tagma_pipe_verify_top.v"
+        # The output rate is a build parameter, because the point of this image
+        # is to find where the decode stops matching as the clock goes up.
+        MHZ="${VERIFY_MHZ:-40}"
+        PLL="out/pipe_pll_${MHZ}.v"
+        echo "--- ecppll: 25 MHz to $MHZ MHz ---"
+        ecppll -i 25 -o "$MHZ" -f "$PLL" --module pipe_pll \
+            --clkin_name clk_in --clkout0_name clk >/dev/null
+        SRC="../../rtl/tagma_decoder_pipe.v $PLL ../../rtl/tagma_pipe_verify_top.v"
         TOP=tagma_pipe_verify_top
         LPF="$BOARDS/icesugar_pro/verify.lpf"
         # The expected checksum is derived from the anchors tagma_core writes,
         # so the die is checked against the reference rather than against itself.
         CHECKSUM=$(python3 ../../tools/tagma_checksum.py ../../rtl/golden_anchors.hex)
         PARAMS="chparam -set EXPECTED 32'h$CHECKSUM $TOP"
+        NAME="${TOP}_${MHZ}mhz"
         ;;
     *)
         echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check or verify)" >&2
         exit 1
         ;;
     esac
+
+    if [ -z "$NAME" ]; then
+        NAME="$TOP"
+    fi
 
     # No ECP5 equivalent of icebox_vlog exists, so this flow ends at the
     # bitstream and the nextpnr timing summary.
@@ -123,21 +136,21 @@ icesugar_pro)
     if [ -n "$PARAMS" ]; then
         YOSYS_SCRIPT="$YOSYS_SCRIPT; $PARAMS"
     fi
-    YOSYS_SCRIPT="$YOSYS_SCRIPT; synth_ecp5 -top $TOP -json out/$TOP.json"
+    YOSYS_SCRIPT="$YOSYS_SCRIPT; synth_ecp5 -top $TOP -json out/$NAME.json"
     yosys -q -p "$YOSYS_SCRIPT"
 
     echo "--- nextpnr-ecp5: place and route ---"
     nextpnr-ecp5 --25k --package CABGA256 --speed 6 \
-        --json "out/$TOP.json" \
+        --json "out/$NAME.json" \
         --lpf "$LPF" \
-        --textcfg "out/$TOP.config" \
+        --textcfg "out/$NAME.config" \
         --freq 25 2>&1 | tee "reports/pnr_${BOARD}_${DESIGN}.log" | tail -20
 
     echo "--- ecppack: bitstream ---"
-    ecppack "out/$TOP.config" "out/$TOP.bit"
+    ecppack "out/$NAME.config" "out/$NAME.bit"
 
-    echo "bitstream: out/$TOP.bit"
-    echo "config:    out/$TOP.config"
+    echo "bitstream: out/$NAME.bit"
+    echo "config:    out/$NAME.config"
     echo "timing:    reports/pnr_${BOARD}_${DESIGN}.log"
     ;;
 

@@ -114,8 +114,17 @@ The iCELink carries four pins to four ECP5 balls, which the vendor calls JTAG2, 
 
 ```sh
 make -C hw pnr BOARD=icesugar_pro DESIGN=verify
-icesprog -w hw/synth/yosys/out/tagma_pipe_verify_top.bit
+icesprog -w hw/synth/yosys/out/tagma_pipe_verify_top_40mhz.bit
 make -C hw board-verify ICESPROG=/path/to/icesprog
 ```
 
 The first line needs OSS CAD Suite on `PATH` and the second needs `PROGRAMN` pulsed on `PB7` to reload. The third reports `pin_match` and the frequency of both dividers, and exits non-zero on a mismatch.
+
+`VERIFY_MHZ` sets the PLL output, which is how the working rate was bracketed. The image is named after the rate it was built for.
+
+```sh
+make -C hw pnr BOARD=icesugar_pro DESIGN=verify VERIFY_MHZ=100
+make -C hw board-verify ICESPROG=/path/to/icesprog BOARD_VERIFY_ARGS="--clock 100"
+```
+
+Timing closes at 125 MHz and `nextpnr-ecp5` rejects 130 MHz, so any rate above 125 will not produce a bitstream.
