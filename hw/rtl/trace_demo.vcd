@@ -14,9 +14,8 @@ $timescale 1ps $end
   $var wire 32 ' em [31:0] $end
   $var wire 32 ( ef [31:0] $end
   $var wire 1 ) ev $end
-  $var real 64 = CLK_HALF_NS $end
   $scope module dut $end
-   $var wire 32 ? LED_ACTIVE_LOW [31:0] $end
+   $var wire 32 = LED_ACTIVE_LOW [31:0] $end
    $var wire 1 < clk $end
    $var wire 16 " code [15:0] $end
    $var wire 5 7 i [4:0] $end
@@ -77,8 +76,7 @@ b00000 9
 1:
 0;
 0<
-r41.67 =
-b00000000000000000000000000000001 ?
+b00000000000000000000000000000001 =
 #41670
 b01000 7
 b01110 8
