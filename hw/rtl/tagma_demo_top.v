@@ -21,7 +21,11 @@
 // carries the inverted validity signal. Pin mapping:
 // hw/boards/upduino31/tagma_demo.pcf
 
-module tagma_demo_top (
+module tagma_demo_top #(
+    // A board whose LED lights on a high level sets this to 0. The Upduino's
+    // onboard LED is negative logic; the iCESugar-Pro RGB LED is not.
+    parameter LED_ACTIVE_LOW = 1
+) (
     input  wire        clk,
     input  wire [15:0] code,
     output reg  [4:0]  i,
@@ -48,6 +52,6 @@ module tagma_demo_top (
         valid <= (code >= 16'hAC00) && (code <= 16'hD7A3);
     end
 
-    // Negative-logic LED: light it when the code point is valid.
-    assign led_valid = ~valid;
+    // Light the validity LED, inverting first on a negative-logic board.
+    assign led_valid = LED_ACTIVE_LOW ? ~valid : valid;
 endmodule

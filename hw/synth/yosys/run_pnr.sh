@@ -73,11 +73,14 @@ icesugar_pro)
         SRC="$BOARDS/icesugar_pro/bringup.v"
         TOP=bringup
         LPF="$BOARDS/icesugar_pro/bringup.lpf"
+        PARAMS=""
         ;;
     tagma_demo)
         SRC="../../rtl/tagma_decoder.v ../../rtl/tagma_demo_top.v"
         TOP=tagma_demo_top
         LPF="$BOARDS/icesugar_pro/tagma_demo.lpf"
+        # The RGB LED lights on a high level, unlike the Upduino's.
+        PARAMS="chparam -set LED_ACTIVE_LOW 0 tagma_demo_top"
         ;;
     *)
         echo "unknown design for $BOARD: $DESIGN (expected bringup or tagma_demo)" >&2
@@ -88,7 +91,12 @@ icesugar_pro)
     # No ECP5 equivalent of icebox_vlog exists, so this flow ends at the
     # bitstream and the nextpnr timing summary.
     echo "--- yosys: $DESIGN synthesis (ECP5) ---"
-    yosys -q -p "read_verilog -sv $SRC; synth_ecp5 -top $TOP -json out/$TOP.json"
+    YOSYS_SCRIPT="read_verilog -sv $SRC"
+    if [ -n "$PARAMS" ]; then
+        YOSYS_SCRIPT="$YOSYS_SCRIPT; $PARAMS"
+    fi
+    YOSYS_SCRIPT="$YOSYS_SCRIPT; synth_ecp5 -top $TOP -json out/$TOP.json"
+    yosys -q -p "$YOSYS_SCRIPT"
 
     echo "--- nextpnr-ecp5: place and route ---"
     nextpnr-ecp5 --25k --package CABGA256 --speed 6 \

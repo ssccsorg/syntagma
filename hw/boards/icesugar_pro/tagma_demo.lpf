@@ -24,11 +24,11 @@
 #   m[4:0]     -> P2,  banks 7 and 0, LVCMOS33
 #   f[0..3]    -> P2,  bank 0, LVCMOS33
 #   f[4]       -> B8,  bank 1, LVCMOS25 (the only header pin in that bank)
-#   led_valid  -> A12, bank 1, LVCMOS25 (RGB LED green channel)
+#   led_valid  -> A12, bank 1, LVCMOS25, RGB LED blue channel, active high
 #
-# The RGB LED polarity is not documented. tagma_demo_top drives led_valid as
-# the inverse of validity, which suits the Upduino's active-low LED; on this
-# board the observed phase decides whether that inversion stays.
+# A12 lights on a high level, so the Pro flow overrides the demo's
+# LED_ACTIVE_LOW parameter to 0. The default suits the Upduino's negative-logic
+# LED and stays unchanged for that board.
 
 LOCATE COMP "clk" SITE "P6";
 IOBUF PORT "clk" IO_TYPE=LVCMOS33;

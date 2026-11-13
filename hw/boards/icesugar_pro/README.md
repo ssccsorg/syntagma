@@ -52,10 +52,14 @@ a convenience, because the two label rows there are easy to swap.
 | row 1 | F2 i[0] | D1 i[1] | C1 i[2] | B1 i[3] | GND | 3V3 | B3 m[2] | GND | B4 m[3] | B5 m[4] | B6 f[0] | B7 f[1] | B8 f[4] | GND | 3V3 |
 | row 2 | E1 i[4] | C2 m[0] | B2 m[1] | A2 f[2] | GND | 3V3 | A3 f[3] | 5V | A4 | A5 | A6 | A7 | A8 | GND | 3V3 |
 
-`led_valid` is the module's RGB LED green channel on A12, so validity is visible
-without any of the P2 wiring.
+`led_valid` is the module's RGB LED blue channel on A12, active high, so validity
+is visible without any of the P2 wiring. The demo flow overrides the RTL's
+`LED_ACTIVE_LOW` to 0, which is what makes the LED light on a valid code.
 
 Bank 1 holds the RGB LED and runs at 2.5V, which is why `B8` and `A12` are
-`LVCMOS25`. Everything else is `LVCMOS33`. `code` inputs are left unpulled, so
-an unwired P3 floats and the validity LED is indeterminate until switches drive
-the pins.
+`LVCMOS25`. Everything else is `LVCMOS33`. The `code` inputs are pulled up, so
+an unwired P3 reads `0xFFFF`, which is invalid and leaves the LED dark.
+
+A one-wire check of the whole decode path: tie `code[14]` (ball `T2`, P3 row 1
+column 7) to a GND pin. That gives `0xBFFF`, which is inside U+AC00..U+D7A3, so
+the LED lights. Removing the wire returns to `0xFFFF` and the LED goes dark.
