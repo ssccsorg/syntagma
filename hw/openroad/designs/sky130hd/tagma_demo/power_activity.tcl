@@ -85,3 +85,33 @@ if {$applied != $seen} {
 }
 power_report_put [format "  annotated %d of %d code bits, %d of %d ports were not code bits" $applied $seen [expr {$total - $seen}] $total]
 report_power >> $power_rpt
+
+power_report_put ""
+power_report_put "=== at the activity read from the RTL trace, not modelled by hand ==="
+# The trace is a run of the demo top at the board clock, made by
+# `make sim-trace-demo`, so its timestamps are already in the design's clock
+# domain and read_vcd needs no conversion. The scope takes '/' separators, and
+# with the wrong one read_vcd reports zero annotated pins and leaves the
+# previous report's numbers in place, which is why run.sh greps the log for that.
+set vcd_candidates [list]
+if {[info exists ::env(DESIGN_HOME)]} {
+    lappend vcd_candidates [file join $::env(DESIGN_HOME) src tagma_demo trace_demo.vcd]
+}
+lappend vcd_candidates /OpenROAD-flow-scripts/flow/designs/src/tagma_demo/trace_demo.vcd
+set vcd ""
+foreach candidate $vcd_candidates {
+    if {[file exists $candidate]} {
+        set vcd $candidate
+        break
+    }
+}
+if {$vcd eq ""} {
+    power_report_put "error: no trace_demo.vcd found, so run make sim-trace-demo first"
+    exit 1
+}
+power_report_put "  trace: $vcd"
+if {[catch {read_vcd $vcd -scope tagma_demo_top_tb/dut} msg]} {
+    power_report_put "error: read_vcd failed: $msg"
+    exit 1
+}
+report_power >> $power_rpt

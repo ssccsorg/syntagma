@@ -18,6 +18,7 @@
 #   make sim-golden     # Verilator simulation against golden anchors
 #   make sim-pipe       # pipelined decoder, one code point per clock
 #   make sim-trace      # golden simulation with VCD activity trace
+#   make sim-trace-demo # demo top at the board clock, port-level VCD for power
 #   make sim-store      # segment store read/write over all 11,172 slots
 #   make sim-compose    # compose over all 32^3 axis combinations (formula mode)
 #   make sim-compose-golden  # compose against the golden anchors
@@ -106,7 +107,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-pipe sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
 
 all: check
 
@@ -139,6 +140,17 @@ sim-pipe: $(PIPE_RTL) $(PIPE_TB) $(RTL) | $(OBJ_DIR)
 	@tail -3 $(OBJ_DIR)/build_tb_pipe.log
 	@rm -f $(OBJ_DIR)/build_tb_pipe.err
 	@./$(OBJ_DIR)/tb_pipe
+
+sim-trace-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+	@echo "--- verilator: tb_demo_trace (board clock, VCD activity trace) ---"
+	@$(VERILATE_DEMO) -DTRACE -DTRACE_CLK12 --trace $(DEMO_TB) $(DEMO_RTL) $(RTL) -o tb_demo_trace \
+		> $(OBJ_DIR)/build_tb_demo_trace.log 2> $(OBJ_DIR)/build_tb_demo_trace.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_demo_trace.log $(OBJ_DIR)/build_tb_demo_trace.err; exit 1; }
+	@if test -s $(OBJ_DIR)/build_tb_demo_trace.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_demo_trace.err; fi
+	@tail -3 $(OBJ_DIR)/build_tb_demo_trace.log
+	@rm -f $(OBJ_DIR)/build_tb_demo_trace.err
+	@cd rtl && ../$(OBJ_DIR)/tb_demo_trace
+	@echo "trace: rtl/trace_demo.vcd"
 
 sim-trace: $(RTL) $(TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_trace (VCD activity trace) ---"

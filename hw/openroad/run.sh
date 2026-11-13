@@ -36,6 +36,13 @@ DESIGN_CONFIG=designs/sky130hd/tagma_demo/config.mk
 
 mkdir -p results
 
+# The power hook reads a trace of the demo top, so the trace has to exist and
+# has to be current. It is a build product of the RTL, not a committed file.
+if [ ! -f ../rtl/trace_demo.vcd ]; then
+    echo "--- verilator: the demo trace the power hook reads ---"
+    make -C .. sim-trace-demo
+fi
+
 echo "--- ORFS: Sky130hd standard cell flow for tagma_demo_top ---"
 # The design RTL is mounted from hw/rtl into the ORFS src tree so the run
 # always uses the current RTL (no committed copies to drift).
@@ -45,6 +52,13 @@ docker run --rm --platform linux/amd64 \
     -v "$(pwd)/../rtl:/OpenROAD-flow-scripts/flow/designs/src/tagma_demo" \
     "${IMG}" bash -c "cd ${FLOW} && make DESIGN_CONFIG=${DESIGN_CONFIG}" \
     2>&1 | tee results/orfs.log | tail -25
+
+# read_vcd reports a zero count and leaves the previous report in place when the
+# scope does not resolve, so an empty annotation would otherwise pass as a run.
+if grep -q "Annotated 0 pin activities" results/orfs.log; then
+    echo "the power hook read the trace and annotated nothing, so the scope or the trace is wrong" >&2
+    exit 1
+fi
 
 echo "--- extract ORFS reports ---"
 docker run --rm --platform linux/amd64 \
