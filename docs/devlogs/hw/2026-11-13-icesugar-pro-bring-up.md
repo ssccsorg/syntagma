@@ -173,3 +173,51 @@ endmodule
 ## Bench state
 
 Programmed and reloaded through `PROGRAMN` on `PB7`. The observation that closes the streaming section is whether A11 blinks, A12 stays dark, and B11 lights after about seven seconds. The recorded result is the bench report, not the build.
+
+## Splitting stage 2, and what the multiplier costs
+
+The two-stage split left one stage carrying two multipliers in series: `j_q` into the multiply by 781, out as `ii`, into the multiply by 21, out as `mm`, 12.18 ns in total. That is the longest path, so it sets the clock.
+
+The fix is to notice what the two constants look like. 9363 and 781 have no shift-and-add form, so they keep a multiplier each. 21 and 28 do have one: 21 = 16 + 4 + 1 and 28 = 32 - 4. Moving the remainders into a third stage replaces two multipliers with adder trees.
+
+| Stage | Work |
+|---|---|
+| 1 | `j = (q4 * 9363) >> 16` |
+| 2 | `i = (j * 781) >> 14` |
+| 3 | `m = j - 21 * i`, `f = offset - 28 * j` |
+
+`f` is written as `offset - 28 * j` rather than `4 * (q4 - 7 * j) + r2`. The two are equal modulo 2^14, so the low five bits agree for every 16-bit input and not only inside the valid range. That also removes the `q4` and `r2` pipeline registers, since the offset alone carries what the later stages need.
+
+| Metric | Two stages | Three stages |
+|---|---|---|
+| Fmax at a 25 MHz constraint | 77.69 MHz | 127.94 MHz |
+| MULT18X18D | 4 | 2 |
+| TRELLIS_FF | 43 | 58 |
+| TRELLIS_COMB | 39 | 51 |
+| Latency | 2 clocks | 3 clocks |
+| Throughput | 1 code point per clock | 1 code point per clock |
+
+The critical path is now stage 1: `counter` into the offset subtract, into the multiply by 9363, into `j_q`, at 7.82 ns. The multiplier's 3.93 ns of logic plus the routing around it is the floor for this shape. Registering the offset subtract as its own stage would leave about 6.5 ns, which is roughly 154 MHz, at the cost of a fourth stage and one more clock of latency. That trade is not taken here: a fifth of the clock for a fourth of the latency budget is a poor exchange at the rates this board can supply.
+
+Simulation carries over unchanged in form and one clock longer:
+
+```
+PASS: 44689 outputs checked over 44692 clocks, 4 full sweeps of the valid space, one code point per clock
+```
+
+## The check build after the split
+
+The self-checking build picks up the three-stage pipeline and the deeper comparator delay line.
+
+| Metric | Value |
+|---|---|
+| Fmax, register to register | 58.20 MHz, PASS at 40 MHz |
+| Fmax, reference path | 52.82 MHz, PASS at 40 MHz |
+| TRELLIS_COMB | 176 |
+| TRELLIS_FF | 154 |
+| MULT18X18D | 5 |
+| EHXPLLL | 1 |
+
+The binding path is now the combinational reference, which the split did not touch: 18.9 ns, or 52.82 MHz. The pipeline alone reaches 127.94 MHz, so the check stays at 40 MHz and the margin on the reference is about 32 percent. Running the check at the pipeline's own rate would need a second clock domain and a crossing between the reference and the pipeline, which is a different design from a comparison at one clock.
+
+Programmed and reloaded through `PROGRAMN` on `PB7` at 12:46:33. The indicators and the reading are the same as before: A11 blinks, A12 stays dark, B11 lights after 6.71 s.

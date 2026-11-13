@@ -17,12 +17,12 @@
 //
 // The source register, the reference delay line, and the pipeline all advance
 // on the same edge, so the pipe output after edge E belongs to the code that
-// was presented at edge E-2. That is the two-stage latency.
+// was presented at edge E-3. That is the three-stage latency.
 
 `timescale 1ns/1ps
 
 module tagma_decoder_pipe_tb;
-    localparam integer LATENCY = 2;
+    localparam integer LATENCY = 3;
     localparam integer CODES   = 11172;
     localparam integer SWEEPS   = 4;
 
@@ -57,6 +57,7 @@ module tagma_decoder_pipe_tb;
     // Reference outputs delayed by the pipeline latency.
     reg [4:0] ri1, rm1, rf1;
     reg [4:0] ri2, rm2, rf2;
+    reg [4:0] ri3, rm3, rf3;
 
     always @(posedge clk) begin
         ri1 <= ci;
@@ -65,6 +66,9 @@ module tagma_decoder_pipe_tb;
         ri2 <= ri1;
         rm2 <= rm1;
         rf2 <= rf1;
+        ri3 <= ri2;
+        rm3 <= rm2;
+        rf3 <= rf2;
     end
 
     integer cycles;
@@ -77,10 +81,10 @@ module tagma_decoder_pipe_tb;
     always @(negedge clk) begin
         cycles = cycles + 1;
         if (cycles > LATENCY) begin
-            if ((pi !== ri2) || (pm !== rm2) || (pf !== rf2)) begin
+            if ((pi !== ri3) || (pm !== rm3) || (pf !== rf3)) begin
                 if (errors < 5)
                     $display("MISMATCH at cycle %0d: pipe %0d/%0d/%0d, reference %0d/%0d/%0d",
-                             cycles, pi, pm, pf, ri2, rm2, rf2);
+                             cycles, pi, pm, pf, ri3, rm3, rf3);
                 errors = errors + 1;
             end
             checked = checked + 1;
