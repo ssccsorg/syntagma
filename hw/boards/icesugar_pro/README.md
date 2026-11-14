@@ -153,4 +153,4 @@ The host drives two of the four iCELink pins as a stage, and the top turns the s
 
 The stage is two bits because PA14 on F5, the pin the third bit used, is the iCELink's SWD clock: the debugger holds it, and a host write never reaches the ball. `icesprog` also treats `-m` and `-w` as exclusive in one call, so a stage write is two calls a pin, mode then value.
 
-The host that writes the ROM, sets the stage, and computes the sum lives beside the engine, in `demo/fabric` of the ktema checkout. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.
+The host that writes the ROM, sets the stage, and computes the sum is the demonstrating side, and the published run shows the console beside the board at <https://demo.ktema.systems/fpga/>. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.
