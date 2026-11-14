@@ -12,7 +12,7 @@ on:
       - "hw/synth/yosys/*.ys"
       - "hw/synth/yosys/run.sh"
       - "hw/synth/yosys/run_pnr.sh"
-      - "hw/synth/yosys/upduino31_demo.pcf"
+      - "hw/boards/**"
       - "hw/openroad/**"
       - "hw/Makefile"
       - "hw/Dockerfile"
@@ -56,7 +56,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/openroad/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
@@ -157,7 +157,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/openroad/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
@@ -189,7 +189,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/openroad/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
@@ -265,7 +265,7 @@ jobs:
               - 'hw/synth/yosys/*.ys'
               - 'hw/synth/yosys/run.sh'
               - 'hw/synth/yosys/run_pnr.sh'
-              - 'hw/synth/yosys/upduino31_demo.pcf'
+              - 'hw/boards/**'
               - 'hw/Makefile'
               - 'hw/Dockerfile'
               - 'run.sh'
@@ -276,6 +276,18 @@ jobs:
               - '.github/workflows/*.yml'
               - '!**/*.md'
       - uses: docker/setup-buildx-action@v3
+      # The compile cache inside the build needs the two variables the runner
+      # holds for the actions cache service. A step cannot read them from the
+      # `env` context, so they are exported from the shell environment first and
+      # passed to the build as secrets, which stay out of the layer cache key.
+      # An empty value leaves the cache off rather than failing the build.
+      - name: Publish the cache service coordinates to the build
+        if: steps.hw_filter.outputs.hw_gate == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
       - name: Build hardware verification image (runs sim, golden, gatesim, equiv, synth, PnR)
         if: steps.hw_filter.outputs.hw_gate == 'true'
         uses: docker/build-push-action@v6
@@ -286,6 +298,16 @@ jobs:
           tags: tagma-hw:latest
           cache-from: type=gha,scope=tagma-hw
           cache-to: type=gha,mode=max,scope=tagma-hw
+          secrets: |
+            actions_results_url=${{ env.ACTIONS_RESULTS_URL }}
+            actions_runtime_token=${{ env.ACTIONS_RUNTIME_TOKEN }}
+      # The power hook reads a trace of the demo top when one exists. Verilator
+      # comes from the same Ubuntu package the verification image installs, and
+      # run.sh degrades to two power figures rather than failing if it is absent
+      # or cannot build the trace.
+      - name: Install the simulator the power trace needs
+        if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends verilator
       - name: Run Sky130 standard cell flow (ORFS)
         if: steps.hw_filter.outputs.hw_gate == 'true' || steps.hw_filter.outputs.orfs == 'true'
         run: bash hw/openroad/run.sh

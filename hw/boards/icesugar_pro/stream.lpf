@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# iCESugar-Pro v1.3 constraints for the streaming top.
+#
+# Same clock and same axis sites as tagma_demo.lpf, with no code inputs and no
+# validity output. The purpose is the reported clock for register-to-register
+# paths through tagma_decoder_pipe.
+
+LOCATE COMP "clk" SITE "P6";
+IOBUF PORT "clk" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk" 25 MHZ;
+
+LOCATE COMP "i[0]" SITE "F2";
+LOCATE COMP "i[1]" SITE "D1";
+LOCATE COMP "i[2]" SITE "C1";
+LOCATE COMP "i[3]" SITE "B1";
+LOCATE COMP "i[4]" SITE "E1";
+
+LOCATE COMP "m[0]" SITE "C2";
+LOCATE COMP "m[1]" SITE "B2";
+LOCATE COMP "m[2]" SITE "B3";
+LOCATE COMP "m[3]" SITE "B4";
+LOCATE COMP "m[4]" SITE "B5";
+
+LOCATE COMP "f[0]" SITE "B6";
+LOCATE COMP "f[1]" SITE "B7";
+LOCATE COMP "f[2]" SITE "A2";
+LOCATE COMP "f[3]" SITE "A3";
+LOCATE COMP "f[4]" SITE "B8";
+
+IOBUF PORT "i[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[4]" IO_TYPE=LVCMOS33;
+
+IOBUF PORT "m[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[4]" IO_TYPE=LVCMOS33;
+
+IOBUF PORT "f[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[4]" IO_TYPE=LVCMOS25;

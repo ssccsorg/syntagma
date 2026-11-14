@@ -135,3 +135,41 @@ Not run locally: the `hw` CI job with the corrected hook. That job is the gate.
 
 - Whether a VCD of the routed netlist is worth its cost. It would measure the activity rather than model it from the stimulus, and the platform ships no functional Verilog for its cells, so it needs the open_pdks models plus a simulator. That is option B in issue #70.
 - Whether the ceiling seen at extreme densities is a documented clamp or an artifact of the internal power model. It does not affect the hook, whose annotations stay at or below 1 transition per clock.
+
+
+## Power from the trace, not from the hand model
+
+The analytic annotation above assumes the stimulus: bit `b` of a counter that sweeps one code point per clock changes once every `2^b` clocks. That is a model of the workload. A VCD of the workload is the workload.
+
+The demo testbench had no trace output, so it gained one. `make sim-trace-demo` builds `tagma_demo_top_tb` with `-DTRACE -DTRACE_CLK12` and writes `rtl/trace_demo.vcd`. `TRACE_CLK12` sets the half period to 41.67 ns, so the trace runs at the 12 MHz the ORFS flow constrains to and `read_vcd` needs no timebase conversion. Every other build of that testbench keeps its 2 ns period.
+
+The hook gained a third report, which reads the trace instead of annotating from the model:
+
+```
+read_vcd rtl/trace_demo.vcd -scope tagma_demo_top_tb/dut
+```
+
+Two things about that call are worth keeping. The scope separator is `/`, not `.`, and the help text is the only place that says so: with `tagma_demo_top_tb.dut` the command succeeds, reports `Annotated 0 pin activities.`, and leaves the previous report's numbers in place. A silent zero that looks like a successful run needs a gate, so `hw/openroad/run.sh` fails the step when that line appears in the log.
+
+### Result
+
+All three reports come from the flow's own session, sourced as `POST_FINAL_REPORT_TCL`, so they share a basis.
+
+| Report | Total power |
+|---|---|
+| the flow's own `6_finish.rpt` | 5.78e-05 W |
+| the hook at the tool default, the control | 5.78e-05 W |
+| the hook at the sweep's modelled activity | 3.66e-05 W |
+| the hook at the trace's measured activity | 3.61e-05 W |
+
+The control still reproduces the flow's own number to the digit. The two annotations differ by 1.4 percent, which is what a correct hand model of a counter sweep and a trace of the same sweep should do, so the model is validated and either number can be quoted.
+
+### The absolute numbers moved, and that is not explained
+
+The figures above are 15 times lower than the pair recorded earlier in this file for the same design and the same clock. That earlier run's artifacts are gone, because the flow volume was rebuilt by the run that produced these numbers, so the two cannot be compared directly.
+
+What can be said is what the control establishes: the hook is still on the flow's basis, because its default report equals the flow's own report in the same session. So the difference is between flow runs, not between the hook and the flow. The plausible causes are the ORFS image, which is `latest` and was pulled again for this run, and the platform files the volume carries.
+
+The direction changed too. The earlier note concluded that the tool's blank default overstates this design by about twelve times, because most code bits change far less often than 0.1 per clock. Against the current toolchain the default overstates by 1.6 times. The earlier conclusion was a property of that flow run, and the 12 and the 1.6 cannot both be quoted as a property of the design.
+
+Until the difference is pinned to an image or platform revision, the absolute watt figures in this file are a record of two runs rather than a device property. The reproducible statement is the ratio between the three reports in one run.

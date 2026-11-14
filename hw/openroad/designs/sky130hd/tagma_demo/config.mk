@@ -25,7 +25,7 @@ export DESIGN_NAME = tagma_demo_top
 export PLATFORM    = sky130hd
 
 export VERILOG_FILES = $(DESIGN_HOME)/src/tagma_demo/tagma_decoder.v \
-                       $(DESIGN_HOME)/src/tagma_demo/tagma_demo_top.v
+                       $(DESIGN_HOME)/src/tagma_demo/demo/tagma_demo_top.v
 export SDC_FILE      = $(DESIGN_HOME)/sky130hd/tagma_demo/constraint.sdc
 
 export CLOCK_PERIOD  = 83.33

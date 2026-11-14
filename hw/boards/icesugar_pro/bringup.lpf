@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# iCESugar-Pro v1.3 (ECP5 LFE5U-25F-6BG256C) bring-up constraints.
+#
+# Pin names are ECP5 balls. The clock follows the official blink demo in
+# wuxx/icesugar-pro (src/blink/blink.lpf).
+#
+#   clk    -> P6,  25 MHz crystal, LVCMOS33
+#   led_b  -> A12, RGB LED blue,   LVCMOS25
+#   led_r  -> B11, RGB LED red,    LVCMOS25
+#   led_g  -> A11, RGB LED green,  LVCMOS25
+#
+# The colours come from schematic/iCESugar-Pro-v1.3.pdf in wuxx/icesugar-pro,
+# where D301 carries the B pins to PT53B (ball A12), D302 the R pins to PT49A
+# (ball B11), and D303 the G pins to PT53A (ball A11). The vendor README gives
+# the balls as the set {A11, A12, B11} in an order that is not R, G, B, which
+# is what an earlier reading of that line assumed.
+
+LOCATE COMP "clk" SITE "P6";
+IOBUF PORT "clk" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk" 25 MHZ;
+
+LOCATE COMP "led_r" SITE "B11";
+IOBUF PORT "led_r" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_g" SITE "A11";
+IOBUF PORT "led_g" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_b" SITE "A12";
+IOBUF PORT "led_b" IO_TYPE=LVCMOS25;

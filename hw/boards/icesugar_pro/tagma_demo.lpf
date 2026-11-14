@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# iCESugar-Pro v1.3 (ECP5 LFE5U-25F-6BG256C) tagma demo constraints.
+#
+# Sites are ECP5 balls. Header labels come from doc/iCESugar-pro-pinmap.png and
+# banks from doc/LFE5U-25F-5BG256-Pinout.csv in wuxx/icesugar-pro.
+#
+# Every bank gets one IO standard, because nextpnr rejects mixed standards in a
+# bank. Bank 1 is the RGB LED bank and runs at 2.5V; the other banks in use run
+# at 3.3V, which the clock pin in the official blink constraints pins down for
+# bank 6.
+#
+#   clk        -> P6,  25 MHz crystal, bank 6, LVCMOS33
+#   code[15:0] -> P3,  banks 6 and 8, LVCMOS33 (16 of the 19 usable pins)
+#   i[4:0]     -> P2,  banks 7 and 0, LVCMOS33
+#   m[4:0]     -> P2,  banks 7 and 0, LVCMOS33
+#   f[0..3]    -> P2,  bank 0, LVCMOS33
+#   f[4]       -> B8,  bank 1, LVCMOS25 (the only header pin in that bank)
+#   led_valid  -> A12, bank 1, LVCMOS25, RGB LED blue channel, active high
+#
+# A12 lights on a high level, so the Pro flow overrides the demo's
+# LED_ACTIVE_LOW parameter to 0. The default suits the Upduino's negative-logic
+# LED and stays unchanged for that board.
+
+LOCATE COMP "clk" SITE "P6";
+IOBUF PORT "clk" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk" 25 MHZ;
+
+# code inputs, all of P3's usable pins: bank 8 then bank 6
+LOCATE COMP "code[0]"  SITE "P7";
+LOCATE COMP "code[1]"  SITE "R6";
+LOCATE COMP "code[2]"  SITE "T6";
+LOCATE COMP "code[3]"  SITE "T4";
+LOCATE COMP "code[4]"  SITE "T3";
+LOCATE COMP "code[5]"  SITE "T2";
+LOCATE COMP "code[6]"  SITE "R1";
+LOCATE COMP "code[7]"  SITE "P1";
+LOCATE COMP "code[8]"  SITE "N1";
+LOCATE COMP "code[9]"  SITE "M1";
+LOCATE COMP "code[10]" SITE "R5";
+LOCATE COMP "code[11]" SITE "R4";
+LOCATE COMP "code[12]" SITE "R3";
+LOCATE COMP "code[13]" SITE "R2";
+LOCATE COMP "code[14]" SITE "P2";
+LOCATE COMP "code[15]" SITE "N3";
+
+IOBUF PORT "code[0]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[1]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[2]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[3]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[4]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[5]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[6]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[7]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[8]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[9]"  IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[10]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[11]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[12]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[13]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[14]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+IOBUF PORT "code[15]" IO_TYPE=LVCMOS33 PULLMODE=UP;
+
+# i[4:0], bank 7: F2 D1 C1 B1 E1
+LOCATE COMP "i[0]" SITE "F2";
+LOCATE COMP "i[1]" SITE "D1";
+LOCATE COMP "i[2]" SITE "C1";
+LOCATE COMP "i[3]" SITE "B1";
+LOCATE COMP "i[4]" SITE "E1";
+
+# m[4:0], bank 7 then bank 0: C2 B2 B3 B4 B5
+LOCATE COMP "m[0]" SITE "C2";
+LOCATE COMP "m[1]" SITE "B2";
+LOCATE COMP "m[2]" SITE "B3";
+LOCATE COMP "m[3]" SITE "B4";
+LOCATE COMP "m[4]" SITE "B5";
+
+# f[4:0], bank 0 then bank 1: B6 B7 A2 A3 B8
+LOCATE COMP "f[0]" SITE "B6";
+LOCATE COMP "f[1]" SITE "B7";
+LOCATE COMP "f[2]" SITE "A2";
+LOCATE COMP "f[3]" SITE "A3";
+LOCATE COMP "f[4]" SITE "B8";
+
+IOBUF PORT "i[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "i[4]" IO_TYPE=LVCMOS33;
+
+IOBUF PORT "m[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "m[4]" IO_TYPE=LVCMOS33;
+
+IOBUF PORT "f[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "f[4]" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_valid" SITE "A12";
+IOBUF PORT "led_valid" IO_TYPE=LVCMOS25;
