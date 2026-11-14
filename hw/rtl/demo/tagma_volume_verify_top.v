@@ -30,13 +30,16 @@
 // host sets decides the colour of the on-board RGB LED, so a person filming the
 // board sees which step the run is on rather than only its end.
 //
-//   stage[0] -> F5,  iCELink PA14, driven by the host
-//   stage[1] -> N4,  iCELink PA0,  driven by the host
-//   stage[2] -> J5,  iCELink PA1,  driven by the host
+//   stage[0] -> N4,  iCELink PA0,  driven by the host
+//   stage[1] -> J5,  iCELink PA1,  driven by the host
 //   pin_match -> H5, iCELink PA13, read by the host (the firmware keeps this one)
 //   led_green -> A11, led_blue -> A12, led_red -> B11, the RGB channels
 //
-// Stage 4 is the verdict, and the colour it shows is the die's answer rather
+// F5 and PA14 carry the third bit of an earlier three-bit stage, and they are
+// gone: PA14 is the iCELink's SWD clock, so the debugger holds it and a host
+// write never reaches the ball. The stage is two bits because two pins drive.
+//
+// Stage 3 is the verdict, and the colour it shows is the die's answer rather
 // than the host's: green when the sum and the alphabet agree, red otherwise. A
 // host that asks for the verdict and gets red has been told something.
 //
@@ -48,7 +51,7 @@ module tagma_volume_verify_top #(
     parameter integer COUNT = 0
 ) (
     input  wire clk_in,
-    input  wire [2:0] stage,
+    input  wire [1:0] stage,
     output wire pin_match,
     output wire led_red,
     output wire led_green,
@@ -168,11 +171,10 @@ module tagma_volume_verify_top #(
 
     always @* begin
         case (stage)
-            3'd0:    {red, green, blue} = 3'b001;  // writing the volume
-            3'd1:    {red, green, blue} = 3'b011;  // reaching a record
-            3'd2:    {red, green, blue} = 3'b110;  // what an answer costs
-            3'd3:    {red, green, blue} = 3'b101;  // programming the part
-            3'd4:    {red, green, blue} = matched ? 3'b010 : 3'b100;
+            2'd0:    {red, green, blue} = 3'b001;  // writing the volume
+            2'd1:    {red, green, blue} = 3'b011;  // reaching a record
+            2'd2:    {red, green, blue} = 3'b110;  // what an answer costs
+            2'd3:    {red, green, blue} = matched ? 3'b010 : 3'b100;
             default: {red, green, blue} = 3'b000;
         endcase
     end

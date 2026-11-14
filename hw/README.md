@@ -28,7 +28,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | Streaming decoder, four stages, one code point per clock | Implemented, `make sim-pipe` passes over four sweeps, 148.77 MHz register to register on the ECP5, ceiling set by the multiplier |
 | Self-checking streaming bitstream (pipeline against the reference, 40 MHz) | Implemented, 56.62 MHz register to register, 51.96 MHz on the reference path; the reference is now the slower unit |
 | On-device verification image (sweep checksum against the tagma_core anchors) | Implemented, `pin_match` reads 1 at 40, 100, 120, 125 and 140 MHz, a wrong constant reads 0, 150 MHz is rejected at 145.99 |
-| iCELink GPIO channel, ECP5 F5/H5/N4/J5 to PA14/PA13/PA0/PA1 | Implemented, read on all four, drive on three, PA13 is read only |
+| iCELink GPIO channel, ECP5 F5/H5/N4/J5 to PA14/PA13/PA0/PA1 | Implemented, read on all four, drive on two (N4 and J5; PA14 is the SWD clock), PA13 is read only |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
 | Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json`, write-up in `docs/devlogs/hw/` |

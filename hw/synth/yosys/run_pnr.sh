@@ -160,7 +160,11 @@ icesugar_pro)
         SRC="../../rtl/demo/stage_check_top.v"
         TOP=stage_check_top
         LPF="$BOARDS/icesugar_pro/stage.lpf"
-        PARAMS=""
+        # MIRROR selects which stage bit reaches pin_match, so a host can test
+        # one input at a time without a person watching the LED.
+        PARAMS="chparam -set MIRROR ${MIRROR:-0} $TOP"
+        NAME="stage_check_top_m${MIRROR:-0}"
+        REPORT="stage_m${MIRROR:-0}"
         ;;
     *)
         echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check, verify, volume, led or stage)" >&2

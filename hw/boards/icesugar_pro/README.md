@@ -113,7 +113,7 @@ The iCELink carries four pins to four ECP5 balls, which the vendor calls JTAG2, 
 
 | ECP5 ball | iCELink pin | Host reads | Host drives |
 |---|---|---|---|
-| F5 | PA14 | yes | yes |
+| F5 | PA14 | yes | no, it is the iCELink's SWD clock |
 | H5 | PA13 | yes | no, the firmware keeps it |
 | N4 | PA0 | yes | yes |
 | J5 | PA1 | yes | yes |
@@ -149,6 +149,8 @@ make -C hw pnr BOARD=icesugar_pro DESIGN=volume EXPECTED_CHECKSUM=00002BFC
 
 `EXPECTED_CHECKSUM` is required: the flow refuses to build without it, because a default would read as a pass. A value at or above 11,172 is outside the alphabet, so it is counted and kept out of the sum, and either a changed sum or a nonzero count clears `pin_match`.
 
-The host drives three of the four iCELink pins as a stage, and the top turns the stage into a colour on the RGB channels: blue while the volume is written, cyan when a record is reached, yellow while the cost is measured, magenta while the part is programmed, and at stage four the verdict itself, green when the sum and the alphabet agree and red otherwise. The verdict is also on H5, the one iCELink pin the firmware leaves to the host.
+The host drives two of the four iCELink pins as a stage, and the top turns the stage into a colour on the RGB channels: blue while the volume is written, cyan when a record is reached, yellow while the cost is measured and while the part is programmed, and at stage three the verdict itself, green when the sum and the alphabet agree and red otherwise. The verdict is also on H5, the one iCELink pin the firmware leaves to the host.
+
+The stage is two bits because PA14 on F5, the pin the third bit used, is the iCELink's SWD clock: the debugger holds it, and a host write never reaches the ball. `icesprog` also treats `-m` and `-w` as exclusive in one call, so a stage write is two calls a pin, mode then value.
 
 The host that writes the ROM, sets the stage, and computes the sum lives beside the engine, in `demo/fabric` of the ktema checkout. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.
