@@ -69,9 +69,12 @@ WORKDIR /workspace
 
 # Build-time: run the full project verification (fmt, clippy, build, test,
 # C++ core, and the hardware gate via check_hw, which now covers the demo PnR
-# and the recovered-bitstream channel), then the explicit coverage summary.
+# and the recovered-bitstream channel), then the coverage summary. The summary
+# is a separate target because the gate above already ran every channel: the
+# former `make -C hw coverage` depended on the same channels and repeated them
+# for the four lines it prints.
 COPY . .
 RUN bash run.sh --check
-RUN make -C hw coverage
+RUN make -C hw coverage-summary
 
 ENTRYPOINT ["bash"]

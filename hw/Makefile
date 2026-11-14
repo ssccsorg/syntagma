@@ -107,7 +107,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage coverage-summary report check clean
 
 all: check
 
@@ -301,7 +301,12 @@ report: synth
 
 check: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
-coverage: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv
+coverage: check coverage-summary
+
+# The summary on its own, for a caller that has already run check. The gate and
+# the summary used to be one target, so an image build that ran check and then
+# coverage paid for every simulation twice to print these lines.
+coverage-summary:
 	@echo "coverage: 11,172 / 11,172 valid code points in 3 channels (formula, golden, netlist) + 2^16 inputs in formal equivalence"
 	@echo "coverage: the valid input space is exhaustively covered; invalid states are structurally detectable by design"
 	@echo "coverage: 11,172 / 11,172 segment store slots read back, reserved addresses read zero"
