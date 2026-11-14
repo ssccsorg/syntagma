@@ -10,33 +10,40 @@
 #
 # iCESugar-Pro v1.3 constraints for the volume verification top.
 #
-# The same three balls as the checksum image, because that is the set the
-# on-board iCELink reaches as GPIOs. The names differ because the third output
-# answers a different question: whether any value was outside the alphabet,
-# rather than whether the sweep count was reached.
+# The iCELink carries four pins to four ECP5 balls. The host drives three of
+# them and turns the stage into a colour, and reads the fourth for the verdict,
+# because the firmware keeps that one as an input to the host.
 #
-#   clk_in      -> P6,  25 MHz crystal, LVCMOS33
-#   pin_match   -> F5,  iCELink PA14, LVCMOS33
-#   pin_invalid -> H5,  iCELink PA13, LVCMOS33
-#   pin_beat    -> N4,  iCELink PA0,  LVCMOS33
-#   led_pass    -> A11, bank 1, LVCMOS25, RGB LED green channel, active high
-#   led_fail    -> B11, bank 1, LVCMOS25, RGB LED red channel, active high
+#   clk_in     -> P6,  25 MHz crystal, LVCMOS33
+#   stage[0]   -> F5,  iCELink PA14, LVCMOS33, driven by the host
+#   stage[1]   -> N4,  iCELink PA0,  LVCMOS33, driven by the host
+#   stage[2]   -> J5,  iCELink PA1,  LVCMOS33, driven by the host
+#   pin_match  -> H5,  iCELink PA13, LVCMOS33, read by the host
+#   led_green  -> A11, bank 1, LVCMOS25, RGB LED green channel, active high
+#   led_blue   -> A12, bank 1, LVCMOS25, RGB LED blue channel, active high
+#   led_red    -> B11, bank 1, LVCMOS25, RGB LED red channel, active high
 
 LOCATE COMP "clk_in" SITE "P6";
 IOBUF PORT "clk_in" IO_TYPE=LVCMOS33;
 FREQUENCY PORT "clk_in" 25 MHZ;
 
-LOCATE COMP "pin_match" SITE "F5";
+LOCATE COMP "stage[0]" SITE "F5";
+IOBUF PORT "stage[0]" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "stage[1]" SITE "N4";
+IOBUF PORT "stage[1]" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "stage[2]" SITE "J5";
+IOBUF PORT "stage[2]" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "pin_match" SITE "H5";
 IOBUF PORT "pin_match" IO_TYPE=LVCMOS33;
 
-LOCATE COMP "pin_invalid" SITE "H5";
-IOBUF PORT "pin_invalid" IO_TYPE=LVCMOS33;
+LOCATE COMP "led_green" SITE "A11";
+IOBUF PORT "led_green" IO_TYPE=LVCMOS25;
 
-LOCATE COMP "pin_beat" SITE "N4";
-IOBUF PORT "pin_beat" IO_TYPE=LVCMOS33;
+LOCATE COMP "led_blue" SITE "A12";
+IOBUF PORT "led_blue" IO_TYPE=LVCMOS25;
 
-LOCATE COMP "led_pass" SITE "A11";
-IOBUF PORT "led_pass" IO_TYPE=LVCMOS25;
-
-LOCATE COMP "led_fail" SITE "B11";
-IOBUF PORT "led_fail" IO_TYPE=LVCMOS25;
+LOCATE COMP "led_red" SITE "B11";
+IOBUF PORT "led_red" IO_TYPE=LVCMOS25;

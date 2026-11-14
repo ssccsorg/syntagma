@@ -26,18 +26,19 @@
 // invalid and kept out of the sum, so a single corrupted value changes the
 // checksum and raises the invalid count, and either one clears pin_match.
 //
-// The verdict leaves the die on the same three balls the checksum image uses,
-// read through the iCELink as GPIOs:
+// The verdict leaves the die on the pin the debugger reads, and the stage the
+// host sets decides the colour of the on-board RGB LED, so a person filming the
+// board sees which step the run is on rather than only its end.
 //
-//   pin_match   -> F5, iCELink PA14, the sum equalled EXPECTED and nothing was invalid
-//   pin_invalid -> H5, iCELink PA13, at least one value was outside the alphabet
-//   pin_beat    -> N4, iCELink PA0, a rising edge every 2^25 clocks
-//   led_pass    -> A11, the on-board RGB green channel, lit while the verdict holds
-//   led_fail    -> B11, the on-board RGB red channel, lit while it does not
+//   stage[0] -> F5,  iCELink PA14, driven by the host
+//   stage[1] -> N4,  iCELink PA0,  driven by the host
+//   stage[2] -> J5,  iCELink PA1,  driven by the host
+//   pin_match -> H5, iCELink PA13, read by the host (the firmware keeps this one)
+//   led_green -> A11, led_blue -> A12, led_red -> B11, the RGB channels
 //
-// The two LED outputs exist so a person at the board sees the same verdict the
-// host reads over the cable, which is what makes a recording of the run show
-// something on the part rather than only in the terminal.
+// Stage 4 is the verdict, and the colour it shows is the die's answer rather
+// than the host's: green when the sum and the alphabet agree, red otherwise. A
+// host that asks for the verdict and gets red has been told something.
 //
 // EXPECTED must be supplied by the flow. The default of zero never matches a
 // non-empty volume, so an unset parameter reads as a failure.
@@ -47,11 +48,11 @@ module tagma_volume_verify_top #(
     parameter integer COUNT = 0
 ) (
     input  wire clk_in,
+    input  wire [2:0] stage,
     output wire pin_match,
-    output wire pin_invalid,
-    output wire pin_beat,
-    output wire led_pass,
-    output wire led_fail
+    output wire led_red,
+    output wire led_green,
+    output wire led_blue
 );
     // The alphabet the engine writes: U+AC00 plus this many values.
     localparam [15:0] COORD_RADIX = 16'd11172;
@@ -137,11 +138,8 @@ module tagma_volume_verify_top #(
     wire [31:0] invalid_next = valid ? invalids : invalids + 32'd1;
 
     reg        matched = 1'b0;
-    reg [24:0] heart = 25'd0;
 
     always @(posedge clk) begin
-        heart <= heart + 25'd1;
-
         // Nothing the pipeline reports before the fill completes belongs to a
         // ROM value, so it is dropped rather than counted.
         if (ready) begin
@@ -161,11 +159,25 @@ module tagma_volume_verify_top #(
         end
     end
 
-    assign pin_match   = matched;
-    assign pin_invalid = (invalids != 32'd0);
-    assign pin_beat    = heart[24];
+    assign pin_match = matched;
 
-    // The RGB channels light on a high level on this board.
-    assign led_pass = matched;
-    assign led_fail = ~matched;
+    // The stage selects a colour. Stage 4 is the verdict, and there the die's
+    // answer decides between green and red, so the light is not the host's
+    // opinion of the run.
+    reg red, green, blue;
+
+    always @* begin
+        case (stage)
+            3'd0:    {red, green, blue} = 3'b001;  // writing the volume
+            3'd1:    {red, green, blue} = 3'b011;  // reaching a record
+            3'd2:    {red, green, blue} = 3'b110;  // what an answer costs
+            3'd3:    {red, green, blue} = 3'b101;  // programming the part
+            3'd4:    {red, green, blue} = matched ? 3'b010 : 3'b100;
+            default: {red, green, blue} = 3'b000;
+        endcase
+    end
+
+    assign led_red   = red;
+    assign led_green = green;
+    assign led_blue  = blue;
 endmodule
