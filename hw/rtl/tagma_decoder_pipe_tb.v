@@ -48,7 +48,7 @@ module tagma_decoder_pipe_tb;
         .f(cf)
     );
 
-    always #5 clk = ~clk;
+    always #5 clk <= ~clk;
 
     // One code point per clock, wrapping at the end of the valid range.
     always @(posedge clk)
