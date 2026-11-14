@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # SPDX-License-Identifier: CERN-OHL-P-2.0
 # Copyright (C) 2026 Taeho Lee
 #
@@ -58,6 +59,28 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # tagma-core/geo/map for riscv32imac-unknown-none-elf.
 RUN rustup target add riscv32imac-unknown-none-elf
 
+# sccache, the compile cache. A layer cache cannot reach past `COPY . .`: one
+# source edit changes every layer above it, so the Rust and C++ objects are
+# rebuilt from scratch. A compiler cache is keyed on the translation unit, and
+# the GitHub Actions backend puts the objects in the same cache service the
+# layers use, so a fresh runner still hits them.
+ARG TARGETARCH
+ARG SCCACHE_VERSION=0.10.0
+# TARGETARCH is set by buildx; a plain `docker build` leaves it empty, so the
+# mapping falls back to the container's own machine name.
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+      amd64|x86_64) ARCH=x86_64 ;; \
+      arm64|aarch64) ARCH=aarch64 ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH:-$(uname -m)}"; exit 1 ;; \
+    esac \
+    && ASSET="sccache-v${SCCACHE_VERSION}-${ARCH}-unknown-linux-musl" \
+    && curl -fsSL -o /tmp/${ASSET}.tar.gz \
+         "https://github.com/mozilla/sccache/releases/download/v${SCCACHE_VERSION}/${ASSET}.tar.gz" \
+    && tar -xzf /tmp/${ASSET}.tar.gz -C /tmp \
+    && install -m 0755 /tmp/${ASSET}/sccache /usr/local/bin/sccache \
+    && rm -rf /tmp/${ASSET}* \
+    && sccache --version
+
 # Verify the toolchain. nextpnr-ice40, icepack, icetime, and icebox_vlog
 # in this image do not support --version, so their presence is checked with
 # command -v; only verilator and yosys print a version.
@@ -73,8 +96,25 @@ WORKDIR /workspace
 # is a separate target because the gate above already ran every channel: the
 # former `make -C hw coverage` depended on the same channels and repeated them
 # for the four lines it prints.
+#
+# The compile cache is enabled only when the runner hands its coordinates in
+# and is inert otherwise: without them sccache keeps its objects in the
+# container and the gate behaves exactly as before. Both arrive as build
+# secrets rather than build args, because a build arg is part of the layer cache
+# key and the URL changes per job, which would invalidate this layer on every
+# run. RUSTC_WRAPPER covers the Rust workspace and CMAKE_CXX_COMPILER_LAUNCHER
+# covers the C++ core, which CMake reads from the environment as the initial
+# cache value.
 COPY . .
-RUN bash run.sh --check
+RUN --mount=type=secret,id=actions_results_url,env=ACTIONS_RESULTS_URL,required=false \
+    --mount=type=secret,id=actions_runtime_token,env=ACTIONS_RUNTIME_TOKEN,required=false \
+    bash -c 'set -e; \
+      export RUSTC_WRAPPER=sccache CMAKE_CXX_COMPILER_LAUNCHER=sccache; \
+      if [ -n "${ACTIONS_RUNTIME_TOKEN:-}" ] && [ -n "${ACTIONS_RESULTS_URL:-}" ]; then \
+        export SCCACHE_GHA_ENABLED=on; \
+      fi; \
+      bash run.sh --check; \
+      sccache --show-stats || true'
 RUN make -C hw coverage-summary
 
 ENTRYPOINT ["bash"]
