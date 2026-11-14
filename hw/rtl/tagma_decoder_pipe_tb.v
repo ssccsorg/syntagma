@@ -25,6 +25,9 @@ module tagma_decoder_pipe_tb;
     localparam integer LATENCY = 4;
     localparam integer CODES   = 11172;
     localparam integer SWEEPS   = 4;
+    // The run ends after this many clocks: the sweep, plus the clocks the
+    // pipeline and the reference delay line need to drain.
+    localparam integer CLOCKS  = SWEEPS * CODES + LATENCY + 2;
 
     reg clk;
     reg [15:0] code;
@@ -48,6 +51,8 @@ module tagma_decoder_pipe_tb;
         .f(cf)
     );
 
+    // Non-blocking so Verilator does not flag a blocking assignment in a
+    // delay-controlled process (BLKSEQ, fatal under -Wall).
     always #5 clk <= ~clk;
 
     // One code point per clock, wrapping at the end of the valid range.
@@ -79,7 +84,10 @@ module tagma_decoder_pipe_tb;
     integer checked;
     integer errors;
 
-    // A testbench counter: blocking updates keep the check and the report in
+    // The counter owns the report. Under Verilator 5.020 a process that resumed
+    // from a delay read these counters as the values it set at time zero, when it
+    // also set them itself, so a separate initial block that waited out the sweep
+    // reported nothing checked. Blocking updates keep the check and the report in
     // step, and this block is never synthesized.
     /* verilator lint_off BLKSEQ */
     always @(negedge clk) begin
@@ -93,21 +101,33 @@ module tagma_decoder_pipe_tb;
             end
             checked = checked + 1;
         end
+        if (cycles == CLOCKS) begin
+            if (errors == 0) begin
+                $display("PASS: %0d outputs checked over %0d clocks, %0d full sweeps of the valid space, one code point per clock",
+                         checked, cycles, SWEEPS);
+                $finish;
+            end else begin
+                $display("FAIL: %0d mismatches over %0d checked outputs", errors, checked);
+                $fatal;
+            end
+        end
     end
     /* verilator lint_on BLKSEQ */
 
     initial begin
-        clk    = 1'b0;
-        code   = 16'hAC00;
-        cycles = 0;
+        clk     = 1'b0;
+        code    = 16'hAC00;
+        cycles  = 0;
         checked = 0;
         errors  = 0;
-        repeat (SWEEPS * CODES + LATENCY + 2) @(negedge clk);
-        if (errors == 0)
-            $display("PASS: %0d outputs checked over %0d clocks, %0d full sweeps of the valid space, one code point per clock",
-                     checked, cycles, SWEEPS);
-        else
-            $display("FAIL: %0d mismatches over %0d checked outputs", errors, checked);
-        $finish;
+    end
+
+    // A clock that never toggles leaves the block above silent, and silence
+    // exits zero, so this run ends with a failure of its own. The margin is
+    // simulated time, so a slow host cannot trip it.
+    initial begin
+        #(CLOCKS * 20 + 10000);
+        $display("FAIL: the sweep did not finish; the clock did not advance");
+        $fatal;
     end
 endmodule
