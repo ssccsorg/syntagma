@@ -16,14 +16,20 @@
 # Usage:
 #   make sim            # exhaustive Verilator simulation (formula mode)
 #   make sim-golden     # Verilator simulation against golden anchors
+#   make sim-pipe       # pipelined decoder, one code point per clock
 #   make sim-trace      # golden simulation with VCD activity trace
+#   make sim-trace-demo # demo top at the board clock, port-level VCD for power
 #   make sim-store      # segment store read/write over all 11,172 slots
 #   make sim-compose    # compose over all 32^3 axis combinations (formula mode)
 #   make sim-compose-golden  # compose against the golden anchors
 #   make sim-dist       # distance over 2 x 11,172 pairs (formula mode)
 #   make sim-dist-golden     # distance against the golden anchors
 #   make sim-demo       # demo top over all 65,536 code points (formula mode)
-#   make pnr            # place and route the demo, recover the bitstream logic
+#   make pnr            # place and route for BOARD, default upduino31
+#   make pnr BOARD=icesugar_pro   # place and route the ECP5 bring-up design
+#   make pnr BOARD=icesugar_pro DESIGN=tagma_demo   # place and route the demo
+#   make pnr BOARD=icesugar_pro DESIGN=verify   # on-device checksum image
+#   make board-verify   # read the verdict off the board through the debugger
 #   make sim-pnr        # demo top against the placed-and-routed bitstream
 #   make golden-export  # regenerate golden anchors from tagma_core
 #   make golden-check   # Python consistency gate on the golden file
@@ -38,6 +44,17 @@
 SIM   ?= verilator
 YOSYS ?= yosys
 
+# Hardware target for pnr. The constraint format and the whole toolchain differ
+# per board, so the flow is selected by name inside synth/yosys/run_pnr.sh.
+BOARD ?= upduino31
+# Design built for a board that carries more than one. The Upduino case ignores it.
+DESIGN ?= bringup
+
+# The board verification reads pins through the iCELink, so it takes the
+# icesprog built from the icesugar repository rather than a vendored copy.
+ICESPROG ?= icesprog
+BOARD_VERIFY_ARGS ?=
+
 RTL = rtl/tagma_decoder.v
 TB  = rtl/tagma_decoder_tb.v
 
@@ -50,8 +67,8 @@ COMPOSE_TB  = rtl/tagma_compose_tb.v
 DIST_RTL = rtl/tagma_dist.v
 DIST_TB  = rtl/tagma_dist_tb.v
 
-DEMO_RTL = rtl/tagma_demo_top.v
-DEMO_TB  = rtl/tagma_demo_top_tb.v
+DEMO_RTL = rtl/demo/tagma_demo_top.v
+DEMO_TB  = rtl/demo/tagma_demo_top_tb.v
 # Recovered from the placed-and-routed .asc by run_pnr.sh (icebox_vlog).
 ASC      = synth/yosys/out/tagma_demo_top_postpnr.v
 
@@ -68,6 +85,10 @@ VERILATE_STORE = $(SIM) --binary --timing -Wall --top-module tagma_segment_store
 VERILATE_COMPOSE = $(SIM) --binary --timing -Wall --top-module tagma_compose_tb
 VERILATE_DIST = $(SIM) --binary --timing -Wall --top-module tagma_dist_tb
 VERILATE_DEMO = $(SIM) --binary --timing -Wall --top-module tagma_demo_top_tb
+
+PIPE_RTL = rtl/tagma_decoder_pipe.v
+PIPE_TB  = rtl/tagma_decoder_pipe_tb.v
+VERILATE_PIPE = $(SIM) --binary --timing -Wall --top-module tagma_decoder_pipe_tb
 
 # The recovered netlist keeps no names for the logic it flattens into, so it
 # trips UNUSEDSIGNAL, and it carries no timescale, so it trips TIMESCALEMOD.
@@ -86,7 +107,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-trace sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage report check clean
 
 all: check
 
@@ -109,6 +130,27 @@ sim-golden: golden-export $(RTL) $(TB) | $(OBJ_DIR)
 	@tail -3 $(OBJ_DIR)/build_tb_golden.log
 	@rm -f $(OBJ_DIR)/build_tb_golden.err
 	@cd rtl && ../$(OBJ_DIR)/tb_golden
+
+sim-pipe: $(PIPE_RTL) $(PIPE_TB) $(RTL) | $(OBJ_DIR)
+	@echo "--- verilator: tb_pipe (streaming) ---"
+	@$(VERILATE_PIPE) $(PIPE_TB) $(PIPE_RTL) $(RTL) -o tb_pipe \
+		> $(OBJ_DIR)/build_tb_pipe.log 2> $(OBJ_DIR)/build_tb_pipe.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_pipe.log $(OBJ_DIR)/build_tb_pipe.err; exit 1; }
+	@if test -s $(OBJ_DIR)/build_tb_pipe.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_pipe.err; fi
+	@tail -3 $(OBJ_DIR)/build_tb_pipe.log
+	@rm -f $(OBJ_DIR)/build_tb_pipe.err
+	@./$(OBJ_DIR)/tb_pipe
+
+sim-trace-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+	@echo "--- verilator: tb_demo_trace (board clock, VCD activity trace) ---"
+	@$(VERILATE_DEMO) -DTRACE -DTRACE_CLK12 --trace $(DEMO_TB) $(DEMO_RTL) $(RTL) -o tb_demo_trace \
+		> $(OBJ_DIR)/build_tb_demo_trace.log 2> $(OBJ_DIR)/build_tb_demo_trace.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_demo_trace.log $(OBJ_DIR)/build_tb_demo_trace.err; exit 1; }
+	@if test -s $(OBJ_DIR)/build_tb_demo_trace.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_demo_trace.err; fi
+	@tail -3 $(OBJ_DIR)/build_tb_demo_trace.log
+	@rm -f $(OBJ_DIR)/build_tb_demo_trace.err
+	@cd rtl && ../$(OBJ_DIR)/tb_demo_trace
+	@echo "trace: rtl/trace_demo.vcd"
 
 sim-trace: $(RTL) $(TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_trace (VCD activity trace) ---"
@@ -171,8 +213,12 @@ sim-dist-golden: golden-export $(DIST_RTL) $(RTL) $(DIST_TB) | $(OBJ_DIR)
 	@cd rtl && ../$(OBJ_DIR)/tb_dist_golden
 
 pnr:
-	@echo "--- place and route: iCE40 UP5K demo, bitstream and recovered logic ---"
-	@bash synth/yosys/run_pnr.sh
+	@bash synth/yosys/run_pnr.sh $(BOARD) $(DESIGN)
+
+# Needs a programmed verify image and the icesprog built from the icesugar
+# repository; neither is a build dependency, so this target is not in check.
+board-verify:
+	@python3 tools/ecp5_pin_verify.py --icesprog $(ICESPROG) $(if $(VERIFY_MHZ),--clock $(VERIFY_MHZ)) $(BOARD_VERIFY_ARGS)
 
 sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_demo (formula mode) ---"
@@ -184,7 +230,10 @@ sim-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@rm -f $(OBJ_DIR)/build_tb_demo.err
 	@./$(OBJ_DIR)/tb_demo
 
-sim-pnr: pnr $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+# The recovered netlist comes from icebox_vlog, so this channel is the iCE40
+# board and builds it explicitly regardless of BOARD.
+sim-pnr: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
+	@$(MAKE) --no-print-directory pnr BOARD=upduino31
 	@echo "--- verilator: tb_demo (placed-and-routed bitstream) ---"
 	@$(VERILATE_DEMO) -DASC_CHECK $(ASC_LINT) $(ASC) $(DEMO_TB) $(DEMO_RTL) $(RTL) -o tb_demo_asc \
 		> $(OBJ_DIR)/build_tb_demo_asc.log 2> $(OBJ_DIR)/build_tb_demo_asc.err \
@@ -250,9 +299,9 @@ report: synth
 	@echo "=== iCE40 ==="
 	@cat synth/yosys/reports/ice40_stat.txt
 
-check: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
+check: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
-coverage: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv
+coverage: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv
 	@echo "coverage: 11,172 / 11,172 valid code points in 3 channels (formula, golden, netlist) + 2^16 inputs in formal equivalence"
 	@echo "coverage: the valid input space is exhaustively covered; invalid states are structurally detectable by design"
 	@echo "coverage: 11,172 / 11,172 segment store slots read back, reserved addresses read zero"
@@ -261,4 +310,4 @@ coverage: sim sim-golden sim-store sim-compose sim-compose-golden sim-dist sim-d
 	@echo "coverage: the demo top and the placed-and-routed bitstream agree over all 65,536 code points"
 
 clean:
-	rm -rf $(OBJ_DIR) synth/yosys/out synth/yosys/reports $(GOLDEN) rtl/trace.vcd
+	rm -rf $(OBJ_DIR) synth/yosys/out synth/yosys/reports $(GOLDEN) rtl/trace.vcd rtl/trace_demo.vcd

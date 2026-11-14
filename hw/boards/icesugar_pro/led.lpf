@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# iCESugar-Pro v1.3 constraints for the RGB check.
+#
+#   clk_in     -> P6,  25 MHz crystal, LVCMOS33
+#   led_green  -> A11, bank 1, LVCMOS25, green channel
+#   led_blue   -> A12, bank 1, LVCMOS25, blue channel
+#   led_red    -> B11, bank 1, LVCMOS25, red channel
+
+LOCATE COMP "clk_in" SITE "P6";
+IOBUF PORT "clk_in" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk_in" 25 MHZ;
+
+LOCATE COMP "led_green" SITE "A11";
+IOBUF PORT "led_green" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_blue" SITE "A12";
+IOBUF PORT "led_blue" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_red" SITE "B11";
+IOBUF PORT "led_red" IO_TYPE=LVCMOS25;

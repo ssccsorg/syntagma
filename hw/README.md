@@ -1,5 +1,7 @@
 # Tagma hardware verification
 
+The code is a monotone packing of the coordinate axes, so a range query over them is an addition rather than a tree search: the bounds of a prefix range come out of the code, and the iteration is a stride. That is the property the hardware is for, and it follows from the formula rather than from any measurement here.
+
 This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an exhaustive RTL verification against the reference coordinate engine, an FPGA place-and-route whose bitstream is checked against the RTL, and a standard cell synthesis report. Three units make up the coordinate primitive in hardware: the decoder (code point to axes), the compose unit (axes to index, the decoder's inverse), and the distance unit (field-wise absolute difference of two coordinates). Decode and distance take a 16-bit code point, while compose returns the coordinate index, the offset from U+AC00, so its code point is U+AC00 + index. That is the split the Rust `Coord` uses.
 
 ## Status
@@ -18,26 +20,57 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
 | Gate-level netlist simulation against golden anchors (decoder, compose, distance) | Implemented, passing |
 | Formal equivalence: RTL vs gate netlist (decoder, compose, distance) | Proven |
-| `rtl/tagma_demo_top_tb.v` demo top, axes on the 11,172 valid syllables and the validity LED on all 65,536 code points | Implemented, passing |
+| `rtl/demo/tagma_demo_top_tb.v` demo top, axes on the 11,172 valid syllables and the validity LED on all 65,536 code points | Implemented, passing |
 | Bitstream channel: the placed-and-routed design recovered with `icebox_vlog` and compared against the RTL over all 65,536 code points (`make sim-pnr`) | Implemented, passing |
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
+| iCESugar-Pro v1.3 (ECP5) bring-up bitstream | Implemented, programs over the module iCELink, 344 MHz Fmax |
+| iCESugar-Pro v1.3 (ECP5) tagma demo bitstream | Implemented, 33 IO, 22.28 ns worst path at 25 MHz, needs external wiring |
+| Streaming decoder, four stages, one code point per clock | Implemented, `make sim-pipe` passes over four sweeps, 148.77 MHz register to register on the ECP5, ceiling set by the multiplier |
+| Self-checking streaming bitstream (pipeline against the reference, 40 MHz) | Implemented, 56.62 MHz register to register, 51.96 MHz on the reference path; the reference is now the slower unit |
+| On-device verification image (sweep checksum against the tagma_core anchors) | Implemented, `pin_match` reads 1 at 40, 100, 120, 125 and 140 MHz, a wrong constant reads 0, 150 MHz is rejected at 145.99 |
+| iCELink GPIO channel, ECP5 F5/H5/N4/J5 to PA14/PA13/PA0/PA1 | Implemented, read on all four, drive on two (N4 and J5; PA14 is the SWD clock), PA13 is read only |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
 | Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json`, write-up in `docs/devlogs/hw/` |
 | Yosys gate-level estimate (2-input gate library) | `synth/yosys/reports/gates_stat.txt`, plus `compose_gates_stat.txt` and `dist_gates_stat.txt` |
 | Yosys iCE40 synthesis report (LUT count) | `synth/yosys/reports/ice40_stat.txt` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
-| FPGA board demo (physical) | Next, board required |
+| FPGA board demo (physical) | Bitstream programs and boots on the iCESugar-Pro; the switch and LED wiring that makes it a decoder demonstration is the remaining step |
 | OpenROAD standard cell report (Sky130) | Implemented, measured locally + CI (hw job) |
-| Power at the demo workload's input activity, as the report step's `POST_FINAL_REPORT_TCL` hook (`openroad/designs/sky130hd/tagma_demo/power_activity.tcl`) | Implemented, runs in the `hw` job, report in `openroad/results/power_activity.txt` |
+| Power at the workload's activity, from a trace as well as from a hand model, as the report step's `POST_FINAL_REPORT_TCL` hook (`openroad/designs/sky130hd/tagma_demo/power_activity.tcl`) | Implemented, runs in the `hw` job: 57.8 uW at the tool default, 36.6 uW modelled, 36.1 uW from the trace, about 3.0 pJ per decode at 12 MHz; the absolute figure is provisional |
 
 ## Layout
 
-- `rtl/` Verilog sources and testbenches
+- `boards/` per-board constraints, one directory per physical board
+- `rtl/` the primitive: the decoder, the pipeline, the composer, the distance unit, the segment store, their testbenches, and `golden_anchors.hex`
+- `rtl/demo/` the board tops and diagnostic images; nothing here is part of a claim about the primitive
 - `synth/yosys/` Yosys synthesis scripts, the PnR flow, and the committed reports
 - `openroad/` OpenROAD standard cell flow (Sky130)
 - `openram/` OpenRAM configuration for the chton segment store
 - `tools/` golden anchor consistency gate
+
+## Boards
+
+Each physical board owns one directory under `boards/`, and `make pnr BOARD=<board>` selects both its constraints and its toolchain. The two boards share the RTL and nothing else.
+
+| Board | Device | Constraints | Clock | Flow |
+|---|---|---|---|---|
+| `upduino31` | iCE40UP5K-SG48 | `boards/upduino31/tagma_demo.pcf` | 12 MHz | `synth_ice40`, `nextpnr-ice40`, `icepack` |
+| `icesugar_pro` | ECP5 LFE5U-25F-6BG256C | `boards/icesugar_pro/bringup.lpf` | 25 MHz | `synth_ecp5`, `nextpnr-ecp5`, `ecppack` |
+
+`nextpnr-ecp5` is not packaged by Homebrew, so the Pro flow needs OSS CAD Suite on `PATH`; `ecppack` comes from `prjtrellis`.
+
+The Pro carries two debuggers when it sits in its Ext-Board: the module's iCELink and the Ext-Board's own DAPLink. Only the module's iCELink reaches the ECP5. It enumerates as `0x1d50:0x602b` with a volume named `iCELink`; the Ext-Board DAPLink enumerates as `0x0d28:0x0204` with `DAPLINK`, and its JTAG scan returns all ones. Programming writes the bitstream to flash:
+
+```sh
+icesprog -w hw/synth/yosys/out/bringup.bit
+```
+
+`icesprog` is built from `tools/src` in the icesugar repository. The SRAM path through the shipped `blink_sram.svf` fails its final status check on this board, so flash is the programming route.
+
+The demo runs on the Pro as `DESIGN=tagma_demo`. It needs 16 switch inputs and 15 LED outputs wired to the Ext-Board headers; `boards/icesugar_pro/README.md` holds the wiring table and the bank and voltage notes. The board alone can show only the validity bit, on the RGB LED.
+
+Three further designs run on the Pro without external wiring. `DESIGN=stream` reports a register-to-register clock for the pipelined decoder, `DESIGN=stream_check` compares that pipeline against the combinational unit and reports on the RGB balls, and `DESIGN=verify VERIFY_MHZ=<rate>` accumulates a checksum over the valid range, compares it on the die against a constant derived from the golden anchors, and leaves the verdict on three pins the iCELink reaches as GPIO. `make board-verify` reads those pins back over the programming cable, so the verdict and the PLL rate are measured without a person at the board.
 
 ## Development plan
 
@@ -62,13 +95,13 @@ The synthesized netlist is verified on top of the RTL checks, for each of the th
 
 ### Bitstream verification
 
-Formal equivalence proves the RTL against the technology-mapped netlist, which is the stage before packing. `nextpnr-ice40` then packs the logic into LUTs, places them, and routes them, and no gate covers that. `synth/yosys/run_pnr.sh` recovers the placed-and-routed logic with `icebox_vlog -c -p upduino31_demo.pcf`, which reads the `.asc` back into Verilog and names the ports from the constraints file, and `make sim-pnr` instantiates the RTL and the recovered netlist together and compares every output over all 65,536 code points. The recovered file is generated, never committed.
+Formal equivalence proves the RTL against the technology-mapped netlist, which is the stage before packing. `nextpnr-ice40` then packs the logic into LUTs, places them, and routes them, and no gate covers that. `synth/yosys/run_pnr.sh` recovers the placed-and-routed logic with `icebox_vlog -c -p boards/upduino31/tagma_demo.pcf`, which reads the `.asc` back into Verilog and names the ports from the constraints file, and `make sim-pnr` instantiates the RTL and the recovered netlist together and compares every output over all 65,536 code points. The recovered file is generated, never committed.
 
 The channel is logic-level. It carries no delays, so timing stays with `icetime`, and no electrical behavior, so power stays with the OpenROAD flow. It proves the bitstream implements the RTL, and the RTL is proven separately, by the decoder testbench over 11,172 points and by formal equivalence over all 2^16 inputs. It does not prove the device runs.
 
 ### Phase 3: FPGA board demo
 
-The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`synth/yosys/upduino31_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. Remaining: physical board bring-up and demo video.
+The demo top module (`rtl/demo/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`boards/upduino31/tagma_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. The ECP5 port is measured at 49 TRELLIS_COMB and 16 TRELLIS_FF with a 22.28 ns cross-domain path, and it programs and boots. Remaining: the external wiring, which is what turns the boot into a decoder demonstration.
 
 ### Phase 4: chton SRAM and standard cell report
 
@@ -121,6 +154,10 @@ generated reports) do not trigger CI.
 PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
 
 `make check` runs the PnR flow, because it includes the bitstream channel, so it needs `nextpnr-ice40`, `icepack`, `icetime`, and `icebox_vlog` on top of Verilator and Yosys. `run.sh` skips the hardware gate and names the missing tool when any of them is absent.
+
+The image's second smoke test is `make -C hw coverage`, which runs every simulation channel, the PnR, and the equivalence proofs. It includes `sim-pipe`, so the pipeline is exercised by the image build rather than only on a developer machine.
+
+The `hw` job also installs Verilator before the ORFS step, because the power hook reads a trace of the demo top when one exists. `openroad/run.sh` builds that trace when a simulator is present and reports the two modelled figures with a warning when it is not, so the step degrades instead of failing on a runner without one.
 
 Synthesis and lint are tool-version dependent too. The image installs Verilator and Yosys from the Ubuntu 24.04 archive (Verilator 5.020 at the time of writing), while a developer's Homebrew Verilator may be newer (5.048 at the time of writing). Lint behaviour differs between the two: 5.020 flags BLKSEQ on a delay-based testbench clock that 5.048 accepts, so a green local `make -C hw check` is not a substitute for the `hw` CI job, which is the authoritative gate. The committed reports carry the same version caveat.
 

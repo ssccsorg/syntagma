@@ -76,14 +76,31 @@ module tagma_demo_top_tb;
     );
 `endif
 
+    // The trace build runs at the board clock the ORFS flow constrains to, so a
+    // VCD of this run can be read back as per-clock activity without a timebase
+    // conversion. Every other build keeps the 2 ns period it has always had,
+    // written the same way it always was, because a real-valued delay would put
+    // a construct the older Verilator in the CI image has not been run on into
+    // every build of this testbench.
+
     // Non-blocking so Verilator does not flag a blocking assignment in a
     // delay-controlled process (BLKSEQ, fatal under -Wall).
+`ifdef TRACE_CLK12
+    always #41.67 clk <= ~clk;
+`else
     always #1 clk <= ~clk;
+`endif
 
     initial begin
         clk    = 1'b0;
         code   = 16'd0;
         errors = 0;
+
+`ifdef TRACE
+        // Port-level activity for the power hook (make sim-trace-demo).
+        $dumpfile("trace_demo.vcd");
+        $dumpvars(1, dut);
+`endif
 
         for (k = 0; k < 65536; k = k + 1) begin
             @(negedge clk);
