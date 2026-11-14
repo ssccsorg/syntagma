@@ -67,8 +67,8 @@ COMPOSE_TB  = rtl/tagma_compose_tb.v
 DIST_RTL = rtl/tagma_dist.v
 DIST_TB  = rtl/tagma_dist_tb.v
 
-DEMO_RTL = rtl/tagma_demo_top.v
-DEMO_TB  = rtl/tagma_demo_top_tb.v
+DEMO_RTL = rtl/demo/tagma_demo_top.v
+DEMO_TB  = rtl/demo/tagma_demo_top_tb.v
 # Recovered from the placed-and-routed .asc by run_pnr.sh (icebox_vlog).
 ASC      = synth/yosys/out/tagma_demo_top_postpnr.v
 

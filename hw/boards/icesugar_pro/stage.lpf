@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: CERN-OHL-P-2.0
+# Copyright (C) 2026 Taeho Lee
+#
+# This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
+# You may redistribute and modify this documentation and make products using
+# it under the terms of the CERN-OHL-P v2 (https://cern.ch/cern-ohl). This
+# documentation is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+# INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+# PARTICULAR PURPOSE. Please see the CERN-OHL-P v2 for applicable conditions.
+#
+# iCESugar-Pro v1.3 constraints for the stage check. No clock: the design is the
+# three input pins driving the three channels.
+#
+#   stage[0]   -> F5,  iCELink PA14
+#   stage[1]   -> N4,  iCELink PA0
+#   stage[2]   -> J5,  iCELink PA1
+#   led_green  -> A11, led_blue -> A12, led_red -> B11
+
+LOCATE COMP "stage[0]" SITE "F5";
+IOBUF PORT "stage[0]" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "stage[1]" SITE "N4";
+IOBUF PORT "stage[1]" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "stage[2]" SITE "J5";
+IOBUF PORT "stage[2]" IO_TYPE=LVCMOS33;
+
+LOCATE COMP "led_green" SITE "A11";
+IOBUF PORT "led_green" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_blue" SITE "A12";
+IOBUF PORT "led_blue" IO_TYPE=LVCMOS25;
+
+LOCATE COMP "led_red" SITE "B11";
+IOBUF PORT "led_red" IO_TYPE=LVCMOS25;

@@ -20,7 +20,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | `tools/check_golden_anchors.py` consistency gate | Implemented, passing |
 | Gate-level netlist simulation against golden anchors (decoder, compose, distance) | Implemented, passing |
 | Formal equivalence: RTL vs gate netlist (decoder, compose, distance) | Proven |
-| `rtl/tagma_demo_top_tb.v` demo top, axes on the 11,172 valid syllables and the validity LED on all 65,536 code points | Implemented, passing |
+| `rtl/demo/tagma_demo_top_tb.v` demo top, axes on the 11,172 valid syllables and the validity LED on all 65,536 code points | Implemented, passing |
 | Bitstream channel: the placed-and-routed design recovered with `icebox_vlog` and compared against the RTL over all 65,536 code points (`make sim-pnr`) | Implemented, passing |
 | FPGA demo top + Upduino 3.1 PCF + PnR flow | Implemented, bitstream, 16.79 MHz Fmax |
 | iCESugar-Pro v1.3 (ECP5) bring-up bitstream | Implemented, programs over the module iCELink, 344 MHz Fmax |
@@ -42,7 +42,8 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 ## Layout
 
 - `boards/` per-board constraints, one directory per physical board
-- `rtl/` Verilog sources and testbenches
+- `rtl/` the primitive: the decoder, the pipeline, the composer, the distance unit, the segment store, their testbenches, and `golden_anchors.hex`
+- `rtl/demo/` the board tops and diagnostic images; nothing here is part of a claim about the primitive
 - `synth/yosys/` Yosys synthesis scripts, the PnR flow, and the committed reports
 - `openroad/` OpenROAD standard cell flow (Sky130)
 - `openram/` OpenRAM configuration for the chton segment store
@@ -100,7 +101,7 @@ The channel is logic-level. It carries no delays, so timing stays with `icetime`
 
 ### Phase 3: FPGA board demo
 
-The demo top module (`rtl/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`boards/upduino31/tagma_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. The ECP5 port is measured at 49 TRELLIS_COMB and 16 TRELLIS_FF with a 22.28 ns cross-domain path, and it programs and boots. Remaining: the external wiring, which is what turns the boot into a decoder demonstration.
+The demo top module (`rtl/demo/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`boards/upduino31/tagma_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. The ECP5 port is measured at 49 TRELLIS_COMB and 16 TRELLIS_FF with a 22.28 ns cross-domain path, and it programs and boots. Remaining: the external wiring, which is what turns the boot into a decoder demonstration.
 
 ### Phase 4: chton SRAM and standard cell report
 

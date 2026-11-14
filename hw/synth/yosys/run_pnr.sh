@@ -81,14 +81,14 @@ icesugar_pro)
         PARAMS=""
         ;;
     tagma_demo)
-        SRC="../../rtl/tagma_decoder.v ../../rtl/tagma_demo_top.v"
+        SRC="../../rtl/tagma_decoder.v ../../rtl/demo/tagma_demo_top.v"
         TOP=tagma_demo_top
         LPF="$BOARDS/icesugar_pro/tagma_demo.lpf"
         # The RGB LED lights on a high level, unlike the Upduino's.
         PARAMS="chparam -set LED_ACTIVE_LOW 0 tagma_demo_top"
         ;;
     stream)
-        SRC="../../rtl/tagma_decoder_pipe.v ../../rtl/tagma_pipe_top.v"
+        SRC="../../rtl/tagma_decoder_pipe.v ../../rtl/demo/tagma_pipe_top.v"
         TOP=tagma_pipe_top
         LPF="$BOARDS/icesugar_pro/stream.lpf"
         # The code source is a counter, so the reported path is a register to
@@ -96,7 +96,7 @@ icesugar_pro)
         PARAMS=""
         ;;
     stream_check)
-        SRC="../../rtl/tagma_decoder.v ../../rtl/tagma_decoder_pipe.v ../../rtl/tagma_pipe_pll.v ../../rtl/tagma_pipe_check_top.v"
+        SRC="../../rtl/tagma_decoder.v ../../rtl/tagma_decoder_pipe.v ../../rtl/demo/tagma_pipe_pll.v ../../rtl/demo/tagma_pipe_check_top.v"
         TOP=tagma_pipe_check_top
         LPF="$BOARDS/icesugar_pro/stream_check.lpf"
         # Runs from the PLL output so the check covers the pipeline above the
@@ -111,7 +111,7 @@ icesugar_pro)
         echo "--- ecppll: 25 MHz to $MHZ MHz ---"
         ecppll -i 25 -o "$MHZ" -f "$PLL" --module pipe_pll \
             --clkin_name clk_in --clkout0_name clk >/dev/null
-        SRC="../../rtl/tagma_decoder_pipe.v $PLL ../../rtl/tagma_pipe_verify_top.v"
+        SRC="../../rtl/tagma_decoder_pipe.v $PLL ../../rtl/demo/tagma_pipe_verify_top.v"
         TOP=tagma_pipe_verify_top
         LPF="$BOARDS/icesugar_pro/verify.lpf"
         # The expected checksum is derived from the anchors tagma_core writes,
@@ -140,7 +140,7 @@ icesugar_pro)
         echo "--- ecppll: 25 MHz to $MHZ MHz ---"
         ecppll -i 25 -o "$MHZ" -f "$PLL" --module pipe_pll \
             --clkin_name clk_in --clkout0_name clk >/dev/null
-        SRC="../../rtl/tagma_decoder_pipe.v $PLL ../../rtl/tagma_volume_verify_top.v"
+        SRC="../../rtl/tagma_decoder_pipe.v $PLL ../../rtl/demo/tagma_volume_verify_top.v"
         TOP=tagma_volume_verify_top
         LPF="$BOARDS/icesugar_pro/volume.lpf"
         # The host computes this over the same values, so the die is checked
@@ -150,8 +150,20 @@ icesugar_pro)
         NAME="${TOP}_${MHZ}mhz"
         REPORT="volume_${MHZ}mhz"
         ;;
+    led)
+        SRC="../../rtl/demo/led_check_top.v"
+        TOP=led_check_top
+        LPF="$BOARDS/icesugar_pro/led.lpf"
+        PARAMS=""
+        ;;
+    stage)
+        SRC="../../rtl/demo/stage_check_top.v"
+        TOP=stage_check_top
+        LPF="$BOARDS/icesugar_pro/stage.lpf"
+        PARAMS=""
+        ;;
     *)
-        echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check or verify)" >&2
+        echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check, verify, volume, led or stage)" >&2
         exit 1
         ;;
     esac
