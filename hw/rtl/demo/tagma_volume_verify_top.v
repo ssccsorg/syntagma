@@ -164,7 +164,7 @@ module tagma_volume_verify_top #(
 
     assign pin_match = matched;
 
-    // The stage selects a colour. Stage 4 is the verdict, and there the die's
+    // The stage selects a colour. Stage 3 is the verdict, and there the die's
     // answer decides between green and red, so the light is not the host's
     // opinion of the run.
     reg red, green, blue;
@@ -179,7 +179,19 @@ module tagma_volume_verify_top #(
         endcase
     end
 
-    assign led_red   = red;
-    assign led_green = green;
-    assign led_blue  = blue;
+    // A part that sits still reads as a photograph of a part. The colour it was
+    // asked for blinks until the verdict, and the verdict is steady, so motion
+    // means the die is running and a steady light means the answer. Bit 24 of
+    // the 40 MHz clock toggles every 0.42 s.
+    reg [24:0] heart = 25'd0;
+
+    always @(posedge clk)
+        heart <= heart + 1'b1;
+
+    wire beat = heart[24];
+    wire hold = stage == 2'd3;
+
+    assign led_red   = red   && (beat || hold);
+    assign led_green = green && (beat || hold);
+    assign led_blue  = blue  && (beat || hold);
 endmodule
