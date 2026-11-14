@@ -32,6 +32,12 @@
 //   pin_match   -> F5, iCELink PA14, the sum equalled EXPECTED and nothing was invalid
 //   pin_invalid -> H5, iCELink PA13, at least one value was outside the alphabet
 //   pin_beat    -> N4, iCELink PA0, a rising edge every 2^25 clocks
+//   led_pass    -> A11, the on-board RGB green channel, lit while the verdict holds
+//   led_fail    -> B11, the on-board RGB red channel, lit while it does not
+//
+// The two LED outputs exist so a person at the board sees the same verdict the
+// host reads over the cable, which is what makes a recording of the run show
+// something on the part rather than only in the terminal.
 //
 // EXPECTED must be supplied by the flow. The default of zero never matches a
 // non-empty volume, so an unset parameter reads as a failure.
@@ -43,7 +49,9 @@ module tagma_volume_verify_top #(
     input  wire clk_in,
     output wire pin_match,
     output wire pin_invalid,
-    output wire pin_beat
+    output wire pin_beat,
+    output wire led_pass,
+    output wire led_fail
 );
     // The alphabet the engine writes: U+AC00 plus this many values.
     localparam [15:0] COORD_RADIX = 16'd11172;
@@ -139,10 +147,11 @@ module tagma_volume_verify_top #(
         if (ready) begin
             if (seen == COUNT - 1) begin
                 // This pack closes the pass, so acc_next and invalid_next are
-                // the whole volume's totals.
+                // the whole volume's totals. The invalid count is not cleared
+                // here: it is the verdict, and a pass that saw a value outside
+                // the alphabet has to keep saying so after it closes.
                 matched  <= (acc_next == EXPECTED) && (invalid_next == 32'd0);
                 acc      <= 32'd0;
-                invalids <= 32'd0;
                 seen     <= {ADDR_BITS{1'b0}};
             end else begin
                 acc      <= acc_next;
@@ -155,4 +164,8 @@ module tagma_volume_verify_top #(
     assign pin_match   = matched;
     assign pin_invalid = (invalids != 32'd0);
     assign pin_beat    = heart[24];
+
+    // The RGB channels light on a high level on this board.
+    assign led_pass = matched;
+    assign led_fail = ~matched;
 endmodule
