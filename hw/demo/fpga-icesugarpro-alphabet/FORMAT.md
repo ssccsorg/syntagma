@@ -36,9 +36,9 @@ Stage 3 is one stage with two colours: which one appears is the die's answer, no
 the host's. Every other stage blinks at about a second and the verdict is steady,
 because a light that sits still reads as a photograph of a part.
 
-This run uses stage 1 for both host acts and stage 3 for the verdict, because the
-footage it is cut against carries one colour between its start and the red. The
-table is what the top can show, not what every script has to use.
+The run uses stages 0 and 1 for the two host acts, stage 3 for the verdict, and
+stage 2 while the image is written. A film of this script carries all four, which
+is what makes every LED line checkable against the picture.
 
 The iCELink offers three pins and this board drives two. The third, PA14 on F5,
 is its SWD clock and never arrives, which is why the stage is two bits and there
@@ -58,7 +58,8 @@ is the pin, and `pin_match` on the line below states the digit.
 The footage is the board filmed while the same stage sequence ran. That is why the
 times are where they are, and why a new film needs its own two, read from the film
 rather than copied from here. `cut.sh` passes them to the shared script, and
-`FOOTAGE_A` and `FOOTAGE_B` override them for a new one.
+`FOOTAGE_A` and `FOOTAGE_B` override them for a new one. `../_shared/onsets.sh`
+prints the colour of the LED over time so the two are measured, not guessed.
 
 ## The words a caption may not carry
 
@@ -75,6 +76,11 @@ while an image loads. Capturing it would put the whole minute in a buffer and
 print a single line at the end, because a pipe makes the C library block-buffer.
 
 ## The cut of 20261115-095221
+
+This was the first cut, and it is against the film above, whose pre-verdict
+section carried a single colour. The take it was made from therefore used one
+stage for both host acts. A take of the current script uses four, and its cut
+replaces the numbers here.
 
 | | |
 |---|---|

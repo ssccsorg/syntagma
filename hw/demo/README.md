@@ -41,6 +41,34 @@ The recording is the take. Start the camera on the first cue and stop on the
 second. A cue is spoken for the room and never written into the captions, so a
 take says nothing about filming.
 
+### Film it beside the console
+
+The console take and the film are two recordings of one run, so the film is made
+while `demo.sh` runs. Put the phone in landscape at 1080p, start on the spoken
+cue, and stop on the second one. The run stages the part before the recording
+starts, which takes about two minutes, so the cue arrives late rather than at
+once.
+
+Keep the film beside the take, under `hw/demo/<package>/out/footage/`, which is
+ignored by git.
+
+Then measure the two verdicts, because they are what the cut is timed by. Read
+the box the LED sits in from one still, then let `onsets.sh` report the colour
+over time:
+
+```sh
+ffmpeg -ss 30 -i film.mov -frames:v 1 /tmp/frame.png
+hw/demo/_shared/onsets.sh film.mov <x>:<y>:<w>:<h> 0 200 0.5
+```
+
+Each line is the mean colour of that box and a marker where the colour changed.
+Red and green are steady, so the first sample of each is the onset. Pass those
+two to the cut:
+
+```sh
+FOOTAGE_A=<red> FOOTAGE_B=<green> hw/demo/<package>/cut.sh <take> <film>
+```
+
 ## What it needs
 
 | | |
@@ -70,6 +98,7 @@ and it states all of that in its own `README.md`.
 | `_shared/render.sh` | the cast to a 1920x1080 video |
 | `_shared/voice.sh` | the narration track and the captions, from the stamped log |
 | `_shared/final.sh` | the published cut: the console, the footage timed to it, and the captions |
+| `_shared/onsets.sh` | the LED's colour over time in a film, so a cut's anchors are measured |
 | `FORMAT.md` | the parent layer, which every package's `FORMAT.md` inherits |
 
 ## The narration track and the captions
