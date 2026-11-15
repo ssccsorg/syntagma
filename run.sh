@@ -60,6 +60,27 @@ check_java_bench() {
     (cd sw/java && ./run.sh --bench)
 }
 
+# The firmware that consumes the primitive builds for the ESP32-S3, which is a target of the
+# esp-rs toolchain and not of the default distribution. No CI installs that toolchain, so its
+# absence is a skip with the reason, the way the Java port's is, and not a failure no runner
+# can satisfy.
+check_device() {
+    echo "--- device: the target the drone firmware builds for ---"
+    if ! rustup toolchain list 2>/dev/null | grep -qE '^esp( |$)'; then
+        echo "  skipped (the esp toolchain is not installed; run 'espup install')"
+        return 0
+    fi
+    local target=xtensa-esp32s3-none-elf
+    (cd sw/rust && RUSTUP_TOOLCHAIN=esp cargo build --release -p tagma-core \
+        --no-default-features --target "$target" -Z build-std=core)
+    # The size is the figure the document quotes, so it is measured here rather than
+    # carried over from an older run. The target's size tool arrives with export-esp.sh.
+    if command -v xtensa-esp32s3-elf-size >/dev/null 2>&1; then
+        xtensa-esp32s3-elf-size "sw/rust/target/$target/release/libtagma_core.rlib" \
+            | awk '/tagma_core/ && $1 ~ /^[0-9]+$/ { text += $1 } END { printf "  text %d bytes\n", text }'
+    fi
+}
+
 check_hw() {
     echo "--- hw: RTL simulation + synthesis + PnR ---"
     # The gate covers the demo place and route and the recovered-bitstream
@@ -114,6 +135,7 @@ check_checks() {
     (cd sw/rust/verify/linkcheck && cargo fmt --check)
     (cd sw/rust/verify/linkcheck && cargo clippy --target riscv32imac-unknown-none-elf -- -D warnings)
     (cd sw/rust/verify/linkcheck && cargo build --target riscv32imac-unknown-none-elf)
+    check_device
     check_cpp
     check_java
     check_hw

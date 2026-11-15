@@ -42,6 +42,8 @@ Where a port must change bytes or behavior, the difference is recorded next to t
 
 Tagma provides a single feature gate: `alloc` (default: on). Without it (`--no-default-features`), all Tagma types are `no_std` + `no_alloc`.
 
+The gate is checked against a target rather than only on the host. `run.sh` builds the alloc-free artifact for `riscv32imac-unknown-none-elf` and links it in `sw/rust/verify/linkcheck`, so a link that reaches for an allocator fails there. It also builds `xtensa-esp32s3-none-elf`, the target the device firmware uses, when the esp-rs toolchain is installed; the check reports the size it measured and skips with the reason where that toolchain is absent, because no CI installs it.
+
 | Level | Feature flags | Heap | Available types |
 |-------|---------------|------|-----------------|
 | no_alloc | (none) | Never | Coord, CoordPath, CoordSet, CoordCube, CoordSpace |
