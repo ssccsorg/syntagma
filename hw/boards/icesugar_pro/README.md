@@ -154,3 +154,19 @@ The host drives two of the four iCELink pins as a stage, and the top turns the s
 The stage is two bits because PA14 on F5, the pin the third bit used, is the iCELink's SWD clock: the debugger holds it, and a host write never reaches the ball. `icesprog` also treats `-m` and `-w` as exclusive in one call, so a stage write is two calls a pin, mode then value.
 
 The host that writes the ROM, sets the stage, and computes the sum is the demonstrating side, and the run is recorded under `hw/demo/` with the console beside the board. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.
+
+## The anchor comparison image
+
+`DESIGN=anchor` builds `tagma_anchor_verify_top`, which reads an anchor file rather than a set of values. Each line carries offset in [28:15] and the pack the reference computed in [14:0], so the die decodes `0xAC00` plus the line's offset and compares its own pack with the pack the line carries. A sum cannot say which coordinate was wrong, and two packs that trade value leave the total untouched; this image sees the exchange because the comparison is per line.
+
+```sh
+make -C hw pnr BOARD=icesugar_pro DESIGN=anchor ANCHOR_ROM=out/anchor_fixture_pass.hex ANCHOR_TAG=pass
+```
+
+`ANCHOR_ROM` is copied to `out/anchor_rom.hex`, which is the path the top fixes because `$readmemh` resolves against the synthesis working directory. `ANCHOR_TAG` names the bitstream, so two files build two images from one design. `COUNT` is read from the file being built, so the die cannot be told a length its ROM does not have. `make sim-anchor` writes the pair the gate uses: the anchor file, and the same lines with two packs exchanged, both carrying the sum `065BEA26`.
+
+Two things about this image cost time to find and are worth keeping.
+
+The ROM depth is the address space and not `COUNT`. A depth of 11,172, which is not a power of two, was mapped into 18 `DP16KD` blocks holding 9,216 words of 18 bits, and every line past the shortfall was compared against nothing, so the image answered red for the file it should have accepted. At depth 16,384 the same file maps into 26 blocks and reads 1. The top states `DEPTH` as `1 << ADDR_BITS` for that reason, and `COUNT` still governs the wrap and the comparison.
+
+The part answers about two seconds after it is released, and a read before that returns the verdict of the image being replaced. The harness waits longer than that; a three second wait read the swapped image's refusal for the image that should have been accepted, which is a pass that reads as a failure.

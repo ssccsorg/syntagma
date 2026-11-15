@@ -25,10 +25,12 @@
 #   make sim-dist       # distance over 2 x 11,172 pairs (formula mode)
 #   make sim-dist-golden     # distance against the golden anchors
 #   make sim-demo       # demo top over all 65,536 code points (formula mode)
+#   make sim-anchor     # per-value anchor comparison, pass and swap fixtures
 #   make pnr            # place and route for BOARD, default upduino31
 #   make pnr BOARD=icesugar_pro   # place and route the ECP5 bring-up design
 #   make pnr BOARD=icesugar_pro DESIGN=tagma_demo   # place and route the demo
 #   make pnr BOARD=icesugar_pro DESIGN=verify   # on-device checksum image
+#   make pnr BOARD=icesugar_pro DESIGN=anchor ANCHOR_ROM=f # per-value anchor image
 #   make board-verify   # read the verdict off the board through the debugger
 #   make sim-pnr        # demo top against the placed-and-routed bitstream
 #   make golden-export  # regenerate golden anchors from tagma_core
@@ -90,6 +92,20 @@ PIPE_RTL = rtl/tagma_decoder_pipe.v
 PIPE_TB  = rtl/tagma_decoder_pipe_tb.v
 VERILATE_PIPE = $(SIM) --binary --timing -Wall --top-module tagma_decoder_pipe_tb
 
+# The per-value anchor comparison. The ROM is an anchor file, so the fixtures
+# are generated from the one tagma_core writes rather than stored.
+ANCHOR_RTL  = rtl/tagma_anchor_verify_top.v
+ANCHOR_TB   = rtl/tagma_anchor_verify_tb.v
+ANCHOR_PASS = synth/yosys/out/anchor_fixture_pass.hex
+ANCHOR_SWAP = synth/yosys/out/anchor_fixture_swap.hex
+VERILATE_ANCHOR = $(SIM) --binary --timing -Wall --top-module tagma_anchor_verify_tb
+# The top states its power-on state as declaration initialisers, which is how
+# this flow carries a register value into the bitstream, and Verilator reports
+# each one as PROCASSINIT. Naming that warning would break the Verilators that
+# predate it, so this channel keeps its warnings visible and non-fatal, the way
+# ASC_LINT does for the recovered netlist.
+ANCHOR_LINT = -Wno-fatal
+
 # The recovered netlist keeps no names for the logic it flattens into, so it
 # trips UNUSEDSIGNAL, and it carries no timescale, so it trips TIMESCALEMOD.
 # Both names exist in every Verilator the project has run, so naming them is
@@ -107,7 +123,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage coverage-summary report check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-anchor anchor-fixtures sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage coverage-summary report check clean
 
 all: check
 
@@ -140,6 +156,27 @@ sim-pipe: $(PIPE_RTL) $(PIPE_TB) $(RTL) | $(OBJ_DIR)
 	@tail -3 $(OBJ_DIR)/build_tb_pipe.log
 	@rm -f $(OBJ_DIR)/build_tb_pipe.err
 	@./$(OBJ_DIR)/tb_pipe
+
+# The pair of fixtures is the negative control: the same multiset of packs, so a
+# sum over them is identical, and only the untouched file is the one the decoder
+# agrees with. A checksum image cannot tell them apart; this channel must.
+anchor-fixtures: $(GOLDEN)
+	@echo "--- fixtures: the anchors, and the same anchors with two packs exchanged ---"
+	@python3 tools/anchor_fixtures.py synth/yosys/out
+
+sim-anchor: anchor-fixtures $(ANCHOR_RTL) $(ANCHOR_TB) $(PIPE_RTL) | $(OBJ_DIR)
+	@count=$$(wc -l < $(ANCHOR_PASS) | tr -d ' '); \
+	echo "--- verilator: tb_anchor over $$count lines ---"; \
+	$(VERILATE_ANCHOR) -DSIM $(ANCHOR_LINT) -GCOUNT=$$count $(ANCHOR_TB) $(ANCHOR_RTL) $(PIPE_RTL) -o tb_anchor \
+		> $(OBJ_DIR)/build_tb_anchor.log 2> $(OBJ_DIR)/build_tb_anchor.err \
+		|| { echo "verilator build failed:"; cat $(OBJ_DIR)/build_tb_anchor.log $(OBJ_DIR)/build_tb_anchor.err; exit 1; }; \
+	if test -s $(OBJ_DIR)/build_tb_anchor.err; then echo "verilator warnings:"; cat $(OBJ_DIR)/build_tb_anchor.err; fi; \
+	tail -3 $(OBJ_DIR)/build_tb_anchor.log; \
+	rm -f $(OBJ_DIR)/build_tb_anchor.err; \
+	echo "--- the lines the reference wrote ---"; \
+	./$(OBJ_DIR)/tb_anchor +rom=$(ANCHOR_PASS) +expect=1; \
+	echo "--- the same lines with two packs exchanged ---"; \
+	./$(OBJ_DIR)/tb_anchor +rom=$(ANCHOR_SWAP) +expect=0
 
 sim-trace-demo: $(DEMO_RTL) $(RTL) $(DEMO_TB) | $(OBJ_DIR)
 	@echo "--- verilator: tb_demo_trace (board clock, VCD activity trace) ---"
@@ -299,7 +336,7 @@ report: synth
 	@echo "=== iCE40 ==="
 	@cat synth/yosys/reports/ice40_stat.txt
 
-check: sim sim-golden sim-pipe sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
+check: sim sim-golden sim-pipe sim-anchor sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
 coverage: check coverage-summary
 
