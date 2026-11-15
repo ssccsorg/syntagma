@@ -1,0 +1,4 @@
+# The takes: casts and videos, which are records of a run rather than sources.
+out/
+# A volume a probe wrote from inside this directory, which is a run artifact too.
+target/
