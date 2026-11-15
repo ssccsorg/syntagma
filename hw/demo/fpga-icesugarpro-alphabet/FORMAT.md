@@ -10,7 +10,7 @@ The parent leaves three things to a package. This file is those three.
 |---|---|
 | the two events the cut is aligned on, and where they are in the footage | the two verdict lines, and their times |
 | the vocabulary of the status line the console prints | four stages, five colours, two bits |
-| the numbers of the last cut | the 20261115-095221 numbers |
+| the numbers of the last cut | the 20261115-102728 numbers |
 
 What this apparatus is, and why it answers the question it answers, is in
 `README.md` beside this file. The line that records a take is `demo.sh`, and
@@ -36,9 +36,10 @@ Stage 3 is one stage with two colours: which one appears is the die's answer, no
 the host's. Every other stage blinks at about a second and the verdict is steady,
 because a light that sits still reads as a photograph of a part.
 
-The run uses stages 0 and 1 for the two host acts, stage 3 for the verdict, and
-stage 2 while the image is written. A film of this script carries all four, which
-is what makes every LED line checkable against the picture.
+The run uses stage 1 for both host acts and stage 3 for the verdict. The film it
+is cut against carries one colour between its start and the red, so a script that
+changed colour there would print a line the picture contradicts. A film of this
+script, taken while it records, would let the two acts keep their own stages.
 
 The iCELink offers three pins and this board drives two. The third, PA14 on F5,
 is its SWD clock and never arrives, which is why the stage is two bits and there
@@ -75,23 +76,22 @@ mode`, `gpio write`, `gpio read ... return <n>`, and one `write 0x...` per 64 kB
 while an image loads. Capturing it would put the whole minute in a buffer and
 print a single line at the end, because a pipe makes the C library block-buffer.
 
-## The cut of 20261115-095221
-
-This was the first cut, and it is against the film above, whose pre-verdict
-section carried a single colour. The take it was made from therefore used one
-stage for both host acts. A take of the current script uses four, and its cut
-replaces the numbers here.
+## The cut of 20261115-102728
 
 | | |
 |---|---|
-| Console anchors | 29.49 s, 110.61 s |
+| Console anchors | 27.20 s, 106.81 s |
 | Footage anchors | 73.50 s, 151.75 s |
-| Trim, ratio | 45.049 s, 1.03667 |
-| Anchors in the encoded file | 29.5 s, 110.7 s |
-| Captions | 14 cues, last at 123.5 s |
-| Output | 1920x1240, 134.8 s, 22.5 MiB, H.264 plus AAC mono |
-| Host | `https://pub-06bcfdd98bd94801a748fa2ff0382400.r2.dev/demo/fpga-icesugarpro-alphabet/20261115-095221.mp4` |
+| Trim, ratio | 46.767 s, 1.01745 |
+| Anchors in the encoded file | 27.2 s, 106.8 s |
+| Captions | 14 cues, last at 119.1 s |
+| Output | 1920x1240, 129.6 s, 14.8 MiB, H.264 plus AAC mono |
+| Host | `https://pub-06bcfdd98bd94801a748fa2ff0382400.r2.dev/demo/fpga-icesugarpro-alphabet/20261115-102728.mp4` |
 
-The footage is 172.8 s and the take is 134.8 s, so the last 2 s of the take hold
+The footage is 172.8 s and the take is 129.6 s, so the last 1.4 s of the take hold
 the footage's final frame. That frame is the green verdict, which is steady, so
 the still frame reads as the same light the run ended on.
+
+The narration is the engine's female voice, `af_heart`, at 1.35 times its own
+pace. The take was recorded while that voice spoke, so the track a viewer hears
+is the one the room heard.

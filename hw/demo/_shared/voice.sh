@@ -19,7 +19,7 @@ captions=${3:-$out/demo.srt}
 
 say_rate=${SAY_RATE:-178}
 tts=${TTS:-voice}
-tts_voice=${TTS_VOICE:-am_michael}
+tts_voice=${TTS_VOICE:-af_heart}
 tts_speed=${TTS_SPEED:-1.35}
 log="$out/voice.log"
 cast="$out/demo.cast"

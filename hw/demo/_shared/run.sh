@@ -31,7 +31,7 @@ icesprog=${ICESPROG:-icesprog}
 styles=131x31
 # One narration setting for the run and for the track built from it.
 tts=${TTS:-voice}
-tts_voice=${TTS_VOICE:-am_michael}
+tts_voice=${TTS_VOICE:-af_heart}
 tts_speed=${TTS_SPEED:-1.35}
 say_rate=${SAY_RATE:-178}
 

@@ -39,7 +39,7 @@ anchors=hw/rtl/golden_anchors.hex
 # The engine, the voice, and the pace are one setting: voice.sh reads the same
 # three, so the track is the voice the room hears rather than a second take.
 tts=${TTS:-voice}
-tts_voice=${TTS_VOICE:-am_michael}
+tts_voice=${TTS_VOICE:-af_heart}
 tts_speed=${TTS_SPEED:-1.35}
 say_rate=${SAY_RATE:-178}
 voice_log=${VOICE_LOG:-}
@@ -186,15 +186,17 @@ cue "Start filming."
 sleep 3
 
 open_pins
-set_stage 0
-led 94 "blue, blink"
+# One stage covers both host acts, because the footage this take is cut against
+# carries one colour between its start and the red. A film of this script would
+# let the two acts keep their own stages; the stage table in FORMAT.md is the
+# vocabulary the top can show either way.
+set_stage 1
+led 96 "cyan, blink"
 step "The alphabet."
 speak "Tagma writes one anchor for every valid offset of its alphabet."
 run_show make --no-print-directory -C hw golden-export
 speak "Eleven thousand one hundred and seventy two of them, each a code point that packs three axes."
 
-set_stage 1
-led 96 "cyan, blink"
 step "The sum."
 speak "The host sums those packs, and that number is what the die has to reach."
 run_show python3 hw/tools/tagma_checksum.py "$anchors"

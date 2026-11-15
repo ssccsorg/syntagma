@@ -137,7 +137,7 @@ spoke it.
 | Variable | Default | Meaning |
 |---|---|---|
 | `TTS` | `voice` | `voice` for Kokoro on Apple Silicon, `say` for the system voice, `none` for a silent run |
-| `TTS_VOICE` | `am_michael` | Kokoro voice name |
+| `TTS_VOICE` | `af_heart` | Kokoro voice name; `af_heart` is its default female voice, `am_michael` the male one |
 | `TTS_SPEED` | `1.35` | Kokoro speed factor; 1.0 is the model's own pace and 1.35 matches the old system voice |
 | `SAY_RATE` | `178` | words a minute, used only by `say` |
 
