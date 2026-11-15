@@ -1,0 +1,12 @@
+[LED] blue, blink
+$ make --no-print-directory -C hw golden-export
+$ python3 hw/tools/anchor_fixtures.py
+[LED] cyan, blink
+$ python3 hw/tools/tagma_checksum.py hw/synth/yosys/out/anchor_fixture_pass.hex
+$ python3 hw/tools/tagma_checksum.py hw/synth/yosys/out/anchor_fixture_swap.hex
+[LED] red, steady
+pin_match = 0
+[LED] yellow, blink
+$ icesprog -w
+[LED] green, steady
+pin_match = 1

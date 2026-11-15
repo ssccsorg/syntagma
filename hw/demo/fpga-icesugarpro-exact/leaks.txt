@@ -1,0 +1,7 @@
+# Words a caption must not carry. This demo is about a comparison the format
+# makes possible; a product built on the format, and the record vocabulary that
+# would come with one, belong to another story.
+ktema
+storage
+database
+volume
