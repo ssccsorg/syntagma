@@ -186,17 +186,15 @@ cue "Start filming."
 sleep 3
 
 open_pins
-# One stage covers both host acts, because the footage this take is cut against
-# carries one colour between its start and the red. A film of this script would
-# let the two acts keep their own stages; the stage table in FORMAT.md is the
-# vocabulary the top can show either way.
-set_stage 1
-led 96 "cyan, blink"
+set_stage 0
+led 94 "blue, blink"
 step "The alphabet."
 speak "Tagma writes one anchor for every valid offset of its alphabet."
 run_show make --no-print-directory -C hw golden-export
 speak "Eleven thousand one hundred and seventy two of them, each a code point that packs three axes."
 
+set_stage 1
+led 96 "cyan, blink"
 step "The sum."
 speak "The host sums those packs, and that number is what the die has to reach."
 run_show python3 hw/tools/tagma_checksum.py "$anchors"

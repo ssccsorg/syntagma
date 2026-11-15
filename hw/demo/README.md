@@ -127,7 +127,9 @@ hw/demo/_shared/voice.sh <take>
 hw/demo/fpga-icesugarpro-alphabet/cut.sh <take> <footage>
 ```
 
-Each line is synthesised once and mixed at the time the run spoke it.
+Each line is synthesised once and mixed at the time the run spoke it. That also
+means a cut can carry a different voice from the one the room heard: a cue starts
+at the stamped time, so changing the voice moves the end of a line and no start.
 `narrate.sh` stamps every line into `voice.log` as it speaks, and the cast's
 header carries the epoch its clock starts from, so the two share one origin
 without matching an echoed line. The mix is normalised once to -16 LUFS, because

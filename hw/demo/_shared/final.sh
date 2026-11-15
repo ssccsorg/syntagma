@@ -93,6 +93,11 @@ fg = theme.get("fg", "#f2f2f2").lstrip("#")
 
 ratio = (second - first) / (footage_b - footage_a)
 trim = footage_a - first / ratio
+# A film can start before the take's clock, which asks for a negative trim. The
+# first frame is cloned for the difference instead, so the picture is there from
+# the start and every later timestamp is where the two anchors put it.
+pad = max(0.0, -trim)
+trim = max(0.0, trim)
 
 cues = []
 with open(os.path.join(take, "demo.srt"), encoding="utf-8") as handle:
@@ -118,10 +123,15 @@ for block in body.split("\n\n"):
     cues.append((png, seconds(start), seconds(end)))
 
 height = 1080 + strip
+board_filter = "[1:v]"
+if pad > 0:
+    board_filter += "tpad=start_duration=%.3f:start_mode=clone," % pad
+board_filter += ("trim=start=%.3f,setpts=(PTS-STARTPTS)*%.5f,"
+                 "scale=960:540:flags=lanczos,setsar=1[board]" % (trim, ratio))
+
 graph = [
     "[0:v]pad=1920:%d:0:0:color=0x%s[base]" % (height, bg),
-    "[1:v]trim=start=%.3f,setpts=(PTS-STARTPTS)*%.5f,"
-    "scale=960:540:flags=lanczos,setsar=1[board]" % (trim, ratio),
+    board_filter,
     "[base][board]overlay=%s:%s:eof_action=repeat[b0]" % (board_x, board_y),
 ]
 for index, (_, start, end) in enumerate(cues):
@@ -138,8 +148,8 @@ with open(os.path.join(work, "count.txt"), "w") as handle:
 
 print("console  first %6.2fs, second %6.2fs" % (first, second))
 print("footage  first %6.2fs, second %6.2fs" % (footage_a, footage_b))
-print("trim %.3fs, ratio %.5f, %d cues, frame 1920x%d"
-      % (trim, ratio, len(cues), height))
+print("trim %.3fs, pad %.3fs, ratio %.5f, %d cues, frame 1920x%d"
+      % (trim, pad, ratio, len(cues), height))
 PY
 
 count=$(cat "$work/count.txt")

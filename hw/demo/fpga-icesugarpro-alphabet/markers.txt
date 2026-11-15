@@ -1,5 +1,6 @@
-[LED] cyan, blink
+[LED] blue, blink
 $ make --no-print-directory -C hw golden-export
+[LED] cyan, blink
 $ python3 hw/tools/tagma_checksum.py hw/rtl/golden_anchors.hex
 $ make --no-print-directory -C hw golden-check
 [LED] red, steady
