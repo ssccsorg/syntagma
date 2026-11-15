@@ -17,6 +17,6 @@ root=$(cd "$here/../../.." && pwd)
 exec env \
     ANCHOR_A='[LED] red, steady' \
     ANCHOR_B='[LED] green, steady' \
-    FOOTAGE_A="${FOOTAGE_A:-27.50}" \
-    FOOTAGE_B="${FOOTAGE_B:-108.50}" \
+    FOOTAGE_A="${FOOTAGE_A:-35.60}" \
+    FOOTAGE_B="${FOOTAGE_B:-123.70}" \
     "$root/hw/demo/_shared/final.sh" "$@"
