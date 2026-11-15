@@ -1,0 +1,11 @@
+[LED] blue, blink
+$ make --no-print-directory -C hw golden-export
+[LED] cyan, blink
+$ python3 hw/tools/tagma_checksum.py hw/rtl/golden_anchors.hex
+$ make --no-print-directory -C hw golden-check
+[LED] red, steady
+pin_match = 0
+[LED] yellow, blink
+$ icesprog -w hw/demo/fpga-icesugarpro-alphabet/out/images/alphabet_pass.bit
+[LED] green, steady
+pin_match = 1

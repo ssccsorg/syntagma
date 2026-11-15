@@ -141,7 +141,7 @@ Timing closes at 140 MHz and `nextpnr-ecp5` rejects 150 MHz at 145.99 MHz, so th
 
 ## The volume image
 
-`DESIGN=volume` builds `tagma_volume_verify_top`, which decodes the coordinate values a store wrote rather than sweeping the range. The values come from a ROM at `hw/synth/yosys/out/volume_rom.hex`, one 16-bit value a line, and `COUNT` is read from the same file, so the two cannot disagree.
+`DESIGN=volume` builds `tagma_volume_verify_top`, which decodes a supplied set of coordinate values rather than sweeping the range. The values come from a ROM at `hw/synth/yosys/out/volume_rom.hex`, one 16-bit value a line, and `COUNT` is read from the same file, so the two cannot disagree.
 
 ```sh
 make -C hw pnr BOARD=icesugar_pro DESIGN=volume EXPECTED_CHECKSUM=00002BFC
@@ -149,8 +149,8 @@ make -C hw pnr BOARD=icesugar_pro DESIGN=volume EXPECTED_CHECKSUM=00002BFC
 
 `EXPECTED_CHECKSUM` is required: the flow refuses to build without it, because a default would read as a pass. A value at or above 11,172 is outside the alphabet, so it is counted and kept out of the sum, and either a changed sum or a nonzero count clears `pin_match`.
 
-The host drives two of the four iCELink pins as a stage, and the top turns the stage into a colour on the RGB channels: blue while the volume is written, cyan when a record is reached, yellow while the cost is measured and while the part is programmed, and at stage three the verdict itself, green when the sum and the alphabet agree and red otherwise. The verdict is also on H5, the one iCELink pin the firmware leaves to the host.
+The host drives two of the four iCELink pins as a stage, and the top turns the stage into a colour on the RGB channels. Every stage but the last blinks, whichever colour the host asked for; stage three is steady and carries the verdict, green when the sum and the alphabet agree and red otherwise. The meaning of the earlier stages belongs to whatever script is driving them, and `hw/demo/` states one such sequence. The verdict is also on H5, the one iCELink pin the firmware leaves to the host.
 
 The stage is two bits because PA14 on F5, the pin the third bit used, is the iCELink's SWD clock: the debugger holds it, and a host write never reaches the ball. `icesprog` also treats `-m` and `-w` as exclusive in one call, so a stage write is two calls a pin, mode then value.
 
-The host that writes the ROM, sets the stage, and computes the sum is the demonstrating side, and the published run shows the console beside the board at <https://demo.ktema.systems/fpga/>. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.
+The host that writes the ROM, sets the stage, and computes the sum is the demonstrating side, and the run is recorded under `hw/demo/` with the console beside the board. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.
