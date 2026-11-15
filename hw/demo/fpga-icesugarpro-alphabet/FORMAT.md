@@ -10,7 +10,7 @@ The parent leaves three things to a package. This file is those three.
 |---|---|
 | the two events the cut is aligned on, and where they are in the footage | the two verdict lines, and their times |
 | the vocabulary of the status line the console prints | four stages, five colours, two bits |
-| the numbers of the last cut | recorded after the first take |
+| the numbers of the last cut | the 20261115-095221 numbers |
 
 What this apparatus is, and why it answers the question it answers, is in
 `README.md` beside this file. The line that records a take is `demo.sh`, and
@@ -35,6 +35,10 @@ The console prints one line per stage change, drawn in that colour behind `>>>`:
 Stage 3 is one stage with two colours: which one appears is the die's answer, not
 the host's. Every other stage blinks at about a second and the verdict is steady,
 because a light that sits still reads as a photograph of a part.
+
+This run uses stage 1 for both host acts and stage 3 for the verdict, because the
+footage it is cut against carries one colour between its start and the red. The
+table is what the top can show, not what every script has to use.
 
 The iCELink offers three pins and this board drives two. The third, PA14 on F5,
 is its SWD clock and never arrives, which is why the stage is two bits and there
@@ -69,3 +73,19 @@ reaches for one of those words is telling a different story.
 mode`, `gpio write`, `gpio read ... return <n>`, and one `write 0x...` per 64 kB
 while an image loads. Capturing it would put the whole minute in a buffer and
 print a single line at the end, because a pipe makes the C library block-buffer.
+
+## The cut of 20261115-095221
+
+| | |
+|---|---|
+| Console anchors | 29.49 s, 110.61 s |
+| Footage anchors | 73.50 s, 151.75 s |
+| Trim, ratio | 45.049 s, 1.03667 |
+| Anchors in the encoded file | 29.5 s, 110.7 s |
+| Captions | 14 cues, last at 123.5 s |
+| Output | 1920x1240, 134.8 s, 22.5 MiB, H.264 plus AAC mono |
+| Host | `https://pub-06bcfdd98bd94801a748fa2ff0382400.r2.dev/demo/fpga-icesugarpro-alphabet/20261115-095221.mp4` |
+
+The footage is 172.8 s and the take is 134.8 s, so the last 2 s of the take hold
+the footage's final frame. That frame is the green verdict, which is steady, so
+the still frame reads as the same light the run ended on.
