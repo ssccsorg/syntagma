@@ -56,9 +56,9 @@ Sign, verify, exchange, and verify_receipt. Exchanged evidence binds the local p
 
 The shared suite `tests/workflow.rs` runs identically against both stacks. A security property holds for the tagma-sec pattern only if the same contract passes on the legacy mirror. The distinguishing suite `tests/delos.rs` pins the deltas: epoch and principal bound seals, refresh epoch binding, prefix scope coverage, revocation effective from the recorded epoch, scope-specific revocation keys, and the attestation lifetime boundary.
 
-## Development plan
+## Scope
 
-The specification maps the work into milestones. Milestones 1 to 4 (authority, integrity, audit, channel) are implemented in this crate. Milestone 5 (Delos: neXus envelope, hybrid confidentiality composition, wiring) is a separate future project.
+This crate implements four modules: authority, integrity, audit, and channel. The Delos integration (neXus envelope, hybrid confidentiality composition, wiring) is not part of it.
 
 ## Usage
 
