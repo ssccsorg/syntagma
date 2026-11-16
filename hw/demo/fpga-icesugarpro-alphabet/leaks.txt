@@ -1,7 +1,6 @@
 # Words a caption must not carry. This demo is about the format; a product that
 # would use it, and the record vocabulary that comes with one, belong to another
 # story.
-ktema
 storage
 database
 volume
