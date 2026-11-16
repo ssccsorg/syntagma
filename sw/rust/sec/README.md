@@ -34,7 +34,7 @@ The layer follows the repositioning in the specification. The initial framing pr
 
 ### authority
 
-Registration, issuance, authorization, and revocation. Scope matching follows the milestone 1 contract: Exact and Prefix rules over path sequences, with no dependence on path secrecy. Attestations carry an issued epoch and a validity window; authorization checks the window and the epoch-scoped revocation record.
+Registration, issuance, authorization, and revocation. Scope matching follows two rules, Exact and Prefix, over path sequences, with no dependence on path secrecy. Attestations carry an issued epoch and a validity window; authorization checks the window and the epoch-scoped revocation record.
 
 ### integrity
 
