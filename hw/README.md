@@ -31,7 +31,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | iCELink GPIO channel, ECP5 F5/H5/N4/J5 to PA14/PA13/PA0/PA1 | Implemented, read on all four, drive on two (N4 and J5; PA14 is the SWD clock), PA13 is read only |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
-| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json`, write-up kept with the product |
+| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json` |
 | Yosys gate-level estimate (2-input gate library) | `synth/yosys/reports/gates_stat.txt`, plus `compose_gates_stat.txt` and `dist_gates_stat.txt` |
 | Yosys iCE40 synthesis report (LUT count) | `synth/yosys/reports/ice40_stat.txt` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
@@ -167,7 +167,7 @@ Warnings are fatal to the Verilator build, and the warning set itself moves betw
 
 The Sky130 standard cell flow runs end to end (`hw/openroad/run.sh` with the
 ORFS image): synth, floorplan, place, cts, route, finish. Two flow bugs were
-fixed during setup, documented in the derisking devlog: the clock constraint
+fixed during setup: the clock constraint
 was a virtual clock (no source port), leaving the design without a clock
 tree, and the default-on kepler-formal LEC step crashes with an illegal
 instruction on the available CPUs, so it is disabled via `LEC_CHECK = 0`
@@ -187,7 +187,7 @@ Measured for the registered demo top at the 12 MHz board-equivalent clock
 The flow runs on x86 and on Apple Silicon under Rosetta. Results are
 uploaded as the `sky130-reports` artifact.
 
-The flow's own power number sits at the tool's default input activity, which is 0.1 transitions per clock cycle on every input, so the data path is effectively static and the clock carries the switching. The design config names `openroad/designs/sky130hd/tagma_demo/power_activity.tcl` as `POST_FINAL_REPORT_TCL`, so the flow sources it at the end of its report step, in the session where the design, the liberty, the sdc, the derate, the setRC, and the SPEF are already in place. The hook reports at that default and then annotates the code bits with the sweep's activity, which makes the first report the control: it reproduces the flow's own number to the digit. Both reports land in `results/power_activity.rpt`. The basis is the stimulus rather than a saved trace: the demo sweeps all 65,536 code points, one per clock, so bit `b` of the counter changes once every `2^b` clocks, an activity of `1 / 2^b` transitions per clock cycle, the unit `set_power_activity -activity` takes. The measurements, the three defects the run exposed, and what would falsify the result are kept with the product. The model is vectorless, so the number is not a measured power; a VCD of the routed netlist would be, and none exists yet. The figures are tool-version dependent, like the PnR numbers above.
+The flow's own power number sits at the tool's default input activity, which is 0.1 transitions per clock cycle on every input, so the data path is effectively static and the clock carries the switching. The design config names `openroad/designs/sky130hd/tagma_demo/power_activity.tcl` as `POST_FINAL_REPORT_TCL`, so the flow sources it at the end of its report step, in the session where the design, the liberty, the sdc, the derate, the setRC, and the SPEF are already in place. The hook reports at that default and then annotates the code bits with the sweep's activity, which makes the first report the control: it reproduces the flow's own number to the digit. Both reports land in `results/power_activity.rpt`. The basis is the stimulus rather than a saved trace: the demo sweeps all 65,536 code points, one per clock, so bit `b` of the counter changes once every `2^b` clocks, an activity of `1 / 2^b` transitions per clock cycle, the unit `set_power_activity -activity` takes. The model is vectorless, so the number is not a measured power; a VCD of the routed netlist would be, and none exists yet. The figures are tool-version dependent, like the PnR numbers above.
 
 ## License
 
@@ -234,7 +234,7 @@ Deliverables:
 1. hw/rtl/tagma_decoder.v
 2. hw/rtl/tagma_decoder_tb.v with exhaustive validation of all 11,172 code points
 3. hw/synth/yosys/: generic, gate-level, and iCE40 synthesis scripts with reports
-4. a synthesis write-up with real tool output
+4. a synthesis report with real tool output
 5. hw/openram/chton_sram.py for the chton segment store (11,172 x 16-bit SRAM)
 6. hw/Makefile with sim/synth/check targets, wired into run.sh
 
