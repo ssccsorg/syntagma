@@ -103,7 +103,7 @@ Scope matching for the initial implementation supports two rules:
 | Exact | The target path equals the scope path | scope `CoordPath<2>(a, b)` authorizes only the path `(a, b)` |
 | Prefix | The scope path is a prefix of the target path | scope `CoordPath<2>(a, b)` authorizes `(a, b, c)` and any longer path beginning with `(a, b)` |
 
-A scope may name a single path or a set of paths. Compound policies (negation, union of disjoint prefixes, regular expressions over paths) are deferred; the two rules above are the Milestone 1 contract.
+A scope may name a single path or a set of paths. Compound policies (negation, union of disjoint prefixes, regular expressions over paths) are deferred; the two rules above are the contract a conforming implementation meets.
 
 Attestations carry a lifetime: an issued epoch and a validity window. `authorize` checks the current epoch against the window and rejects expired attestations. `revoke` records a revoked (principal, scope) pair, effective from the epoch recorded by the authority. The concrete epoch source is an open question (Section `Open questions`); the interface does not depend on its realization.
 
