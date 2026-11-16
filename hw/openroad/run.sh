@@ -113,8 +113,7 @@ echo "--- power at the demo workload's input activity ---"
 # number and its annotated report differs only by the input activity. The hook
 # writes $RESULTS_DIR/power_activity.rpt into the flow volume, and this step
 # reads it out, so a missing or failed hook fails the gate. See
-# designs/sky130hd/tagma_demo/power_activity.tcl and
-# docs/devlogs/hw/2026-09-28-power-activity.md.
+# designs/sky130hd/tagma_demo/power_activity.tcl.
 docker run --rm --platform linux/amd64 \
     -v "${VOL}:/OpenROAD-flow-scripts/flow" \
     "${IMG}" bash -c '
