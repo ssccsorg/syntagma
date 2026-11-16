@@ -167,11 +167,11 @@ Warnings are fatal to the Verilator build, and the warning set itself moves betw
 
 The Sky130 standard cell flow runs end to end (`hw/openroad/run.sh` with the
 ORFS image): synth, floorplan, place, cts, route, finish. Two flow bugs were
-fixed during setup: the clock constraint
-was a virtual clock (no source port), leaving the design without a clock
-tree, and the default-on kepler-formal LEC step crashes with an illegal
-instruction on the available CPUs, so it is disabled via `LEC_CHECK = 0`
-(the RTL-to-netlist equivalence is already proven by the yosys equiv gate).
+fixed during setup: the clock constraint was a virtual clock (no source
+port), leaving the design without a clock tree, and the default-on
+kepler-formal LEC step crashes with an illegal instruction on the available
+CPUs, so it is disabled via `LEC_CHECK = 0` (the RTL-to-netlist equivalence
+is already proven by the yosys equiv gate).
 Measured for the registered demo top at the 12 MHz board-equivalent clock
 (83.33 ns):
 
