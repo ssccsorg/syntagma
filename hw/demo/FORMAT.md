@@ -167,7 +167,7 @@ package.
 
 | | |
 |---|---|
-| Key | `hw/demo/<package>/<take>[-vN].mp4` on the demo media bucket |
+| Key | `demo/<package>/<take>[-vN].mp4` on the demo media bucket |
 | Cache | `public, max-age=31536000, immutable` |
 | Change | a new cut is a new key; a published key is never overwritten |
 

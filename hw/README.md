@@ -28,6 +28,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | Streaming decoder, four stages, one code point per clock | Implemented, `make sim-pipe` passes over four sweeps, 148.77 MHz register to register on the ECP5, ceiling set by the multiplier |
 | Self-checking streaming bitstream (pipeline against the reference, 40 MHz) | Implemented, 56.62 MHz register to register, 51.96 MHz on the reference path; the reference is now the slower unit |
 | On-device verification image (sweep checksum against the tagma_core anchors) | Implemented, `pin_match` reads 1 at 40, 100, 120, 125 and 140 MHz, a wrong constant reads 0, 150 MHz is rejected at 145.99 |
+| Per-value comparison of the same anchors (gate `make sim-anchor`, image `DESIGN=anchor`) | Implemented; the gate compares all 11,172 lines one at a time, answering 1 for the anchor file and 0 for the same file with two packs exchanged, both files carrying the sum `065BEA26`, and the die image built from the same pair answers both verdicts at 40 MHz |
 | iCELink GPIO channel, ECP5 F5/H5/N4/J5 to PA14/PA13/PA0/PA1 | Implemented, read on all four, drive on two (N4 and J5; PA14 is the SWD clock), PA13 is read only |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
 | Software reference bench (`../sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
@@ -44,6 +45,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 - `boards/` per-board constraints, one directory per physical board
 - `rtl/` the primitive: the decoder, the pipeline, the composer, the distance unit, the segment store, their testbenches, and `golden_anchors.hex`
 - `rtl/demo/` the board tops and diagnostic images; nothing here is part of a claim about the primitive
+- `demo/` the harness that records a run of a board image, and one package per demonstration; `demo/FORMAT.md` states the video format, and each package narrows it in its own `FORMAT.md`
 - `synth/yosys/` Yosys synthesis scripts, the PnR flow, and the committed reports
 - `openroad/` OpenROAD standard cell flow (Sky130)
 - `openram/` OpenRAM configuration for the chton segment store

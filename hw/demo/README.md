@@ -10,6 +10,7 @@ way a nested README does.
 | Package | Surface | What it argues |
 |---|---|---|
 | `fpga-icesugarpro-alphabet` | iCESugar-Pro, ECP5 | the alphabet itself: `tagma_core` writes one anchor per valid offset, the host sums them, and a die that shares no code with it decodes every value to the same number, refusing a set that is not the alphabet |
+| `fpga-icesugarpro-exact` | iCESugar-Pro, ECP5 | the same anchors compared one line at a time, on two files that carry the same sum and disagree at two offsets, so the exchange a sum cannot see is refused by the die |
 
 A package owns the script that is recorded (`narrate.sh`), the images built for
 its run (`images.sh`), the steps a take has to carry (`markers.txt`), the words

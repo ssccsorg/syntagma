@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 
-out=${1:?give the take directory, for example demo/fpga-icesugarpro-keyspace/out/20261114-105238}
+out=${1:?give the take directory, for example hw/demo/fpga-icesugarpro-exact/out/20261115-114545}
 shift || true
 
 min_seconds=120
@@ -114,6 +114,7 @@ if clock < min_seconds:
     failures.append(f"the cast ends at {clock:.1f}s, below the {min_seconds:.0f}s a full run takes")
     print(f"\n  {'SHORT':>8}  last output at {clock:.1f}s, expected at least {min_seconds:.0f}s")
 
+duration = None
 if not os.path.exists(video):
     failures.append(f"missing {video}")
     print(f"\n  {'MISSING':>8}  {video}")

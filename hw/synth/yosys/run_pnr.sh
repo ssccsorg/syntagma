@@ -32,7 +32,7 @@
 #         $(brew --prefix)/share/icebox
 #
 # Usage:
-#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo|stream|stream_check|verify|volume]
+#   ./run_pnr.sh [upduino31|icesugar_pro] [bringup|tagma_demo|stream|stream_check|verify|volume|anchor]
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -150,6 +150,43 @@ icesugar_pro)
         NAME="${TOP}_${MHZ}mhz"
         REPORT="volume_${MHZ}mhz"
         ;;
+    anchor)
+        # The ROM is an anchor file itself, so the die compares each line's pack
+        # against the decoder's answer for that line's offset. A sum cannot say
+        # which coordinate was wrong, and two packs that trade value keep the
+        # total, so this is the check a checksum image cannot make.
+        MHZ="${VERIFY_MHZ:-40}"
+        PLL="out/pipe_pll_${MHZ}.v"
+        SRC_ROM="${ANCHOR_ROM:-../../rtl/golden_anchors.hex}"
+        if [ ! -s "$SRC_ROM" ]; then
+            echo "missing $SRC_ROM: the anchor lines are the input" >&2
+            echo "run tools/anchor_fixtures.py to write one, then build again" >&2
+            exit 1
+        fi
+        # The top reads a fixed path, because $readmemh resolves against the
+        # synthesis working directory. Copying is what lets one design build
+        # from more than one anchor file.
+        cp "$SRC_ROM" out/anchor_rom.hex
+        # Lines of data, not newlines: a file whose last line has no newline would otherwise be one
+        # short of what $readmemh loads, and the sweep would skip that line without saying so. Only
+        # hex words count, which is what readmemh reads past a blank line or a comment.
+        COUNT=$(grep -cE '^[0-9A-Fa-f]+$' out/anchor_rom.hex || true)
+        if [ "$COUNT" -eq 0 ]; then
+            echo "$SRC_ROM holds no anchor line, so there is nothing to compare" >&2
+            exit 1
+        fi
+        echo "--- ecppll: 25 MHz to $MHZ MHz ---"
+        ecppll -i 25 -o "$MHZ" -f "$PLL" --module pipe_pll \
+            --clkin_name clk_in --clkout0_name clk >/dev/null
+        SRC="../../rtl/tagma_decoder_pipe.v $PLL ../../rtl/tagma_anchor_verify_top.v"
+        TOP=tagma_anchor_verify_top
+        LPF="$BOARDS/icesugar_pro/anchor.lpf"
+        # COUNT comes from the file being synthesised, so the die cannot be told
+        # a length its ROM does not have.
+        PARAMS="chparam -set COUNT $COUNT $TOP"
+        NAME="${TOP}_${MHZ}mhz_${ANCHOR_TAG:-alphabet}"
+        REPORT="anchor_${MHZ}mhz"
+        ;;
     led)
         SRC="../../rtl/demo/led_check_top.v"
         TOP=led_check_top
@@ -167,7 +204,7 @@ icesugar_pro)
         REPORT="stage_m${MIRROR:-0}"
         ;;
     *)
-        echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check, verify, volume, led or stage)" >&2
+        echo "unknown design for $BOARD: $DESIGN (expected bringup, tagma_demo, stream, stream_check, verify, volume, anchor, led or stage)" >&2
         exit 1
         ;;
     esac
