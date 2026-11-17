@@ -16,8 +16,9 @@ the multiset of packs is the same and a sum over them cannot separate the two
 files. The decoder's answer for each offset is unchanged, so the swap differs
 from the pass fixture at exactly the lines it touched.
 
-The offsets stay in order, which is what tagma_checksum.py requires and what
-the top relies on: line n names offset n.
+The offsets stay in order, which is what tagma_checksum.py requires. The top does
+not read a line by its position: each line carries the offset it names, so the
+order is a property of the file rather than of the comparison.
 
 Usage:
     anchor_fixtures.py [--count N] [--swap I,J] OUT_DIR

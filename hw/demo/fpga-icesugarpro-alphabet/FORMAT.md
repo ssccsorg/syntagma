@@ -24,7 +24,7 @@ The console prints one line per stage change, drawn in that colour behind `>>>`:
 >>> [LED] <colour>, <steady or blink>
 ```
 
-| Stage | Bits PA1, PA0 | Colour | ANSI | Line |
+| Stage | Bits PA0, PA1 | Colour | ANSI | Line |
 |---|---|---|---|---|
 | 0 | 0, 0 | blue | 94 | `[LED] blue, blink` |
 | 1 | 1, 0 | cyan | 96 | `[LED] cyan, blink` |

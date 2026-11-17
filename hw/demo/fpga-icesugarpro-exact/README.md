@@ -62,8 +62,10 @@ name. `pin_match` is set only when a full pass closes with both counts zero, so
 the verdict is a statement about the file as a whole.
 
 `COUNT` comes from the file the flow is building, so the die cannot be told a
-length its ROM does not have. The ROM takes 18 of the 56 DP16KD blocks the part
-holds, and the design closes at 70.46 MHz against a 40 MHz clock.
+length its ROM does not have. The ROM depth is the address space rather than
+`COUNT`, because a depth that is not a power of two comes up short and every
+line past the shortfall compares against nothing; `hw/boards/icesugar_pro/README.md`
+records what that did to the verdict and what the full file maps into.
 
 The host reads the same file with `hw/tools/tagma_checksum.py`. The two
 implementations share the file and nothing else: the host is Python, the die is

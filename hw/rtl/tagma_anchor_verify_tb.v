@@ -13,7 +13,7 @@
 //
 // The file comes from `+rom=` and the expected verdict from `+expect=`, so one
 // build checks a passing file and a file with two packs swapped, which is the
-// case a checksum cannot see. The pass is two sweeps long: the first may still
+// case a checksum cannot see. The wait is four sweeps long: the first may still
 // be filling the pipeline when it starts.
 //
 //   +rom=out/anchor_fixture_pass.hex +expect=1
