@@ -167,9 +167,12 @@ icesugar_pro)
         # synthesis working directory. Copying is what lets one design build
         # from more than one anchor file.
         cp "$SRC_ROM" out/anchor_rom.hex
-        COUNT=$(wc -l < out/anchor_rom.hex | tr -d ' ')
+        # Lines of data, not newlines: a file whose last line has no newline would otherwise be one
+        # short of what $readmemh loads, and the sweep would skip that line without saying so. Only
+        # hex words count, which is what readmemh reads past a blank line or a comment.
+        COUNT=$(grep -cE '^[0-9A-Fa-f]+$' out/anchor_rom.hex || true)
         if [ "$COUNT" -eq 0 ]; then
-            echo "$SRC_ROM is empty, so there is nothing to compare" >&2
+            echo "$SRC_ROM holds no anchor line, so there is nothing to compare" >&2
             exit 1
         fi
         echo "--- ecppll: 25 MHz to $MHZ MHz ---"

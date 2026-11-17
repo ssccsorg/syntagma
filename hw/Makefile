@@ -165,7 +165,7 @@ anchor-fixtures: $(GOLDEN)
 	@python3 tools/anchor_fixtures.py synth/yosys/out
 
 sim-anchor: anchor-fixtures $(ANCHOR_RTL) $(ANCHOR_TB) $(PIPE_RTL) | $(OBJ_DIR)
-	@count=$$(wc -l < $(ANCHOR_PASS) | tr -d ' '); \
+	@count=$$(grep -cE '^[0-9A-Fa-f]+$$' $(ANCHOR_PASS)); \
 	echo "--- verilator: tb_anchor over $$count lines ---"; \
 	$(VERILATE_ANCHOR) -DSIM $(ANCHOR_LINT) -GCOUNT=$$count $(ANCHOR_TB) $(ANCHOR_RTL) $(PIPE_RTL) -o tb_anchor \
 		> $(OBJ_DIR)/build_tb_anchor.log 2> $(OBJ_DIR)/build_tb_anchor.err \
