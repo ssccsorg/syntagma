@@ -18,8 +18,7 @@
 #
 # The ORFS image is x86_64. The flow runs on x86 natively and on Apple
 # Silicon under Rosetta; the kepler-formal LEC step is disabled in the
-# design config because the bundled binary crashes on both (see the
-# derisking devlog). The intended
+# design config because the bundled binary crashes on both. The intended
 # execution environment is x86_64 CI (the hw job in
 # .github/workflows/test.yml); run locally on x86 hardware or CI.
 #
@@ -113,8 +112,7 @@ echo "--- power at the demo workload's input activity ---"
 # number and its annotated report differs only by the input activity. The hook
 # writes $RESULTS_DIR/power_activity.rpt into the flow volume, and this step
 # reads it out, so a missing or failed hook fails the gate. See
-# designs/sky130hd/tagma_demo/power_activity.tcl and
-# docs/devlogs/hw/2026-09-28-power-activity.md.
+# designs/sky130hd/tagma_demo/power_activity.tcl.
 docker run --rm --platform linux/amd64 \
     -v "${VOL}:/OpenROAD-flow-scripts/flow" \
     "${IMG}" bash -c '

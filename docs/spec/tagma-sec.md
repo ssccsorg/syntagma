@@ -103,7 +103,7 @@ Scope matching for the initial implementation supports two rules:
 | Exact | The target path equals the scope path | scope `CoordPath<2>(a, b)` authorizes only the path `(a, b)` |
 | Prefix | The scope path is a prefix of the target path | scope `CoordPath<2>(a, b)` authorizes `(a, b, c)` and any longer path beginning with `(a, b)` |
 
-A scope may name a single path or a set of paths. Compound policies (negation, union of disjoint prefixes, regular expressions over paths) are deferred; the two rules above are the Milestone 1 contract.
+A scope may name a single path or a set of paths. Compound policies (negation, union of disjoint prefixes, regular expressions over paths) are deferred; the two rules above are the contract a conforming implementation meets.
 
 Attestations carry a lifetime: an issued epoch and a validity window. `authorize` checks the current epoch against the window and rejects expired attestations. `revoke` records a revoked (principal, scope) pair, effective from the epoch recorded by the authority. The concrete epoch source is an open question (Section `Open questions`); the interface does not depend on its realization.
 
@@ -226,20 +226,6 @@ neXus is the coordination layer of synTagma: topology mapping, routing, and the 
 - Resolver-to-resolver evidence exchange uses the channel module, and receipts enter the audit log.
 
 The exact neXus message schema is specified by the coordination layer itself; this section fixes only the security envelope that wraps it. Replay of routing updates is prevented by the epoch bound on the seal and by the channel nonce.
-
-## Development plan
-
-The implementation proceeds in four module milestones followed by integration, in dependency order.
-
-| Milestone | Scope | Deliverable |
-|-----------|-------|-------------|
-| 1 | authority | Registration, attestation, scope authorization, revocation |
-| 2 | integrity | Seal scheme with record, path, principal, epoch binding |
-| 3 | audit | Append-only chained log with inclusion proofs |
-| 4 | channel | Signed evidence exchange with receipts |
-| 5 | Integration | neXus envelope, hybrid confidentiality composition, Delos wiring |
-
-The initial framing's five-phase roadmap (tagma-sec primitives, Delos core, neXus, hybrid, applications) maps onto this plan: its first phase splits into milestones 1 to 4, its third and fourth phases correspond to milestone 5, and the application phase remains a downstream activity. Audit anchoring and the epoch source are validated in the audit and integration milestones before wider deployment.
 
 ## Compliance
 

@@ -137,7 +137,7 @@ make -C hw board-verify ICESPROG=/path/to/icesprog VERIFY_MHZ=100
 
 `board-verify` takes the rate from the same variable, so the measured clock is compared against the image that was built. `BOARD_VERIFY_ARGS` still carries anything else.
 
-Timing closes at 140 MHz and `nextpnr-ecp5` rejects 150 MHz at 145.99 MHz, so the image builds up to 140. The devlog records an earlier three-stage bracket, which stopped at 125; the fourth stage is what moved it.
+Timing closes at 140 MHz and `nextpnr-ecp5` rejects 150 MHz at 145.99 MHz, so the image builds up to 140. A three-stage split of the same decode stopped at 125 MHz; the fourth stage is what moved it.
 
 ## The volume image
 
@@ -153,7 +153,7 @@ The host drives two of the four iCELink pins as a stage, and the top turns the s
 
 The stage is two bits because PA14 on F5, the pin the third bit used, is the iCELink's SWD clock: the debugger holds it, and a host write never reaches the ball. `icesprog` also treats `-m` and `-w` as exclusive in one call, so a stage write is two calls a pin, mode then value.
 
-The host that writes the ROM, sets the stage, and computes the sum is the demonstrating side, and the run is recorded under `hw/demo/` with the console beside the board. `docs/devlogs/hw/2026-11-13-volume-check.md` records the measurement and the negative control.
+The host that writes the ROM, sets the stage, and computes the sum is the demonstrating side, and the run is recorded under `hw/demo/` with the console beside the board.
 
 ## The anchor comparison image
 

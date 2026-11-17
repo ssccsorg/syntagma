@@ -31,8 +31,8 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 | Per-value comparison of the same anchors (gate `make sim-anchor`, image `DESIGN=anchor`) | Implemented; the gate compares all 11,172 lines one at a time, answering 1 for the anchor file and 0 for the same file with two packs exchanged, both files carrying the sum `065BEA26`, and the die image built from the same pair answers both verdicts at 40 MHz |
 | iCELink GPIO channel, ECP5 F5/H5/N4/J5 to PA14/PA13/PA0/PA1 | Implemented, read on all four, drive on two (N4 and J5; PA14 is the SWD clock), PA13 is read only |
 | Decoder optimization (multiply-shift) | Implemented, meets 12 MHz board clock |
-| Software reference bench (`sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
-| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json`, write-up in `docs/devlogs/hw/` |
+| Software reference bench (`../sw/rust/benches/bench_hw.rs`) | Implemented, results in comments |
+| Yosys generic synthesis report (`stat -json`, ev-compatible schema) | Committed at `synth/yosys/reports/generic_stat.json` |
 | Yosys gate-level estimate (2-input gate library) | `synth/yosys/reports/gates_stat.txt`, plus `compose_gates_stat.txt` and `dist_gates_stat.txt` |
 | Yosys iCE40 synthesis report (LUT count) | `synth/yosys/reports/ice40_stat.txt` |
 | OpenRAM chton SRAM configuration | Draft, requires OpenRAM + PDK |
@@ -74,58 +74,6 @@ The demo runs on the Pro as `DESIGN=tagma_demo`. It needs 16 switch inputs and 1
 
 Three further designs run on the Pro without external wiring. `DESIGN=stream` reports a register-to-register clock for the pipelined decoder, `DESIGN=stream_check` compares that pipeline against the combinational unit and reports on the RGB balls, and `DESIGN=verify VERIFY_MHZ=<rate>` accumulates a checksum over the valid range, compares it on the die against a constant derived from the golden anchors, and leaves the verdict on three pins the iCELink reaches as GPIO. `make board-verify` reads those pins back over the programming cable, so the verdict and the PLL rate are measured without a person at the board.
 
-## Development plan
-
-### Phase 1: RTL, exhaustive simulation, synthesis reports
-
-This phase runs on branch `48-hw-verification` (issue #48).
-
-1. `tagma_decoder.v`: pure combinational decoder, offset decomposition `offset = code - 0xAC00`, `i = offset / 588`, `m = (offset % 588) / 28`, `f = offset % 28`.
-2. `tagma_decoder_tb.v`: exhaustive check of all 11,172 valid syllables plus the upper boundary, driven by Verilator.
-3. Synthesis scripts that mirror the canonical Yosys invocation in `ev/src/synth/backends/yosys.rs` (`read_verilog -sv; hierarchy; proc; synth; stat -json`) so the metrics schema stays compatible with `SynthesisMetrics` (num_cells to gate_count, area). A second script maps to a 2-input gate library for the gate count behind the claim. A third script targets iCE40 for the LUT count.
-4. CI hook: `hw/Makefile`, wired into `run.sh` and skipped when the tools are absent. It now carries every channel: `sim`, `sim-golden`, `sim-store`, `sim-compose`, `sim-dist`, `sim-demo`, `sim-pnr`, `gatesim`, `equiv`, and `synth`, with `check` running all of them.
-
-### Phase 2: Golden-anchor cross-validation against the reference engine
-
-The Phase 1 testbench recomputes the same formula it checks, which is self-referential. Phase 2 removes that risk: `sw/rust/core/examples/golden_export.rs` exports the full coordinate decomposition from the `tagma_core` reference engine (the `Coord::to_axes` path) into `rtl/golden_anchors.hex`, one packed 29-bit value per line (offset[28:15] i[14:10] m[9:5] f[4:0]). The testbench golden mode (`make sim-golden`) reads that file and checks the decoder against the reference vectors. `tools/check_golden_anchors.py` gates the file format and the decomposition contract, following the golden-anchor pattern in `ssccs/poc/baremetal_riscv/sv`.
-
-Delivered: golden exporter, golden testbench mode, Python consistency gate, all wired into `make check` and `run.sh`. The anchor file is a generated build artifact (`make golden-export`) regenerated before each golden simulation; the exporter is the committed source of truth, and the gate validates the generated file against the decomposition contract.
-
-### Post-synthesis verification
-
-The synthesized netlist is verified on top of the RTL checks, for each of the three units: the gate-level netlist is simulated against the golden anchors (`make gatesim`, `make gatesim-compose`, `make gatesim-dist`) and formal equivalence between the RTL and the netlist is proven (`make equiv`, `synth/yosys/equiv.ys`, `equiv_compose.ys`, `equiv_dist.ys`), over all 2^16 decoder inputs, all 2^15 axis combinations, and all 2^32 distance input pairs. On the 2-input gate library the decoder is 588 cells, the compose unit 258, and the distance unit 1329. The distance figure carries two decoders, because a pair needs both operands decoded; the comparators and subtractors around them are the remaining about 153 cells, and that duplication is inherent to computing a pair. `make sim-trace` emits a VCD activity trace for the later power estimation step.
-
-### Bitstream verification
-
-Formal equivalence proves the RTL against the technology-mapped netlist, which is the stage before packing. `nextpnr-ice40` then packs the logic into LUTs, places them, and routes them, and no gate covers that. `synth/yosys/run_pnr.sh` recovers the placed-and-routed logic with `icebox_vlog -c -p boards/upduino31/tagma_demo.pcf`, which reads the `.asc` back into Verilog and names the ports from the constraints file, and `make sim-pnr` instantiates the RTL and the recovered netlist together and compares every output over all 65,536 code points. The recovered file is generated, never committed.
-
-The channel is logic-level. It carries no delays, so timing stays with `icetime`, and no electrical behavior, so power stays with the OpenROAD flow. It proves the bitstream implements the RTL, and the RTL is proven separately, by the decoder testbench over 11,172 points and by formal equivalence over all 2^16 inputs. It does not prove the device runs.
-
-### Phase 3: FPGA board demo
-
-The demo top module (`rtl/demo/tagma_demo_top.v`, switches for the 16-bit code point, LED groups for i/m/f, onboard green LED for validity) and the Upduino 3.1 constraints (`boards/upduino31/tagma_demo.pcf`) are in place. The decoder uses multiply-shift constant division instead of shift-subtract dividers; this raises the gate count (478 to 588 cells) but closes the 12 MHz board clock with margin. The open flow runs end to end: `synth_demo.ys` to JSON, `nextpnr-ice40` to ASC, `icepack` to bitstream, `icetime` to timing (`synth/yosys/run_pnr.sh`). Measured on the UP5K: 255 ICESTORM_LC (4%), critical path 59.55 ns, Fmax 16.79 MHz, 33 logic levels. The bitstream itself is verified by `make sim-pnr`, which recovers the placed-and-routed logic and compares it against the RTL over all 65,536 code points. The ECP5 port is measured at 49 TRELLIS_COMB and 16 TRELLIS_FF with a 22.28 ns cross-domain path, and it programs and boots. Remaining: the external wiring, which is what turns the boot into a decoder demonstration.
-
-### Phase 4: chton SRAM and standard cell report
-
-The standard cell flow is complete: OpenROAD runs end to end for the
-registered demo top (area, timing, and power in the Phase 4 section
-below), and the pure decoder reports 388 Sky130 cells, 2826 um^2, against
-the ~300 gate claim of the whitepaper. Remaining: generate the chton
-segment store SRAM with OpenRAM (`openram/chton_sram.py`, SkyWater 130nm,
-11,172 x 16-bit single port), pending the OpenRAM PDK install. The behavioral
-model (`rtl/tagma_segment_store.v`) is verified exhaustively in the gate, so
-the address map and read/write behavior are checked without the PDK, and the
-macro generation is the only PDK-gated step left.
-
-## Software reference baseline
-
-The decoder is also benchmarked in software against the hardware numbers. `sw/rust/benches/bench_hw.rs` follows the `bench.rs` convention (criterion, key results in comments): single decode 1.44 ns, full-space decode 1.92 µs, index-only baseline 0.457 µs, golden export 4.56 µs. Run with `cargo bench --manifest-path sw/rust/Cargo.toml --bench bench_hw`.
-
-## Integration with existing SSCCS tooling
-
-- `ev/src/synth/backends/yosys.rs` is the canonical Yosys integration: subprocess invocation, `stat -json` parsing, `SynthesisMetrics` with `gate_count` and `cell_area`. The scripts in `synth/yosys/` follow the same flow, so the numbers are directly comparable and can be emitted as neXus `Fact` envelopes (`fact_type: synthesis_result`, `origin: ev/synthesis/yosys`) later.
-- `ssccs/poc/baremetal_riscv/sv` establishes the Verilator plus Makefile plus golden-anchor verification pattern. `hw/Makefile` mirrors that pattern, and Phase 2 adopts the golden-anchor gate.
-
 ## Why 16-bit: the enabling conditions
 
 The whole hardware design rests on four independent conditions, of which BMP membership is one:
@@ -137,59 +85,27 @@ The whole hardware design rests on four independent conditions, of which BMP mem
 
 The general Tagma mechanism does not require the BMP; multi-unit and astral cases use the N-dimensional machinery (`CoordPath`, `base11172`, `CoordSpace2`). Hangul is the cheapest demonstration of the method, which is why the decoder is small enough to fit the ~300 gate claim.
 
-## CI packaging
+## Verification
 
-The hardware environment is packaged as a Docker image (`hw/Dockerfile`, ev-style): the toolchain (Verilator, Yosys, nextpnr-ice40 from Ubuntu 24.04, icestorm built from source, Rust) plus the full verification gate as build-time smoke tests. Build from the repository root:
+Each target answers a different question, and the numbers they produce are in the status table.
 
-```bash
-docker build -f hw/Dockerfile -t tagma-hw .
-```
+| Target | What it establishes |
+|---|---|
+| `make sim` | the decoder against the formula over all 11,172 valid code points |
+| `make sim-golden` | the same points against `rtl/golden_anchors.hex`, which `tagma_core` exports |
+| `make golden-check` | the generated anchor file against the decomposition contract |
+| `make sim-pipe` | the four-stage decoder against the reference over four sweeps |
+| `make sim-store`, `make sim-compose`, `make sim-dist` | the segment store, the composer, and the distance unit over their input spaces |
+| `make sim-demo` | the board top: the axes on the valid syllables, the validity bit on all 65,536 code points |
+| `make sim-pnr` | the placed-and-routed logic recovered with `icebox_vlog`, against the RTL over all 65,536 code points |
+| `make gatesim`, `make equiv` | the synthesized netlist against the anchors, and the RTL against the netlist |
+| `make synth`, `make report` | Yosys and OpenROAD synthesis, writing the committed reports |
+| `make pnr BOARD=<board>` | place and route for one board from the same RTL |
+| `make board-verify` | the on-device sweep, read back over the programming cable |
 
-The CI job `hw` in `.github/workflows/test.yml` builds the image with a
-GitHub Actions cache (`type=gha`, scope `tagma-hw`) and triggers only on
-gate-relevant sources: `hw/rtl/**`, `hw/tools/**`, the Yosys scripts,
-`hw/Makefile`, `hw/Dockerfile`, `run.sh`, and workflow changes.
-`hw/openroad/**` changes run the standard cell flow without rebuilding the
-image. Documentation-only changes (`hw/README.md`, `hw/openram/**`, the
-generated reports) do not trigger CI.
+`make check` runs every row except `pnr`, `board-verify`, and `report`, which need a board or a standard cell library.
 
-PnR numbers are tool-version dependent: the image (nextpnr 0.6, Ubuntu) measured 62.35 ns / 16.04 MHz on the demo, while the host Homebrew toolchain measured 59.55 ns / 16.79 MHz. The gate verifies functionality, not exact numbers.
-
-`make check` runs the PnR flow, because it includes the bitstream channel, so it needs `nextpnr-ice40`, `icepack`, `icetime`, and `icebox_vlog` on top of Verilator and Yosys. `run.sh` skips the hardware gate and names the missing tool when any of them is absent.
-
-The image's second smoke test is `make -C hw coverage`, which runs every simulation channel, the PnR, and the equivalence proofs. It includes `sim-pipe`, so the pipeline is exercised by the image build rather than only on a developer machine.
-
-The `hw` job also installs Verilator before the ORFS step, because the power hook reads a trace of the demo top when one exists. `openroad/run.sh` builds that trace when a simulator is present and reports the two modelled figures with a warning when it is not, so the step degrades instead of failing on a runner without one.
-
-Synthesis and lint are tool-version dependent too. The image installs Verilator and Yosys from the Ubuntu 24.04 archive (Verilator 5.020 at the time of writing), while a developer's Homebrew Verilator may be newer (5.048 at the time of writing). Lint behaviour differs between the two: 5.020 flags BLKSEQ on a delay-based testbench clock that 5.048 accepts, so a green local `make -C hw check` is not a substitute for the `hw` CI job, which is the authoritative gate. The committed reports carry the same version caveat.
-
-Warnings are fatal to the Verilator build, and the warning set itself moves between releases. `PROCASSINIT` exists in 5.048 and not in 5.020, where naming it fails the build with an unknown-warning error, which is how the bitstream channel first broke the `hw` job. `ASC_LINT` in `hw/Makefile` therefore names only warnings older than either release and leaves the rest non-fatal.
-
-## Phase 4: standard cell flow
-
-The Sky130 standard cell flow runs end to end (`hw/openroad/run.sh` with the
-ORFS image): synth, floorplan, place, cts, route, finish. Two flow bugs were
-fixed during setup, documented in the derisking devlog: the clock constraint
-was a virtual clock (no source port), leaving the design without a clock
-tree, and the default-on kepler-formal LEC step crashes with an illegal
-instruction on the available CPUs, so it is disabled via `LEC_CHECK = 0`
-(the RTL-to-netlist equivalence is already proven by the yosys equiv gate).
-Measured for the registered demo top at the 12 MHz board-equivalent clock
-(83.33 ns):
-
-| Metric | Value |
-|--------|-------|
-| design area | 4631 um^2, 35% utilization |
-| critical path delay | 11.19 ns |
-| worst setup slack | +72.33 ns |
-| total power, tool default input activity | 0.881 mW |
-| total power, the demo's input activity | 0.075 mW |
-| pure decoder | 388 cells, 2826 um^2 (`yosys stat -liberty`) |
-
-The flow runs on x86 and on Apple Silicon under Rosetta. Results are
-uploaded as the `sky130-reports` artifact.
-
-The flow's own power number sits at the tool's default input activity, which is 0.1 transitions per clock cycle on every input, so the data path is effectively static and the clock carries the switching. The design config names `openroad/designs/sky130hd/tagma_demo/power_activity.tcl` as `POST_FINAL_REPORT_TCL`, so the flow sources it at the end of its report step, in the session where the design, the liberty, the sdc, the derate, the setRC, and the SPEF are already in place. The hook reports at that default and then annotates the code bits with the sweep's activity, which makes the first report the control: it reproduces the flow's own number to the digit. Both reports land in `results/power_activity.rpt`. The basis is the stimulus rather than a saved trace: the demo sweeps all 65,536 code points, one per clock, so bit `b` of the counter changes once every `2^b` clocks, an activity of `1 / 2^b` transitions per clock cycle, the unit `set_power_activity -activity` takes. The devlog `docs/devlogs/hw/2026-09-28-power-activity.md` records the measurements, the three defects that running it exposed, and what would falsify the result. The model is vectorless, so the number is not a measured power; a VCD of the routed netlist would be, and none exists yet. The figures are tool-version dependent, like the PnR numbers above.
+`make check` needs Verilator, Yosys, and the iCE40 tools (`nextpnr-ice40`, `icepack`, `icetime`, `icebox_vlog`). `run.sh` skips the gate and names the missing tool when one is absent.
 
 ## License
 
@@ -199,7 +115,7 @@ in [LICENSE](LICENSE). Covered source is the HDL under `rtl/`, the synthesis and
 place-and-route scripts under `synth/`, `openroad/`, and `openram/`, the board
 constraints, and the verification tooling under `tools/`.
 
-The software reference implementation under `sw/` stays under the Apache License
+The software reference implementation under `../sw/` stays under the Apache License
 2.0, the repository default.
 
 Files here carried no per-file notice before this section existed, so the root
@@ -220,33 +136,3 @@ revoked; this tree is under CERN-OHL-P v2 from here on.
 - ev verification CLI: https://github.com/ssccsorg/ev
 - poc reference designs: https://github.com/ssccsorg/poc
 
-## Agent handoff prompt
-
-```
-Task: Implement the Tagma 3-axis decoder in Verilog, verify it exhaustively, and
-produce synthesis reports for FPGA and gate-level targets.
-
-Input specification:
-- 16-bit Hangul code point in [0xAC00, 0xD7A3]
-- Outputs: i in [0, 18], m in [0, 20], f in [0, 27]
-- offset = code - 0xAC00; i = offset / 588; m = (offset % 588) / 28; f = offset % 28
-- Target: ~300 gates, one cycle, pure combinational
-
-Deliverables:
-1. hw/rtl/tagma_decoder.v
-2. hw/rtl/tagma_decoder_tb.v with exhaustive validation of all 11,172 code points
-3. hw/synth/yosys/: generic, gate-level, and iCE40 synthesis scripts with reports
-4. docs/devlogs/hw/2026-08-14-synthesis-report.md with real tool output
-5. hw/openram/chton_sram.py for the chton segment store (11,172 x 16-bit SRAM)
-6. hw/Makefile with sim/synth/check targets, wired into run.sh
-
-Constraints:
-- Mirror the Yosys flow in ev/src/synth/backends/yosys.rs (stat -json schema)
-- Follow the Verilator plus Makefile pattern in ssccs/poc/baremetal_riscv/sv
-- English only, no em dashes, no emojis
-
-References:
-- Tagma whitepaper: https://doi.org/10.5281/zenodo.21302508
-- OpenRAM: https://github.com/VLSIDA/OpenRAM
-- Target FPGA: iCE40 (open flow) or Artix-7 (Vivado fallback)
-```

@@ -311,20 +311,20 @@ assert!(stack.channel.verify_receipt(&res.receipt));
 
 | Feature | `no_alloc` | `alloc` (default) | `mmap` |
 |---------|-----------|-------------------|--------|
-| Coord | ✅ | ✅ | ✅ |
-| CoordPath\<N\> | ✅ | ✅ | ✅ |
-| CoordSet | ✅ | ✅ | ✅ |
-| CoordCube\<N, D, R\> | ✅ | ✅ | ✅ |
-| CoordSpace (inline array) | ✅ | ✅ | ✅ |
-| CoordSetN\<N\> (sparse N-d set) | ❌ | ✅ | ❌ |
-| CoordSpaceN (heap tree, N>1) | ❌ | ✅ | ❌ |
-| CoordSpace2 (dense heap, N=2) | ❌ | ✅ | ❌ |
-| CoordSpaceM (mmap dense, N≥3) | ❌ | ❌ | ✅ |
-| DynCoordSpace (runtime trie) | ❌ | ✅ | ❌ |
-| tagma-geo (spatial ops, metrics) | ❌ | ✅ | ❌ |
-| tagma-map (string-key map, HashMap API) | ❌ | ✅ | ❌ |
-| tagma-sec (security primitives, route-update workflow) | ❌ | ✅ | ❌ |
-| tagma-matrix (matrices, product, rescale, wire form) | ✅ | ✅ | ✅ |
+| Coord | yes | yes | yes |
+| CoordPath\<N\> | yes | yes | yes |
+| CoordSet | yes | yes | yes |
+| CoordCube\<N, D, R\> | yes | yes | yes |
+| CoordSpace (inline array) | yes | yes | yes |
+| CoordSetN\<N\> (sparse N-d set) | no | yes | no |
+| CoordSpaceN (heap tree, N>1) | no | yes | no |
+| CoordSpace2 (dense heap, N=2) | no | yes | no |
+| CoordSpaceM (mmap dense, N≥3) | no | no | yes |
+| DynCoordSpace (runtime trie) | no | yes | no |
+| tagma-geo (spatial ops, metrics) | no | yes | no |
+| tagma-map (string-key map, HashMap API) | no | yes | no |
+| tagma-sec (security primitives, route-update workflow) | no | yes | no |
+| tagma-matrix (matrices, product, rescale, wire form) | yes | yes | yes |
 
 ## How Tagma works
 
