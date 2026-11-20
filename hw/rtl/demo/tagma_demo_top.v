@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: CERN-OHL-P-2.0
+// SPDX-License-Identifier: CERN-OHL-S-2.0
 // Copyright (C) 2026 Taeho Lee
 //
 // This source describes Open Hardware and is licensed under the CERN-OHL-P v2.
