@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Channel: non-repudiation of origin and receipt.
 //!
 //! `MacChannel` is the shared PoC implementation: evidence is signed with a

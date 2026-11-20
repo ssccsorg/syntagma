@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 // The canonical text, counted rather than timed.
 //
 // An identity is printed to be stored and read back to be addressed, so neither

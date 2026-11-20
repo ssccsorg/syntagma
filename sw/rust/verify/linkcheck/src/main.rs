@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 // The link check: the family's no-allocator member, linked into a program with no
 // operating system and no global allocator.
 //

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The shipped product against a scalar reference, and the coordinate against the
 //! order-resolved index.
 

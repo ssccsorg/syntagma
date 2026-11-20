@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The physical order of a matrix's backing bytes.
 //!
 //! The order decides where a logical element sits. It never decides which

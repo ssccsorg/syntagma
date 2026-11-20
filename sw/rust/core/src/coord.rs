@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 /// A 16-bit value guaranteed to be a valid compositional character coordinate.
 ///
 /// `Coord` wraps a `u16` in the range `0..11172`, corresponding to

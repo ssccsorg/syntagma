@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Proxy: composes the four modules behind trait objects and switches
 //! between the legacy and tagma-sec stacks. The scenario workflow is written
 //! only against the trait objects, so the same requirements and outputs are

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Proofs over the two surfaces where something from outside meets this crate.
 //!
 //! The rescale's domain is every accumulator, multiplier, and shift a model can carry.

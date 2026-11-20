@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 

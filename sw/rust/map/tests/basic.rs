@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 use tagma_map::coord_gen::CoordKey;
 use tagma_map::coord_map_n::CoordMapN;
 use tagma_map::{CoordMap, CoordMap2, CoordMapKey, DynCoordMap};

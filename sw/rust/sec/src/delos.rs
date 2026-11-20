@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! tagma-sec pattern.
 //!
 //! The authority matches scopes over `CoordPath` values (Exact and Prefix)

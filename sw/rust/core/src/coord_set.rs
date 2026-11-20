@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 use crate::coord::Coord;
 
 /// A fixed-size, collision-free, memory-optimized bit array for presence

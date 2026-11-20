@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The address surface: what a position outside the matrix does.
 //!
 //! A position outside the matrix has no element of its own, and its flat offset

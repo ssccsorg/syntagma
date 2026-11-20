@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The reader's refusals.
 //!
 //! A stream this format cannot account for is refused with the reason, rather

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Relocation invariance.
 //!
 //! The same logical matrix in two physical orders must answer the same

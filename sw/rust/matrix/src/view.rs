@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! A matrix that borrows its buffer.
 
 use core::marker::PhantomData;

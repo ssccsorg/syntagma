@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 use crate::coord_path::CoordPath;
 use crate::coord_space_n::{CoordSpaceN, TreeIter};
 

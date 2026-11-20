@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Authority: principal registration, attestation issuance, authorization,
 //! and revocation.
 //!

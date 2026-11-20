@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Crate documentation is generated from the README, whose code blocks are
 //! compiled as doctests.
 #![doc = include_str!("../README.md")]

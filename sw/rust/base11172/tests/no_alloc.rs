@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The numeric digits are derived without the heap.
 //!
 //! The record layer derives an id per record from a digest it already holds, so

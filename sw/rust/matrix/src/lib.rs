@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! # tagma-matrix: Coordinate-addressed matrices for Tagma
 //!
 //! Rank-2 `i8` elements addressed by a [`CoordPath`](tagma_core::CoordPath), the

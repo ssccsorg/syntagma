@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Exports golden anchor vectors from the tagma_core reference engine.
 //!
 //! The output file holds one packed 29-bit value per line, eight hex

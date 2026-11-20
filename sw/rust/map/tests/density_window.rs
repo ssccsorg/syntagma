@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Integration tests for the density scenarios behind the
 //! `Spatial/map_proximity` benchmark record, under the explicit map
 //! byte-space domain.

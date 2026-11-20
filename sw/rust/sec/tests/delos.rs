@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! tagma-sec-specific properties of the Delos pattern stack.
 //!
 //! These tests pin the properties that distinguish the tagma-sec pattern

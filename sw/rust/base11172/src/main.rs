@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 use std::env;
 
 use base11172::{decode_bytes, encode_bytes};

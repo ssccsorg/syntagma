@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The product of two matrices.
 //!
 //! A contraction is the operation the crate exists for, so it is checked against a

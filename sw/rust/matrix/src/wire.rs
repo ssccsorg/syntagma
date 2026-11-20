@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The wire form of a matrix.
 //!
 //! A matrix crosses to another device as its coordinates and their values. A

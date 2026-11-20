@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Common scenario tests for the route-update workflow.
 //!
 //! The same requirements are exercised against both the legacy and the

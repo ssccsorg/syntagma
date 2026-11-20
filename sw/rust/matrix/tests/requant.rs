@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The rescale's contract.
 //!
 //! Three things have to hold for a quantized model's arithmetic to be reproducible:

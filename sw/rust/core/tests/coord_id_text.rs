@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 // The canonical text: round trip, the two properties it buys, the exact digits
 // it writes, and what it refuses.
 //

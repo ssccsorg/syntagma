@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Fixtures shared by the integration tests.
 
 #![allow(dead_code)]

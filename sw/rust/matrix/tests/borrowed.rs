@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The borrowed matrix.
 //!
 //! This is the path weights take when they live in flash: the buffer is not copied

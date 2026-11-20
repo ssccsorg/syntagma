@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 use crate::Coord;
 
 /// An index path through a `CoordSpace`, not a key.

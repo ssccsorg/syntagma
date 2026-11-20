@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Tagma native serialization format.
 //!
 //! Encodes arbitrary byte sequences into self-validating compositional character

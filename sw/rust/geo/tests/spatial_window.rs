@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Integration tests for the bounded per-character domain in
 //! `SpatialOps::proximity_bounded`.
 //!

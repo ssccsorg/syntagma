@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Legacy security pattern.
 //!
 //! The authority is an ACL-style registry of attestations per principal.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 // Tagma-matrix: what coordinate addressing costs against a flat loop, and what the
 // product and the rescale cost at the size of a layer.
 //

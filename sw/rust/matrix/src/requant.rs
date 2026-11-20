@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! The rescale between an accumulator and an element.
 //!
 //! A product accumulates in `i32` and the next layer consumes `i8`. The step

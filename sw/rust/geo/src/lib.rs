@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! # tagma-geo: Spatial operations for Tagma
 //!
 //! Provides distance metrics and spatial query primitives built on

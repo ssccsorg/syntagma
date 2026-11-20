@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Real-scenario tests for the route-update workflow.
 //!
 //! These pin the expected behavior of complete journeys and investigation

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Keyed hashing helper shared by the integrity, audit, and channel modules.
 
 /// Computes a keyed 32-byte tag over the given byte slices.

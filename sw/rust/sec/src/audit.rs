@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Taeho Lee
+
 //! Audit: append-only chained evidence log.
 //!
 //! `ChainedAudit` is the shared implementation for both patterns: each entry
