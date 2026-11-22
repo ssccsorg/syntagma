@@ -218,6 +218,22 @@ C(i,m,f) \in [\text{U+AC00}, \text{U+D7A3}]$$
 
 Total: 11,172 valid values and 54,364 invalid values in the 16-bit space.
 
+### 6.6 Declared Once, Checked at the Boundary
+
+Axis order and axis sign are properties of the encoding. An implementation states them once,
+where axes map to bit positions, and derives every encode and decode from that statement. In the
+Rust reference the strides are computed from the radices, `STRIDE_MED = N_FIN` and
+`STRIDE_INIT = N_MED * N_FIN`, and composition and decomposition share them, so an axis cannot
+move in one direction and stay in the other.
+
+A statement repeated in each language is several statements, and several statements can
+disagree. Where the declaration cannot be shared, as between Rust, assembly and Verilog, the
+agreement is checked at the boundary: the anchor set is the declaration each substrate is held
+to, and the conditions in this section are the check. The pattern is the one geometric algebra
+libraries apply when they type the orientation of a value and check it at every operation
+(numga, `docs/orientation.md`); the declaration is checked rather than assumed because a
+check can fail in public and an assumption cannot.
+
 ### 6.3 Decomposition Correctness
 
 Decomposition must be the functional inverse of composition:
