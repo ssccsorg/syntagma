@@ -227,12 +227,12 @@ Rust reference the strides are computed from the radices, `STRIDE_MED = N_FIN` a
 move in one direction and stay in the other.
 
 A statement repeated in each language is several statements, and several statements can
-disagree. Where the declaration cannot be shared, as between Rust, assembly and Verilog, the
-agreement is checked at the boundary: the anchor set is the declaration each substrate is held
-to, and the conditions in this section are the check. The pattern is the one geometric algebra
-libraries apply when they type the orientation of a value and check it at every operation
-(numga, `docs/orientation.md`); the declaration is checked rather than assumed because a
-check can fail in public and an assumption cannot.
+disagree. Where the declaration cannot be shared as a compiled constant, as between Rust,
+assembly and Verilog, the agreement is checked at the boundary: the anchor set is the
+declaration each substrate is held to, and the conditions in this section are the check. The
+pattern is the one geometric algebra libraries apply when they type the orientation of a value
+and check it at every operation (numga, `docs/orientation.md`); the declaration is checked
+rather than assumed because a check can fail in public and an assumption cannot.
 
 ### 6.3 Decomposition Correctness
 
