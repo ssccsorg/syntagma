@@ -41,6 +41,7 @@
 #   make equiv          # formal equivalence: RTL vs gate netlist for every unit
 #   make synth          # Yosys generic, gate-level, and iCE40 reports
 #   make check          # every sim channel + golden-check + gatesim + equiv + synth + PnR
+#   make visuals        # render the Sky130 layout (visuals/out, gitignored)
 #   make clean
 
 SIM   ?= verilator
@@ -123,7 +124,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-anchor anchor-fixtures sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage coverage-summary report check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-anchor anchor-fixtures sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage coverage-summary report visuals check clean
 
 all: check
 
@@ -335,6 +336,19 @@ report: synth
 	@cat synth/yosys/reports/dist_gates_stat.txt
 	@echo "=== iCE40 ==="
 	@cat synth/yosys/reports/ice40_stat.txt
+
+VISUALS_GDS ?= openroad/results/tagma_demo/base/6_final.gds
+VISUALS_OUT ?= visuals/out
+# The die, a close crop of the dense centre, and the routing with the power straps withheld.
+VISUALS_DETAIL_CROP ?= 50,24,102,76
+VISUALS_RUN = uv run --python 3.11 --with gdstk --with matplotlib python visuals/render_gds.py
+
+visuals:
+	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon
+	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-detail \
+		--crop $(VISUALS_DETAIL_CROP) --size 1800
+	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-routing \
+		--layers 67,68,69,70
 
 check: sim sim-golden sim-pipe sim-anchor sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 

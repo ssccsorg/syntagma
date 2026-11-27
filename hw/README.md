@@ -48,6 +48,7 @@ This tree turns the "~300 gates, 1 cycle" claim into verifiable artifacts: an ex
 - `demo/` the harness that records a run of a board image, and one package per demonstration; `demo/FORMAT.md` states the video format, and each package narrows it in its own `FORMAT.md`
 - `synth/yosys/` Yosys synthesis scripts, the PnR flow, and the committed reports
 - `openroad/` OpenROAD standard cell flow (Sky130)
+- `visuals/` the renderer that draws the final GDS, with the images left as build output
 - `openram/` OpenRAM configuration for the chton segment store
 - `tools/` golden anchor consistency gate
 
