@@ -17,9 +17,9 @@ From `hw/`:
 make visuals
 ```
 
-The target writes four images to `visuals/out/`: `silicon.png`, the die at its full frame; `silicon-detail.png`, a close crop of the dense centre; `silicon-routing.png`, the die with the power straps withheld; and `silicon-tile.png`, a 16:9 still for the corpus hub's grid. Add `--svg` to a direct call for a vector copy.
+The target writes three images to `visuals/out/`: `silicon-detail.png`, a close crop of the dense centre; `silicon-routing.png`, the whole die with the power straps withheld; and `silicon-tile.png`, a 16:9 still for the corpus hub's grid. The die at its full frame is the hub's 3D view, so it is not written as a separate still. Add `--svg` to a direct call for a vector copy.
 
-`make visuals-stack` writes one transparent plate per metal layer to `visuals/out/stack/`, the six files the hub's 3D view stacks. The plates share a square window, so a layer can be read on its own and the six can be turned as one object.
+`make visuals-stack` writes one transparent plate per metal layer to `visuals/out/stack/`, the six files the hub's 3D view stacks. The plates are the whole square die, so they read as the die from above and separate into the metal levels when turned.
 
 Or directly:
 

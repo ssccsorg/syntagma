@@ -340,28 +340,29 @@ report: synth
 
 VISUALS_GDS ?= openroad/results/tagma_demo/base/6_final.gds
 VISUALS_OUT ?= visuals/out
-# The die, a close crop of the dense centre, the routing without the power straps, and the 16:9 still the hub's grid
-# draws for the entry.
+# The die, a close crop of the dense centre, and the routing with the power straps withheld.
+# The die at its full frame is the page's 3D view, so the stills cover only what the stack does not.
 VISUALS_DETAIL_CROP ?= 50,24,102,76
+VISUALS_ROUTING_CROP ?= 0,0,119.49,119.49
 VISUALS_TILE_CROP ?= 30,25,115,72.81
-# The plates of the 3D view: one square window, one file per metal layer, transparent so they stack.
-VISUALS_STACK_CROP ?= 42,22,102,82
+# The plates of the 3D view: the whole square die, square, transparent so they stack.
+VISUALS_STACK_CROP ?= 0,0,119.49,119.49
+VISUALS_STACK_SIZE ?= 1200
 VISUALS_STACK_LAYERS ?= 67 68 69 70 71 72
 VISUALS_RUN = uv run --python 3.11 --with gdstk --with matplotlib python visuals/render_gds.py
 
 visuals:
-	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon
 	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-detail \
 		--crop $(VISUALS_DETAIL_CROP) --size 1800
 	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-routing \
-		--layers 67,68,69,70
+		--crop $(VISUALS_ROUTING_CROP) --size 1600 --layers 67,68,69,70
 	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-tile \
 		--crop $(VISUALS_TILE_CROP) --size 1600
 
 visuals-stack:
 	@for layer in $(VISUALS_STACK_LAYERS); do \
 		$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT)/stack --name layer-$$layer \
-			--crop $(VISUALS_STACK_CROP) --size 1000 --layers $$layer --background none || exit 1; \
+			--crop $(VISUALS_STACK_CROP) --size $(VISUALS_STACK_SIZE) --layers $$layer --background none || exit 1; \
 	done
 
 check: sim sim-golden sim-pipe sim-anchor sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
