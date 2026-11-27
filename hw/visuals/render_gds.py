@@ -29,15 +29,25 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
 
-# Sky130 layer numbers in the ORFS flow. The FEOL and the boundary layers are
-# not part of the image; the palette is the presentation, not a layer map.
-LAYERS = {
-    67: "#3b4b5c",  # li1
-    68: "#2f6f9f",  # met1
-    69: "#2f9f8f",  # met2
-    70: "#c9a227",  # met3
-    71: "#b05fb0",  # met4
-    72: "#e6e1d6",  # met5
+# Sky130 layer numbers in the ORFS flow. The FEOL and the boundary layers are not part of the image.
+# The colour set is for screen; the mono set is for print, where the stack has to read on white.
+PALETTES = {
+    "color": {
+        67: "#3b4b5c",  # li1
+        68: "#2f6f9f",  # met1
+        69: "#2f9f8f",  # met2
+        70: "#c9a227",  # met3
+        71: "#b05fb0",  # met4
+        72: "#e6e1d6",  # met5
+    },
+    "mono": {
+        67: "#a8a8a8",  # li1, the densest texture and the palest
+        68: "#8a8a8a",  # met1
+        69: "#6f6f6f",  # met2
+        70: "#565656",  # met3
+        71: "#363636",  # met4
+        72: "#111111",  # met5, the power grid and the darkest
+    },
 }
 BACKGROUND = "#11161c"
 
@@ -50,8 +60,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top", help="top cell name; the first top-level cell by default")
     parser.add_argument(
         "--layers",
-        default=",".join(str(number) for number in LAYERS),
+        default=",".join(str(number) for number in PALETTES["color"]),
         help="comma-separated GDS layer numbers",
+    )
+    parser.add_argument(
+        "--palette",
+        choices=sorted(PALETTES),
+        default="color",
+        help="colour for screen, mono for print on white",
     )
     parser.add_argument(
         "--crop",
@@ -61,8 +77,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--margin", type=float, default=10.0, help="crop margin in microns")
     parser.add_argument("--size", type=int, default=2400, help="long edge in pixels")
     parser.add_argument("--dpi", type=int, default=300)
-    parser.add_argument("--background", default=BACKGROUND)
+    parser.add_argument("--background", default=None)
     parser.add_argument("--name", default="silicon")
+    parser.add_argument("--merge", action="store_true", help="union overlapping shapes per layer")
+    parser.add_argument("--frame", action="store_true", help="draw the die boundary")
     parser.add_argument("--svg", action="store_true", help="also write an SVG")
     return parser.parse_args()
 
@@ -114,16 +132,25 @@ def main() -> int:
         cell = tops[0]
 
     layers = {int(value) for value in args.layers.split(",") if value.strip()}
-    unknown = layers - set(LAYERS)
+    palette = PALETTES[args.palette]
+    background = args.background or ("white" if args.palette == "mono" else BACKGROUND)
+    unknown = layers - set(palette)
     if unknown:
         raise SystemExit(f"layer(s) without a color: {sorted(unknown)}")
 
-    polygons: dict[int, list] = {}
+    shapes: dict[int, list] = {}
     for polygon in cell.get_polygons():
         if polygon.layer in layers:
-            polygons.setdefault(polygon.layer, []).append(polygon.points)
-    if not polygons:
+            shapes.setdefault(polygon.layer, []).append(polygon)
+    if not shapes:
         raise SystemExit(f"no polygons on layers {sorted(layers)} in {cell.name}")
+
+    # Overlapping shapes on one layer draw the same, so a union keeps the image and cuts the vertex count.
+    polygons: dict[int, list] = {}
+    for layer, layer_shapes in shapes.items():
+        if args.merge:
+            layer_shapes = gdstk.boolean(layer_shapes, [], "or", precision=1e-4, layer=layer)
+        polygons[layer] = [polygon.points for polygon in layer_shapes]
 
     bounds = cell.bounding_box()
     if bounds is None:
@@ -159,28 +186,41 @@ def main() -> int:
         fig_height = long_edge
         fig_width = long_edge * width / height
 
-    fig, ax = plt.subplots(figsize=(fig_width, fig_height), facecolor=args.background)
-    ax.set_facecolor(args.background)
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height), facecolor=background)
+    ax.set_facecolor(background)
     for layer in sorted(polygons):
         ax.add_collection(
             PolyCollection(
                 polygons[layer],
-                facecolors=LAYERS[layer],
+                facecolors=palette[layer],
                 edgecolors="none",
                 antialiased=True,
             )
         )
     ax.set_xlim(x0, x1)
     ax.set_ylim(y0, y1)
+    if args.frame:
+        # The axes fill the figure, so the border is inset to keep its stroke on the canvas.
+        inset = (x1 - x0) * 0.004
+        ax.add_patch(
+            plt.Rectangle(
+                (die_x0 + inset, die_y0 + inset),
+                die_x1 - die_x0 - 2 * inset,
+                die_y1 - die_y0 - 2 * inset,
+                fill=False,
+                edgecolor=palette[max(layers)] if args.palette == "mono" else "#000000",
+                linewidth=1.0,
+            )
+        )
     ax.set_aspect("equal")
     ax.axis("off")
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
     args.out.mkdir(parents=True, exist_ok=True)
     png = args.out / f"{args.name}.png"
-    fig.savefig(png, dpi=args.dpi, facecolor=args.background)
+    fig.savefig(png, dpi=args.dpi, facecolor=background)
     if args.svg:
-        fig.savefig(args.out / f"{args.name}.svg", format="svg", facecolor=args.background)
+        fig.savefig(args.out / f"{args.name}.svg", format="svg", facecolor=background)
     plt.close(fig)
 
     print(f"top: {cell.name}")

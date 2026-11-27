@@ -365,6 +365,14 @@ visuals-stack:
 			--crop $(VISUALS_STACK_CROP) --size $(VISUALS_STACK_SIZE) --layers $$layer --background none || exit 1; \
 	done
 
+# The print figures: monochrome vector, the whole die, for the documentation in the SSCCS corpus.
+# The per-layer union leaves the shapes unchanged and keeps each file small enough to embed.
+visuals-print:
+	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT)/print --name gds-die \
+		--crop die --size 2400 --layers 68,69,70,71,72 --palette mono --merge --frame --svg
+	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT)/print --name gds-routing \
+		--crop die --size 2400 --layers 68,69,70 --palette mono --merge --frame --svg
+
 check: sim sim-golden sim-pipe sim-anchor sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
 coverage: check coverage-summary

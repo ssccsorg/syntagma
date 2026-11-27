@@ -21,6 +21,8 @@ The target writes three images to `visuals/out/`: `silicon-detail.png`, a close 
 
 `make visuals-stack` writes one transparent plate per metal layer to `visuals/out/stack/`, the six files the hub's 3D view stacks. The plates are the whole square die, so they read as the die from above and separate into the metal levels when turned.
 
+`make visuals-print` writes the two figures the SSCCS documentation embeds: `gds-die.svg` and `gds-routing.svg`, the whole die in monochrome with the power straps and without them. They are vector, on white, and union per layer so each stays under a megabyte. Colour is the default for every other target; mono is only for print.
+
 Or directly:
 
 ```sh
@@ -33,7 +35,9 @@ uv run --python 3.11 --with gdstk --with matplotlib python visuals/render_gds.py
 
 ## What the image shows
 
-The renderer keeps the metal stack: `li1` and `met1` through `met5`, Sky130 layers 67 to 72. The FEOL and the boundary layers are left out. `LAYERS` in `render_gds.py` states the set and the palette; `--layers` narrows the set.
+The renderer keeps the metal stack: `li1` and `met1` through `met5`, Sky130 layers 67 to 72. The FEOL and the boundary layers are left out. `PALETTES` in `render_gds.py` states the two palettes and `--layers` narrows the set.
+
+`--palette color` draws for a dark screen and is the default; `--palette mono` runs pale to dark by layer on white, so the power grid (`met5`) is the darkest element in print. `--merge` unions the overlapping shapes of each layer before drawing, which keeps the image and cuts the vertex count by about four times on the dense layers.
 
 By default the frame is the placed logic cells, read from the sibling `6_final.def` with the fillers excluded and a 10 um margin. `--crop die` keeps the full die; `--crop x0,y0,x1,y1` sets an explicit window.
 
