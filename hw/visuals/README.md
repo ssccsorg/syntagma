@@ -17,7 +17,7 @@ From `hw/`:
 make visuals
 ```
 
-The target writes three images to `visuals/out/`: `silicon.png`, the die at its full frame; `silicon-detail.png`, a close crop of the dense centre; and `silicon-routing.png`, the die with the power straps withheld. Add `--svg` to a direct call for a vector copy.
+The target writes four images to `visuals/out/`: `silicon.png`, the die at its full frame; `silicon-detail.png`, a close crop of the dense centre; `silicon-routing.png`, the die with the power straps withheld; and `silicon-tile.png`, a 16:9 still for the corpus hub's grid. Add `--svg` to a direct call for a vector copy.
 
 Or directly:
 

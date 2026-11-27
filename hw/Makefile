@@ -339,8 +339,10 @@ report: synth
 
 VISUALS_GDS ?= openroad/results/tagma_demo/base/6_final.gds
 VISUALS_OUT ?= visuals/out
-# The die, a close crop of the dense centre, and the routing with the power straps withheld.
+# The die, a close crop of the dense centre, the routing without the power straps, and the 16:9 still the hub's grid
+# draws for the entry.
 VISUALS_DETAIL_CROP ?= 50,24,102,76
+VISUALS_TILE_CROP ?= 30,25,115,72.81
 VISUALS_RUN = uv run --python 3.11 --with gdstk --with matplotlib python visuals/render_gds.py
 
 visuals:
@@ -349,6 +351,8 @@ visuals:
 		--crop $(VISUALS_DETAIL_CROP) --size 1800
 	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-routing \
 		--layers 67,68,69,70
+	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-tile \
+		--crop $(VISUALS_TILE_CROP) --size 1600
 
 check: sim sim-golden sim-pipe sim-anchor sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
