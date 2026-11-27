@@ -42,6 +42,7 @@
 #   make synth          # Yosys generic, gate-level, and iCE40 reports
 #   make check          # every sim channel + golden-check + gatesim + equiv + synth + PnR
 #   make visuals        # render the Sky130 layout (visuals/out, gitignored)
+#   make visuals-stack  # the six metal layers as separate plates, for the 3D view
 #   make clean
 
 SIM   ?= verilator
@@ -124,7 +125,7 @@ ASC_LINT = -Wno-UNUSEDSIGNAL -Wno-TIMESCALEMOD -Wno-fatal
 $(OBJ_DIR):
 	mkdir -p $@
 
-.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-anchor anchor-fixtures sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage coverage-summary report visuals check clean
+.PHONY: all sim sim-golden sim-pipe sim-trace sim-trace-demo sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-anchor anchor-fixtures sim-pnr pnr board-verify golden-export golden-check gatesim gatesim-compose gatesim-dist equiv synth coverage coverage-summary report visuals visuals-stack check clean
 
 all: check
 
@@ -343,6 +344,9 @@ VISUALS_OUT ?= visuals/out
 # draws for the entry.
 VISUALS_DETAIL_CROP ?= 50,24,102,76
 VISUALS_TILE_CROP ?= 30,25,115,72.81
+# The plates of the 3D view: one square window, one file per metal layer, transparent so they stack.
+VISUALS_STACK_CROP ?= 42,22,102,82
+VISUALS_STACK_LAYERS ?= 67 68 69 70 71 72
 VISUALS_RUN = uv run --python 3.11 --with gdstk --with matplotlib python visuals/render_gds.py
 
 visuals:
@@ -353,6 +357,12 @@ visuals:
 		--layers 67,68,69,70
 	$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT) --name silicon-tile \
 		--crop $(VISUALS_TILE_CROP) --size 1600
+
+visuals-stack:
+	@for layer in $(VISUALS_STACK_LAYERS); do \
+		$(VISUALS_RUN) --gds $(VISUALS_GDS) --out $(VISUALS_OUT)/stack --name layer-$$layer \
+			--crop $(VISUALS_STACK_CROP) --size 1000 --layers $$layer --background none || exit 1; \
+	done
 
 check: sim sim-golden sim-pipe sim-anchor sim-store sim-compose sim-compose-golden sim-dist sim-dist-golden sim-demo sim-pnr golden-check gatesim gatesim-compose gatesim-dist equiv synth
 
