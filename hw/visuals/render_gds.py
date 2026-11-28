@@ -114,6 +114,57 @@ def parse_def_crop(path: Path, margin: float) -> tuple[float, float, float, floa
     return (min(xs) - margin, min(ys) - margin, max(xs) + margin, max(ys) + margin)
 
 
+def write_svg(
+    path: Path,
+    polygons: dict[int, list],
+    palette: dict[int, str],
+    bounds: tuple[float, float, float, float],
+    die: tuple[float, float, float, float],
+    background: str | None,
+    frame: str | None,
+) -> None:
+    """Write one path per layer.
+
+    matplotlib emits a definition and a use-site for every polygon, which costs far
+    more than the geometry. One path per layer, with the coordinate pairs of a subpath
+    written as implicit line segments, carries the same picture at a third of the size.
+    """
+    x0, y0, x1, y1 = bounds
+    long_edge = 1600.0
+    scale = long_edge / max(x1 - x0, y1 - y0)
+    width = (x1 - x0) * scale
+    height = (y1 - y0) * scale
+
+    def num(value: float) -> str:
+        return f"{value:.1f}".rstrip("0").rstrip(".")
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{num(width)}" height="{num(height)}" '
+        f'viewBox="0 0 {num(width)} {num(height)}">'
+    ]
+    if background:
+        parts.append(f'<rect width="{num(width)}" height="{num(height)}" fill="{background}"/>')
+    for layer in sorted(polygons):
+        commands = []
+        for points in polygons[layer]:
+            coords = " ".join(
+                f"{num((x - x0) * scale)},{num((y1 - y) * scale)}" for x, y in points
+            )
+            commands.append(f"M{coords}Z")
+        parts.append(f'<path fill="{palette[layer]}" d="{"".join(commands)}"/>')
+    if frame:
+        dx0, dy0, dx1, dy1 = die
+        inset = (x1 - x0) * 0.004
+        parts.append(
+            f'<rect x="{num((dx0 + inset - x0) * scale)}" y="{num((y1 - dy1 + inset) * scale)}" '
+            f'width="{num((dx1 - dx0 - 2 * inset) * scale)}" '
+            f'height="{num((dy1 - dy0 - 2 * inset) * scale)}" '
+            f'fill="none" stroke="{frame}" stroke-width="1"/>'
+        )
+    parts.append("</svg>")
+    path.write_text("\n".join(parts) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     args = parse_args()
     if not args.gds.is_file():
@@ -220,7 +271,18 @@ def main() -> int:
     png = args.out / f"{args.name}.png"
     fig.savefig(png, dpi=args.dpi, facecolor=background)
     if args.svg:
-        fig.savefig(args.out / f"{args.name}.svg", format="svg", facecolor=background)
+        frame_color = None
+        if args.frame:
+            frame_color = palette[max(layers)] if args.palette == "mono" else "#000000"
+        write_svg(
+            args.out / f"{args.name}.svg",
+            polygons,
+            palette,
+            (x0, y0, x1, y1),
+            (die_x0, die_y0, die_x1, die_y1),
+            background,
+            frame_color,
+        )
     plt.close(fig)
 
     print(f"top: {cell.name}")
